@@ -2477,6 +2477,10 @@ enum ENUM(ProofRule)
    */
   EVALUE(ARITH_TRANS_SINE_APPROX_BELOW_POS),
   /**
+   * Proof rule for univariate coverings.
+   */
+  EVALUE(ARITH_COVERINGS_UNIV),
+  /**
    * \verbatim embed:rst:leading-asterisk
    * **External -- LFSC**
    *

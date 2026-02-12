@@ -31,13 +31,21 @@ CoveringsProofRuleChecker::CoveringsProofRuleChecker(NodeManager* nm)
 {
 }
 
-void CoveringsProofRuleChecker::registerTo(CVC5_UNUSED ProofChecker* pc) {}
-
-Node CoveringsProofRuleChecker::checkInternal(
-    CVC5_UNUSED ProofRule id,
-    CVC5_UNUSED const std::vector<Node>& children,
-    CVC5_UNUSED const std::vector<Node>& args)
+void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
 {
+  pc->registerChecker(ProofRule::ARITH_COVERINGS_UNIV, this);
+}
+
+Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
+                                              const std::vector<Node>& children,
+                                              const std::vector<Node>& args)
+{
+  NodeManager* nm = nodeManager();
+  // TODO: Actually check the proof.
+  if (id == ProofRule::ARITH_COVERINGS_UNIV)
+  {
+    return nm->mkConst<bool>(false); 
+  }
   return Node::null();
 }
 

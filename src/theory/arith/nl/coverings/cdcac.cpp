@@ -15,6 +15,7 @@
  */
 
 #include "theory/arith/nl/coverings/cdcac.h"
+#include "theory/arith/nl/transcendental/transcendental_solver.h"
 
 #ifdef CVC5_POLY_IMP
 
@@ -103,11 +104,14 @@ void CDCAC::computeVariableOrdering()
   {
     lp_variable_order_push(vo, v.get_internal());
   }
+  d_isUniv = d_variableOrdering.size() == 1;
+  Trace("nl-is-univ") << "is univ: " << d_isUniv << " " << d_variableOrdering.size() << std::endl;
 }
 
 void CDCAC::retrieveInitialAssignment(NlModel& model, const Node& ran_variable)
 {
-  if (options().arith.nlCovLinearModel == options::nlCovLinearModelMode::NONE) return;
+  if (options().arith.nlCovLinearModel == options::nlCovLinearModelMode::NONE)
+    return;
   d_initialAssignment.clear();
   Trace("cdcac") << "Retrieving initial assignment:" << std::endl;
   for (const auto& var : d_variableOrdering)
@@ -140,7 +144,6 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     const poly::Polynomial& p = std::get<0>(c);
     poly::SignCondition sc = std::get<1>(c);
     const Node& n = std::get<2>(c);
-
     if (main_variable(p) != d_variableOrdering[cur_variable])
     {
       // Constraint is in another variable, ignore it.
@@ -150,10 +153,11 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     Trace("cdcac") << "Infeasible intervals for " << p << " " << sc
                    << " 0 over " << d_assignment << std::endl;
     std::vector<poly::Interval> intervals;
-    if (options().arith.nlCovLifting
-        == options::nlCovLiftingMode::LAZARD)
+    if (options().arith.nlCovLifting == options::nlCovLiftingMode::LAZARD)
     {
-      intervals = le.infeasibleRegions(p, sc);
+      std::vector<poly::Value> roots;
+      intervals = le.infeasibleRegions(p, sc, &roots);
+      d_proof->addUnivRoots(roots, p);
       if (TraceIsOn("cdcac"))
       {
         auto reference = poly::infeasible_regions(p, d_assignment, sc);
@@ -174,7 +178,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
       if (!is_minus_infinity(get_lower(i))) l = m;
       if (!is_plus_infinity(get_upper(i))) u = m;
       res.emplace_back(CACInterval{d_nextIntervalId++, i, l, u, m, d, {n}});
-      if (isProofEnabled())
+      if (isProofEnabled() && !d_isUniv)
       {
         d_proof->addDirect(
             d_constraints.varMapper()(d_variableOrdering[cur_variable]),
@@ -203,7 +207,8 @@ bool CDCAC::sampleOutsideWithInitial(const std::vector<CACInterval>& infeasible,
     {
       if (poly::contains(i.d_interval, suggested))
       {
-        if (options().arith.nlCovLinearModel == options::nlCovLinearModelMode::INITIAL)
+        if (options().arith.nlCovLinearModel
+            == options::nlCovLinearModelMode::INITIAL)
         {
           d_initialAssignment.clear();
         }
@@ -554,8 +559,10 @@ CACInterval CDCAC::intervalFromCharacterization(
   }
 }
 
-std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
-                                                  bool returnFirstInterval)
+std::vector<CACInterval> CDCAC::getUnsatCoverImpl(
+    std::vector<poly::Value>* roots,
+    std::size_t curVariable,
+    bool returnFirstInterval)
 {
   d_env.getResourceManager()->spendResource(Resource::ArithNlCoveringStep);
   Trace("cdcac") << "Looking for unsat cover for "
@@ -599,13 +606,13 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
       Trace("cdcac") << "Found full assignment: " << d_assignment << std::endl;
       return {};
     }
-    if (isProofEnabled())
+    if (isProofEnabled() && !d_isUniv)
     {
       d_proof->startScope();
       d_proof->startRecursive();
     }
     // Recurse to next variable
-    auto cov = getUnsatCoverImpl(curVariable + 1);
+    auto cov = getUnsatCoverImpl(roots, curVariable + 1);
     if (cov.empty())
     {
       // Found SAT!
@@ -624,7 +631,7 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
     Trace("cdcac") << "New interval: " << newInterval.d_interval << std::endl;
     newInterval.d_origins = collectConstraints(cov);
     intervals.emplace_back(newInterval);
-    if (isProofEnabled())
+    if (isProofEnabled() && !d_isUniv)
     {
       d_proof->endRecursive(newInterval.d_id);
       auto cell = d_proof->constructCell(
@@ -669,14 +676,15 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
   return intervals;
 }
 
-std::vector<CACInterval> CDCAC::getUnsatCover(bool returnFirstInterval)
+std::vector<CACInterval> CDCAC::getUnsatCover(std::vector<poly::Value>* roots,
+                                              bool returnFirstInterval)
 {
-  if (isProofEnabled())
+  if (isProofEnabled() && !d_isUniv)
   {
     d_proof->startRecursive();
   }
-  auto res = getUnsatCoverImpl(0, returnFirstInterval);
-  if (isProofEnabled())
+  auto res = getUnsatCoverImpl(0, returnFirstInterval, roots);
+  if (isProofEnabled() && !d_isUniv)
   {
     d_proof->endRecursive(0);
   }
@@ -687,7 +695,7 @@ void CDCAC::startNewProof()
 {
   if (isProofEnabled())
   {
-    d_proof->startNewProof();
+    d_proof->startNewProof(d_isUniv);
   }
 }
 
@@ -695,9 +703,16 @@ ProofGenerator* CDCAC::closeProof(const std::vector<Node>& assertions)
 {
   if (isProofEnabled())
   {
-    d_proof->endScope(assertions);
-    return d_proof->getProofGenerator();
+    if (!d_isUniv)
+    {
+      Unreachable();
+      d_proof->endScope(assertions);
+      return d_proof->getProofGenerator();
+    }
+    d_proof->closeUnivProof(assertions, d_constraints.varMapper());
+    return d_proof->getUnivProofGenerator();
   }
+
   return nullptr;
 }
 
@@ -774,7 +789,7 @@ void CDCAC::pruneRedundantIntervals(std::vector<CACInterval>& intervals)
       removeRedundantIntervals(intervals);
     }
   }
-  if (isProofEnabled())
+  if (isProofEnabled() && !d_isUniv)
   {
     d_proof->pruneChildren([&intervals](std::size_t id) {
       if (id == 0) return false;

@@ -132,7 +132,7 @@ class CDCAC : protected EnvObj
    * interval obtained from a recursive call. The result is not (necessarily) an
    * unsat cover, but merely a list of infeasible intervals.
    */
-  std::vector<CACInterval> getUnsatCoverImpl(std::size_t curVariable = 0,
+  std::vector<CACInterval> getUnsatCoverImpl(std::vector<poly::Value> *roots = nullptr, std::size_t curVariable = 0,
                                              bool returnFirstInterval = false);
 
   /**
@@ -149,7 +149,7 @@ class CDCAC : protected EnvObj
    * interval obtained from a recursive call. The result is not (necessarily) an
    * unsat cover, but merely a list of infeasible intervals.
    */
-  std::vector<CACInterval> getUnsatCover(bool returnFirstInterval = false);
+  std::vector<CACInterval> getUnsatCover(std::vector<poly::Value> *roots = nullptr, bool returnFirstInterval = false);
 
   void startNewProof();
   /**
@@ -240,6 +240,7 @@ class CDCAC : protected EnvObj
 
   /** The next interval id */
   size_t d_nextIntervalId = 1;
+  bool d_isUniv;
 };
 
 }  // namespace coverings

@@ -115,7 +115,8 @@ void CoveringsSolver::checkFull()
     return;
   }
   d_CAC.startNewProof();
-  auto covering = d_CAC.getUnsatCover();
+  std::vector<poly::Value> roots;
+  auto covering = d_CAC.getUnsatCover(&roots);
   if (covering.empty())
   {
     d_foundSatisfiability = true;
@@ -130,6 +131,21 @@ void CoveringsSolver::checkFull()
     Trace("nl-cov") << "UNSAT with MIS: " << mis << std::endl;
     d_eqsubs.postprocessConflict(mis);
     Trace("nl-cov") << "After postprocessing: " << mis << std::endl;
+//        CDProof cdp(d_env);
+//        std::shared_ptr<ProofNode> conflictProof = subTheory.second.getProof();
+//        Node notConflict = conflict.negate();
+//        Node falseNode = nm->mkConst<bool>(false);
+//        cdp.addProof(conflictProof);
+//        cdp.addStep(
+//            notConflict, ProofRule::SCOPE, {falseNode}, {conflict}, true);
+//        std::shared_ptr<ProofNode> pf = cdp.getProofFor(notConflict);
+//        d_proof.addProof(pf);
+//        std::ostringstream s;
+//        pf.get()->printDebug(s, true);
+//        Trace("ff::proof") << "Proof in theory_ff: " << s.str() << std::endl;
+//        TrustNode tn = TrustNode::mkTrustConflict(conflict, &d_proof);
+//        d_im.trustedConflict(tn, InferenceId::FF_LEMMA);
+    
     Node lem = nodeManager()->mkAnd(mis).notNode();
     ProofGenerator* proof = d_CAC.closeProof(mis);
     d_im.addPendingLemma(lem, InferenceId::ARITH_NL_COVERING_CONFLICT, proof);
@@ -148,7 +164,7 @@ void CoveringsSolver::checkPartial()
     Trace("nl-cov") << "No constraints. Return." << std::endl;
     return;
   }
-  auto covering = d_CAC.getUnsatCover(true);
+  auto covering = d_CAC.getUnsatCover(nullptr, true);
   if (covering.empty())
   {
     d_foundSatisfiability = true;

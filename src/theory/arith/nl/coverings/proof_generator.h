@@ -26,6 +26,7 @@
 
 #include "expr/node.h"
 #include "proof/lazy_tree_proof_generator.h"
+#include "proof/proof.h"
 #include "proof/proof_set.h"
 #include "smt/env_obj.h"
 #include "theory/arith/nl/coverings/cdcac_utils.h"
@@ -33,6 +34,7 @@
 namespace cvc5::internal {
 
 class ProofGenerator;
+class CDProof;
 
 namespace theory {
 namespace arith {
@@ -59,7 +61,7 @@ class CoveringsProofGenerator : protected EnvObj
   CoveringsProofGenerator(Env& env, context::Context* ctx);
 
   /** Start a new proof in this proof generator */
-  void startNewProof();
+  void startNewProof(bool isUniv);
   /** Start a new recursive call */
   void startRecursive();
   /** Finish the current recursive call */
@@ -70,6 +72,7 @@ class CoveringsProofGenerator : protected EnvObj
   void endScope(const std::vector<Node>& args);
   /** Return the current proof generator */
   ProofGenerator* getProofGenerator() const;
+  CDProof* getUnivProofGenerator() const;
 
   /**
    * Calls LazyTreeProofGenerator::pruneChildren(f), but decorates the
@@ -89,7 +92,10 @@ class CoveringsProofGenerator : protected EnvObj
       return f(tpn.d_objectId);
     });
   }
-
+  void setupOnlyUniv();
+  void addUnivRoots(const std::vector<poly::Value>& roots,
+                    poly::Polynomial polys);
+  void closeUnivProof(std::vector<Node> constraints, VariableMapper &vm);
   /**
    * Add a direct interval conflict as generated in getUnsatIntervals().
    * Its meaning is:
@@ -139,13 +145,19 @@ class CoveringsProofGenerator : protected EnvObj
   Node d_false;
   /** Constant zero */
   Node d_zero;
+
+  CDProof* d_cdp;
+  bool d_onlyUniv;
+  std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
+
 };
 
 /**
  * Prints the underlying LazyTreeProofGenerator. Please check the documentation
  * of std::ostream& operator<<(std::ostream&, const LazyTreeProofGenerator&)
  */
-std::ostream& operator<<(std::ostream& os, const CoveringsProofGenerator& proof);
+std::ostream& operator<<(std::ostream& os,
+                         const CoveringsProofGenerator& proof);
 
 }  // namespace coverings
 }  // namespace nl

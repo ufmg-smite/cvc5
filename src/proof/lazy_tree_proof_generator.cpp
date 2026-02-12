@@ -79,6 +79,7 @@ void LazyTreeProofGenerator::setCurrentTrust(size_t objectId,
   newArgs.insert(newArgs.end(), args.begin(), args.end());
   setCurrent(objectId, ProofRule::TRUST, premise, newArgs, proven);
 }
+
 std::shared_ptr<ProofNode> LazyTreeProofGenerator::getProof() const
 {
   // Check cache
