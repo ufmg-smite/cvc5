@@ -772,7 +772,7 @@ std::vector<poly::Interval> LazardEvaluation::infeasibleRegions(
     const poly::Polynomial& q, poly::SignCondition sc, std::vector<poly::Value> *rootsEmp) const
 {
   std::vector<poly::Value> roots = isolateRealRoots(q);
-  if (rootsEmp != nullptr) rootsEmp->insert(rootsEmp->end(), roots.begin(), roots.end());
+  if (rootsEmp) rootsEmp->insert(rootsEmp->end(), roots.begin(), roots.end());
   // generate all intervals
   // (-infty,root_0), [root_0], (root_0,root_1), ..., [root_m], (root_m,+infty)
   // if q is true over d_assignment x interval (represented by a sample)

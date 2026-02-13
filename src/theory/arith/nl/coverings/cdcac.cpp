@@ -15,6 +15,7 @@
  */
 
 #include "theory/arith/nl/coverings/cdcac.h"
+
 #include "theory/arith/nl/transcendental/transcendental_solver.h"
 
 #ifdef CVC5_POLY_IMP
@@ -105,7 +106,8 @@ void CDCAC::computeVariableOrdering()
     lp_variable_order_push(vo, v.get_internal());
   }
   d_isUniv = d_variableOrdering.size() == 1;
-  Trace("nl-is-univ") << "is univ: " << d_isUniv << " " << d_variableOrdering.size() << std::endl;
+  Trace("nl-is-univ") << "is univ: " << d_isUniv << " "
+                      << d_variableOrdering.size() << std::endl;
 }
 
 void CDCAC::retrieveInitialAssignment(NlModel& model, const Node& ran_variable)
@@ -157,7 +159,10 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     {
       std::vector<poly::Value> roots;
       intervals = le.infeasibleRegions(p, sc, &roots);
-      d_proof->addUnivRoots(roots, p);
+      if (isProofEnabled())
+      {
+        d_proof->addUnivRoots(roots, p);
+      }
       if (TraceIsOn("cdcac"))
       {
         auto reference = poly::infeasible_regions(p, d_assignment, sc);
@@ -559,10 +564,8 @@ CACInterval CDCAC::intervalFromCharacterization(
   }
 }
 
-std::vector<CACInterval> CDCAC::getUnsatCoverImpl(
-    std::vector<poly::Value>* roots,
-    std::size_t curVariable,
-    bool returnFirstInterval)
+std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
+                                                  bool returnFirstInterval)
 {
   d_env.getResourceManager()->spendResource(Resource::ArithNlCoveringStep);
   Trace("cdcac") << "Looking for unsat cover for "
@@ -612,7 +615,7 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(
       d_proof->startRecursive();
     }
     // Recurse to next variable
-    auto cov = getUnsatCoverImpl(roots, curVariable + 1);
+    auto cov = getUnsatCoverImpl(curVariable + 1);
     if (cov.empty())
     {
       // Found SAT!
@@ -676,14 +679,13 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(
   return intervals;
 }
 
-std::vector<CACInterval> CDCAC::getUnsatCover(std::vector<poly::Value>* roots,
-                                              bool returnFirstInterval)
+std::vector<CACInterval> CDCAC::getUnsatCover(bool returnFirstInterval)
 {
   if (isProofEnabled() && !d_isUniv)
   {
     d_proof->startRecursive();
   }
-  auto res = getUnsatCoverImpl(0, returnFirstInterval, roots);
+  auto res = getUnsatCoverImpl(0, returnFirstInterval);
   if (isProofEnabled() && !d_isUniv)
   {
     d_proof->endRecursive(0);
@@ -705,7 +707,6 @@ ProofGenerator* CDCAC::closeProof(const std::vector<Node>& assertions)
   {
     if (!d_isUniv)
     {
-      Unreachable();
       d_proof->endScope(assertions);
       return d_proof->getProofGenerator();
     }

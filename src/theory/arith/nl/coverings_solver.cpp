@@ -115,8 +115,7 @@ void CoveringsSolver::checkFull()
     return;
   }
   d_CAC.startNewProof();
-  std::vector<poly::Value> roots;
-  auto covering = d_CAC.getUnsatCover(&roots);
+  auto covering = d_CAC.getUnsatCover();
   if (covering.empty())
   {
     d_foundSatisfiability = true;
@@ -164,7 +163,7 @@ void CoveringsSolver::checkPartial()
     Trace("nl-cov") << "No constraints. Return." << std::endl;
     return;
   }
-  auto covering = d_CAC.getUnsatCover(nullptr, true);
+  auto covering = d_CAC.getUnsatCover(true);
   if (covering.empty())
   {
     d_foundSatisfiability = true;
