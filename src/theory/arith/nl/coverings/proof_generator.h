@@ -147,6 +147,7 @@ class CoveringsProofGenerator : protected EnvObj
   Node d_zero;
 
   CDProof* d_cdp;
+  context::Context *d_ctx;
   bool d_onlyUniv;
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
 

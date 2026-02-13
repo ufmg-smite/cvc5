@@ -97,7 +97,8 @@ CoveringsProofGenerator::CoveringsProofGenerator(Env& env,
     : EnvObj(env),
       d_proofs(env, ctx),
       d_current(nullptr),
-      d_cdp(new CDProof(env, ctx))
+      d_cdp(new CDProof(env, ctx)),
+      d_ctx(ctx)
 {
   d_false = nodeManager()->mkConst(false);
   d_zero = nodeManager()->mkConstReal(Rational(0));
@@ -108,7 +109,9 @@ void CoveringsProofGenerator::startNewProof(bool isUniv)
   if (!isUniv)
   {
     d_current = d_proofs.allocateProof();
+    return;
   }
+  d_cdp = new CDProof(d_env, d_ctx); 
 }
 void CoveringsProofGenerator::startRecursive() { d_current->openChild(); }
 void CoveringsProofGenerator::endRecursive(size_t intervalId)
@@ -162,7 +165,7 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
   Node mis = constraints[0];
   if (constraints.size() > 1)
   {
-    mis = nodeManager()->mkAnd( constraints);
+    mis = nodeManager()->mkAnd(constraints);
   }
   d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, constraints, args);
   d_cdp->addStep(mis.notNode(), ProofRule::SCOPE, {d_false}, constraints);
