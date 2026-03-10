@@ -1098,6 +1098,16 @@ enum ENUM(Kind)
    */
   EVALUE(CONST_INTEGER),
   /**
+   * Real Algebraic Number Constant
+   * TODO: Add better documentation
+   */
+  EVALUE (REAL_ALGEBRAIC_NUMBER),
+  /**
+   * Real Algebraic Number Constant
+   * TODO: Add better documentation
+   */ 
+  EVALUE (REAL_ALGEBRAIC_NUMBER_OP),
+  /**
    * Less than, chainable.
    *
    * - Arity: ``n > 1``

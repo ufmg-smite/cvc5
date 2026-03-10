@@ -1218,7 +1218,8 @@ std::string Smt2Printer::smtKindString(Kind k)
     case Kind::TO_REAL: return "to_real";
     case Kind::POW: return "^";
     case Kind::DIVISIBLE: return "divisible";
-
+    case Kind::REAL_ALGEBRAIC_NUMBER: return "@REAL_ALGEBRAIC_NUMBER";
+    case Kind::REAL_ALGEBRAIC_NUMBER_OP: return "@REAL_ALGEBRAIC_NUMBER_OP";
     // arrays theory
     case Kind::SELECT: return "select";
     case Kind::STORE: return "store";
