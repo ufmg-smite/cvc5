@@ -1916,7 +1916,12 @@ class CVC5_EXPORT Term
    * @return The upper bound.
    */
   Term getRealAlgebraicNumberUpperBound() const;
-
+  /**
+   * Get a real algebraic number string representation.
+   * @note Asserts isRealAlgebraicNumber().
+   * @return The string representation.
+   */ 
+  std::string getRealAlgebraicNumberValue() const;
   /**
    * Is this term a skolem?
    * @warning This function is experimental and may change in future versions.

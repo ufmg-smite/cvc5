@@ -3735,6 +3735,27 @@ Term Term::getRealAlgebraicNumberUpperBound() const
   CVC5_API_TRY_CATCH_END;
 }
 
+std::string Term::getRealAlgebraicNumberValue() const
+{
+  CVC5_API_TRY_CATCH_BEGIN;
+  CVC5_API_CHECK_NOT_NULL;
+  CVC5_API_ARG_CHECK_EXPECTED(
+      d_node->getKind() == internal::Kind::REAL_ALGEBRAIC_NUMBER, *d_node)
+      << "Term to be a real algebraic number when calling "
+         "getRealAlgebraicNumberValue()";
+#ifndef CVC5_POLY_IMP
+  throw CVC5ApiException(
+      "expected libpoly enabled build when calling "
+      "getRealAlgebraicNumberValue()");
+#endif
+  //////// all checks before this line
+  const internal::RealAlgebraicNumber& ran =
+      d_node->getOperator().getConst<internal::RealAlgebraicNumber>(); 
+  return ran.toString();
+  ////////
+  CVC5_API_TRY_CATCH_END;
+}
+
 bool Term::isSkolem() const
 {
   CVC5_API_TRY_CATCH_BEGIN;
