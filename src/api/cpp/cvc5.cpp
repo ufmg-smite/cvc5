@@ -3749,9 +3749,13 @@ std::string Term::getRealAlgebraicNumberValue() const
       "getRealAlgebraicNumberValue()");
 #endif
   //////// all checks before this line
+#ifdef CVC5_POLY_IMP
   const internal::RealAlgebraicNumber& ran =
       d_node->getOperator().getConst<internal::RealAlgebraicNumber>(); 
   return ran.toString();
+#else
+  return "";
+#endif
   ////////
   CVC5_API_TRY_CATCH_END;
 }
