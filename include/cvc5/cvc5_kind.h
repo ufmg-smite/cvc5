@@ -1101,12 +1101,12 @@ enum ENUM(Kind)
    * Real Algebraic Number Constant
    * TODO: Add better documentation
    */
-  EVALUE (REAL_ALGEBRAIC_NUMBER),
+  EVALUE(REAL_ALGEBRAIC_NUMBER),
   /**
    * Real Algebraic Number Constant
    * TODO: Add better documentation
    */ 
-  EVALUE (REAL_ALGEBRAIC_NUMBER_OP),
+  EVALUE(REAL_ALGEBRAIC_NUMBER_OP),
   /**
    * Less than, chainable.
    *
