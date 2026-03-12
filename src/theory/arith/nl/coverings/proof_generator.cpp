@@ -154,11 +154,11 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
                                              VariableMapper& vm)
 {
   Assert(vm.mVarCVCpoly.size() == 1 && vm.mVarpolyCVC.size() == 1);
-  std::vector<Node> args;
+  Node var = vm.mVarCVCpoly.begin()->first;
+  std::vector<Node> args{var};
   for (const auto& pr : d_polysRoots)
   {
     Node poly = as_cvc_polynomial(nodeManager(), pr.first, vm);
-    Node var = vm.mVarCVCpoly.begin()->first;
     Node val = value_to_node(pr.second, var);
     args.push_back(nodeManager()->mkNode(Kind::SEXPR, poly, val));
   }
