@@ -36,7 +36,7 @@ namespace pb {
 
 /** Fallback method for unimplemented atom strategies */
 template <class T>
-T UndefinedAtomPbStrategy(T atom, TPseudoBooleanBlaster<T>* pbb)
+T UndefinedAtomPbStrategy(T atom, CVC5_UNUSED TPseudoBooleanBlaster<T>* pbb)
 {
   Trace("bv-pb") << "Undefined PB-blasting strategy for atom of kind: "
                  << atom.getKind() << "\n";
@@ -383,7 +383,7 @@ T NegatedSgePb(T atom, TPseudoBooleanBlaster<T>* pbb)
  */
 
 template <class T>
-T UndefinedTermPbStrategy(T node, TPseudoBooleanBlaster<T>* pbb)
+T UndefinedTermPbStrategy(T node, CVC5_UNUSED TPseudoBooleanBlaster<T>* pbb)
 {
   Trace("bv-pb") << "Undefined PB-blasting strategy for term of kind: "
                  << node.getKind() << "\n";

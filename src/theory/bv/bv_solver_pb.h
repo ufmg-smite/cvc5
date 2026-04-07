@@ -56,7 +56,7 @@ class BVSolverPseudoBoolean : public BVSolver
    * Not used by this decision procedure. Why is it an abstract function if
    * BVSolverBitblast does not use it as well?
    */
-  void preRegisterTerm(TNode) override {}  // same as BVSolverBitblast
+  void preRegisterTerm(CVC5_UNUSED TNode n) override {}  // same as BVSolverBitblast
 
   /** TODO(alanctprado): document */
   void postCheck(Theory::Effort level) override;

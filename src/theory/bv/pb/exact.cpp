@@ -118,7 +118,7 @@ PbSolveState ExactSolver::solve()
   }
 }
 
-ExactSolver::Statistics::Statistics(StatisticsRegistry& registry, const std::string& prefix)
+ExactSolver::Statistics::Statistics(CVC5_UNUSED StatisticsRegistry& registry, CVC5_UNUSED const std::string& prefix)
 {}
 
 }  // namespace pb

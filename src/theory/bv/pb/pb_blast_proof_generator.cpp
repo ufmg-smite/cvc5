@@ -23,7 +23,7 @@ namespace pb{
 PbBlastProofGenerator::PbBlastProofGenerator(Env& env) : EnvObj(env)
 {}
 
-std::shared_ptr<ProofNode> PbBlastProofGenerator::getProofFor(Node eq)
+std::shared_ptr<ProofNode> PbBlastProofGenerator::getProofFor(CVC5_UNUSED Node eq)
 {
     return nullptr;
 }

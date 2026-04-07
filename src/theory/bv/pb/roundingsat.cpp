@@ -261,7 +261,7 @@ PbValue RoundingSatSolver::modelValue(const VariableId variable)
   return d_assignmentMap[variable];
 }
 
-RoundingSatSolver::Statistics::Statistics(StatisticsRegistry& registry, const std::string& prefix)
+RoundingSatSolver::Statistics::Statistics(CVC5_UNUSED StatisticsRegistry& registry, CVC5_UNUSED const std::string& prefix)
 {}
 
 }  // namespace pb

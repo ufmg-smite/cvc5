@@ -48,7 +48,7 @@ BVSolverPseudoBoolean::BVSolverPseudoBoolean(Env& env,
 }
 
 /** TODO(alanctprado): Used in BVSolverBitblast. Not sure we need it. */
-bool BVSolverPseudoBoolean::needsEqualityEngine(EeSetupInfo& esi)
+bool BVSolverPseudoBoolean::needsEqualityEngine(CVC5_UNUSED EeSetupInfo& esi)
 {
   // Same as BVSolverBitblast::needsEqualityEngine
   return logicInfo().isSharingEnabled() || options().bv.bvEqEngine;
@@ -101,7 +101,7 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
 }
 
 bool BVSolverPseudoBoolean::preNotifyFact(
-    TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal)
+    CVC5_UNUSED TNode atom, CVC5_UNUSED bool pol, TNode fact, CVC5_UNUSED bool isPrereg, CVC5_UNUSED bool isInternal)
 {
   Trace("bv-pb") << "BVSolverPseudoBoolean::preNotifyFact: " << fact << "\n";
   /**

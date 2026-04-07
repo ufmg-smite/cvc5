@@ -65,32 +65,32 @@ Node PbProofRules::parseLine(const std::string& line)
   return it->second(iss);
 }
 
-Node PbProofRules::assumption(std::istringstream& iss)
+Node PbProofRules::assumption(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::constraintEquals(std::istringstream& iss)
+Node PbProofRules::constraintEquals(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::constraintImplies(std::istringstream& iss)
+Node PbProofRules::constraintImplies(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::constraintImpliesGetImplied(std::istringstream& iss)
+Node PbProofRules::constraintImpliesGetImplied(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::deleteConstraints(std::istringstream& iss)
+Node PbProofRules::deleteConstraints(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::deleteConstraints2(std::istringstream& iss)
+Node PbProofRules::deleteConstraints2(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
@@ -126,22 +126,22 @@ Node PbProofRules::loadAxiom(std::istringstream& iss)
   return nm->mkNode(Kind::PB_PROOF_LOAD_AXIOM, axiom);
 }
 
-Node PbProofRules::loadFormula(std::istringstream& iss)
+Node PbProofRules::loadFormula(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::markCore(std::istringstream& iss)
+Node PbProofRules::markCore(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::objectiveBound(std::istringstream& iss)
+Node PbProofRules::objectiveBound(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::originalSolution(std::istringstream& iss)
+Node PbProofRules::originalSolution(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
@@ -162,17 +162,17 @@ Node PbProofRules::reverseUnitPropagation(std::istringstream& iss)
   return nm->mkNode(Kind::PB_PROOF_REVERSE_UNIT_PROPAGATION, rup_constraint);
 }
 
-Node PbProofRules::setLevel(std::istringstream& iss)
+Node PbProofRules::setLevel(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::solution(std::istringstream& iss)
+Node PbProofRules::solution(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
 
-Node PbProofRules::wipeLevel(std::istringstream& iss)
+Node PbProofRules::wipeLevel(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }

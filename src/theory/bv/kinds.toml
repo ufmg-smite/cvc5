@@ -399,6 +399,31 @@ children = 1
 comment  = "formula to be treated as a bv atom via eager bit-blasting (internal-only symbol)"
 typerule = "::cvc5::internal::theory::bv::BitVectorEagerAtomTypeRule"
 
+## pb-blasting proof kinds
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_CONTRADICTION"
+children = 1
+comment  = "TODO(alanctprado)"
+
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_LOAD_AXIOM"
+children = 1
+comment  = "TODO(alanctprado)"
+
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_REVERSE_POLISH_NOTATION"
+children = 1
+comment  = "TODO(alanctprado)"
+
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_REVERSE_UNIT_PROPAGATION"
+children = 1
+comment  = "TODO(alanctprado)"
+
 ### parameterized operator kinds ----------------------------------------------
 
 [[kinds]]
