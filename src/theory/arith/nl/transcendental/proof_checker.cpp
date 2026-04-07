@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Gereon Kremer, Andrew Reynolds, Hans-Joerg Schurr
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -82,9 +79,9 @@ Node TranscendentalProofRuleChecker::checkInternal(
     const std::vector<Node>& args)
 {
   NodeManager* nm = nodeManager();
-  Node zero = nm->mkConstInt(Rational(0));
-  Node one = nm->mkConstInt(Rational(1));
-  Node mone = nm->mkConstInt(Rational(-1));
+  Node zero = nm->mkConstReal(Rational(0));
+  Node one = nm->mkConstReal(Rational(1));
+  Node mone = nm->mkConstReal(Rational(-1));
   Node pi = nm->mkNullaryOperator(nm->realType(), Kind::PI);
   Node mpi = nm->mkNode(Kind::MULT, mone, pi);
   Trace("nl-trans-checker") << "Checking " << id << std::endl;
@@ -153,6 +150,11 @@ Node TranscendentalProofRuleChecker::checkInternal(
     Node t = args[1];
     Node l = args[2];
     Node u = args[3];
+    if (l.getConst<Rational>().sgn() < 0
+        || l.getConst<Rational>() > u.getConst<Rational>())
+    {
+      return Node::null();
+    }
     TaylorGenerator tg(nm);
     TaylorGenerator::ApproximationBounds bounds;
     tg.getPolynomialApproximationBounds(Kind::EXPONENTIAL, d / 2, bounds);
@@ -179,6 +181,11 @@ Node TranscendentalProofRuleChecker::checkInternal(
     Node t = args[1];
     Node l = args[2];
     Node u = args[3];
+    if (u.getConst<Rational>().sgn() > 0
+        || l.getConst<Rational>() > u.getConst<Rational>())
+    {
+      return Node::null();
+    }
     TaylorGenerator tg(nm);
     TaylorGenerator::ApproximationBounds bounds;
     tg.getPolynomialApproximationBounds(Kind::EXPONENTIAL, d / 2, bounds);

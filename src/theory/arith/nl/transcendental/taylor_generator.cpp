@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Gereon Kremer, Andrew Reynolds, Aina Niemetz
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -110,9 +107,9 @@ void TaylorGenerator::getPolynomialApproximationBounds(
       pbounds.d_lower = taylor_sum;
       pbounds.d_upperNeg = d_nm->mkNode(Kind::ADD, taylor_sum, ru);
       pbounds.d_upperPos = d_nm->mkNode(
-          Kind::MULT,
+          Kind::DIVISION,
           taylor_sum,
-          d_nm->mkNode(Kind::ADD, d_nm->mkConstReal(Rational(1)), ru));
+          d_nm->mkNode(Kind::SUB, d_nm->mkConstReal(Rational(1)), ru));
     }
     else
     {

@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Aina Niemetz, Liana Hadarean, Clark Barrett
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -1201,7 +1198,6 @@ inline Node RewriteRule<XorSimplify>::apply(TNode node)
 
   std::unordered_map<TNode, Count>::const_iterator it = subterms.begin();
   unsigned true_count = 0;
-  bool seen_false = false;
   for (; it != subterms.end(); ++it)
   {
     unsigned pos = it->second.pos;  // number of positive occurances
@@ -1210,7 +1206,6 @@ inline Node RewriteRule<XorSimplify>::apply(TNode node)
     // remove duplicates using the following rules
     // a xor a ==> false
     // false xor false ==> false
-    seen_false = seen_false ? seen_false : (pos > 1 || neg > 1);
     // check what did not reduce
     if (pos % 2 && neg % 2)
     {
@@ -1240,10 +1235,6 @@ inline Node RewriteRule<XorSimplify>::apply(TNode node)
     //                       ==> false (even)
     xorConst.push_back(true_count % 2 ? true_bv : false_bv);
   }
-  if (seen_false)
-  {
-    xorConst.push_back(false_bv);
-  }
   if (const_set)
   {
     xorConst.push_back(constant);
@@ -1258,8 +1249,10 @@ inline Node RewriteRule<XorSimplify>::apply(TNode node)
     }
     children.push_back(utils::mkConst(nm, result));
   }
-
-  Assert(children.size());
+  if (children.empty())
+  {
+    return utils::mkConst(nm, false_bv);
+  }
 
   return utils::mkSortedNode(Kind::BITVECTOR_XOR, children);
 }

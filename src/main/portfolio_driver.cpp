@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Gereon Kremer, Andrew Reynolds, Andres Noetzli
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -48,16 +45,9 @@ bool ExecutionContext::solveContinuous(parser::InputParser* parser,
                                        bool stopAtCheckSat)
 {
   Command cmd;
-  bool interrupted = false;
   bool status = true;
   while (status)
   {
-    if (interrupted)
-    {
-      solver().getDriverOptions().out() << CommandInterrupted();
-      d_executor->reset();
-      break;
-    }
     cmd = parser->nextCommand();
     if (cmd.isNull())
     {
@@ -73,9 +63,10 @@ bool ExecutionContext::solveContinuous(parser::InputParser* parser,
       }
     }
     status = d_executor->doCommand(&cmd);
-    if (cc->interrupted() && status == 0)
+    if (!status && cc->interrupted())
     {
-      interrupted = true;
+      solver().getDriverOptions().out() << CommandInterrupted();
+      d_executor->reset();
       break;
     }
     if (dynamic_cast<QuitCommand*>(cc) != nullptr)
@@ -98,16 +89,9 @@ bool ExecutionContext::solveContinuous(parser::InputParser* parser,
 bool ExecutionContext::continueAfterSolving(parser::InputParser* parser)
 {
   Command cmd;
-  bool interrupted = false;
   bool status = true;
   while (status)
   {
-    if (interrupted)
-    {
-      solver().getDriverOptions().out() << CommandInterrupted();
-      d_executor->reset();
-      break;
-    }
     cmd = parser->nextCommand();
     if (cmd.isNull())
     {
@@ -154,9 +138,10 @@ bool ExecutionContext::continueAfterSolving(parser::InputParser* parser)
     {
       status = d_executor->doCommand(&cmd);
     }
-    if (cc->interrupted() && status == 0)
+    if (!status && cc->interrupted())
     {
-      interrupted = true;
+      solver().getDriverOptions().out() << CommandInterrupted();
+      d_executor->reset();
       break;
     }
     if (dynamic_cast<QuitCommand*>(cc) != nullptr)
@@ -211,22 +196,15 @@ std::vector<Command> ExecutionContext::parseCommands(
 
 bool ExecutionContext::solveCommands(std::vector<Command>& cmds)
 {
-  bool interrupted = false;
   bool status = true;
   for (Command& cmd : cmds)
   {
-    if (interrupted)
+    status = d_executor->doCommand(&cmd);
+    Cmd* cc = cmd.d_cmd.get();
+    if (!status && cc->interrupted())
     {
       solver().getDriverOptions().out() << CommandInterrupted();
       d_executor->reset();
-      break;
-    }
-
-    status = d_executor->doCommand(&cmd);
-    Cmd* cc = cmd.d_cmd.get();
-    if (cc->interrupted() && status == 0)
-    {
-      interrupted = true;
       break;
     }
 
@@ -316,9 +294,11 @@ class Pipe
 
 void printPortfolioConfig(Solver& solver, PortfolioConfig& config)
 {
-  if (solver.isOutputOn("portfolio"))
+  bool dry_run = solver.getOption("portfolio-dry-run") == "true";
+  if (dry_run || solver.isOutputOn("portfolio"))
   {
-    std::ostream& out = solver.getOutput("portfolio");
+    std::ostream& out = (dry_run) ? solver.getDriverOptions().out()
+                                  : solver.getOutput("portfolio");
     out << "(portfolio \"" << config.toOptionString() << "\"";
     out << " :timeout " << config.d_timeout;
     out << ")" << std::endl;
@@ -349,12 +329,21 @@ class PortfolioProcessPool
    */
   struct Job
   {
+    Job(PortfolioConfig config)
+        : d_config(config),
+          d_worker(-1),
+          d_timeout(-1),
+          d_errPipe(),
+          d_outPipe(),
+          d_state(JobState::PENDING)
+    {
+    }
     PortfolioConfig d_config;
-    pid_t d_worker = -1;
-    pid_t d_timeout = -1;
+    pid_t d_worker;
+    pid_t d_timeout;
     Pipe d_errPipe;
     Pipe d_outPipe;
-    JobState d_state = JobState::PENDING;
+    JobState d_state;
   };
 
  public:
@@ -501,17 +490,15 @@ class PortfolioProcessPool
       if (child != -1 && job.d_worker != child) continue;
 
       int wstatus = 0;
-      pid_t res = 0;
       if (child == -1)
       {
-        res = waitpid(job.d_worker, &wstatus, WNOHANG);
+        pid_t res = waitpid(job.d_worker, &wstatus, WNOHANG);
         // has not terminated yet
         if (res == 0) continue;
         if (res == -1) continue;
       }
       else
       {
-        res = child;
         wstatus = status;
       }
       // mark as analyzed
@@ -581,6 +568,8 @@ bool PortfolioDriver::solve(std::unique_ptr<CommandExecutor>& executor)
     return ctx.solveContinuous(d_parser, false);
   }
 
+  bool dry_run = solver.getOption("portfolio-dry-run") == "true";
+
   bool incremental_solving = solver.getOption("incremental") == "true";
   PortfolioStrategy strategy = getStrategy(incremental_solving, *ctx.d_logic);
   Assert(!strategy.d_strategies.empty()) << "The portfolio strategy should never be empty.";
@@ -588,6 +577,7 @@ bool PortfolioDriver::solve(std::unique_ptr<CommandExecutor>& executor)
   {
     PortfolioConfig& config = strategy.d_strategies.front();
     printPortfolioConfig(ctx.solver(), config);
+    if (dry_run) return true;
     config.applyOptions(solver);
     return ctx.solveContinuous(d_parser, false);
   }
@@ -596,6 +586,15 @@ bool PortfolioDriver::solve(std::unique_ptr<CommandExecutor>& executor)
   if (total_timeout == 0)
   {
     total_timeout = 1'200'000; // miliseconds
+  }
+
+  if (dry_run)
+  {
+    for (PortfolioConfig& config : strategy.d_strategies)
+    {
+      printPortfolioConfig(ctx.solver(), config);
+    }
+    return true;
   }
 
   bool uninterrupted = ctx.solveContinuous(d_parser, false, true);
@@ -716,16 +715,17 @@ PortfolioStrategy PortfolioDriver::getNonIncrementalStrategy(
         .set("replay-reject-cut", "512")
         .set("unconstrained-simp")
         .set("use-soi");
-    s.add()
+    s.add(0.583333333)
         .unset("restrict-pivots")
         .set("use-soi")
         .set("new-prop")
         .set("unconstrained-simp");
+    s.add();
   }
   else if (isOneOf(logic, "QF_LIA"))
   {
     // same as QF_LRA but add --pb-rewrites
-    s.add()
+    s.add(0.95)
         .set("miplib-trick")
         .set("miplib-trick-subs", "4")
         .set("use-approx")
@@ -738,6 +738,7 @@ PortfolioStrategy PortfolioDriver::getNonIncrementalStrategy(
         .set("pb-rewrites")
         .set("ite-simp")
         .set("simp-ite-compress");
+    s.add();
   }
   else if (isOneOf(logic, "QF_NIA"))
   {
@@ -885,7 +886,6 @@ PortfolioStrategy PortfolioDriver::getNonIncrementalStrategy(
   }
   else if (isOneOf(logic, "ABV", "BV"))
   {
-    s.add(0.066666667).set("enum-inst");
     s.add(0.066666667).set("sygus-inst");
     s.add(0.066666667).set("mbqi").unset("cegqi").unset("sygus-inst");
     s.add(0.25)
@@ -900,7 +900,8 @@ PortfolioStrategy PortfolioDriver::getNonIncrementalStrategy(
     s.add(0.025)
         .set("enum-inst")
         .set("cegqi-bv-ineq", "eq-slack");
-    s.add().set("enum-inst").unset("cegqi-innermost").set("global-negate");
+    s.add(0.066666667).set("enum-inst").unset("cegqi-innermost").set("global-negate");
+    s.add().set("enum-inst");
   }
   else if (isOneOf(logic, "ABVFP", "ABVFPLRA", "BVFP", "FP", "NIA", "NRA", "BVFPLRA"))
   {
@@ -933,19 +934,20 @@ PortfolioStrategy PortfolioDriver::getNonIncrementalStrategy(
   }
   else if (isOneOf(logic, "QF_ABV"))
   {
-    s.add(0.041666667)
+    s.add(0.41666667)
         .set("ite-simp")
         .set("simp-with-care")
         .set("repeat-simp");
-    s.add(0.416666667);
-    s.add()
-        .set("ite-simp")
-        .set("simp-with-care")
-        .set("repeat-simp");
+    s.add();
   }
-  else if (isOneOf(logic, "QF_BV", "QF_UFBV"))
+  else if (isOneOf(logic, "QF_BV"))
   {
     s.add().set("bitblast", "eager").set("bv-assert-input");
+  }
+  else if (isOneOf(logic, "QF_UFBV"))
+  {
+    s.add(0.75).set("bitblast", "eager").set("bv-assert-input");
+    s.add();
   }
   else if (isOneOf(logic, "QF_AUFLIA"))
   {

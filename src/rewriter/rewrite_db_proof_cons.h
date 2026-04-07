@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Andrew Reynolds, Abdalrhman Mohamed
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -298,15 +295,6 @@ class RewriteDbProofCons : protected EnvObj
                          const std::vector<Node>& subs,
                          ProvenInfo& pi,
                          bool doFixedPoint = false);
-  /**
-   * Adds to proof info (d_pcache) s.t. we can show that:
-   * context[placeholder -> source] = context[placeholder -> target]
-   * Note: we assume that the placeholder only appears once
-   */
-  void cacheProofSubPlaceholder(TNode context,
-                                TNode placeholder,
-                                TNode source,
-                                TNode target);
   /**
    * Rewrite concrete, which returns the result of rewriting n if it contains
    * no abstract subterms, or n itself otherwise.

@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Andrew Reynolds, Andres Noetzli, Aina Niemetz
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -51,6 +48,8 @@ SequencesRewriter::SequencesRewriter(NodeManager* nm,
   d_false = nm->mkConst(false);
   registerProofRewriteRule(ProofRewriteRule::RE_LOOP_ELIM,
                            TheoryRewriteCtx::PRE_DSL);
+  registerProofRewriteRule(ProofRewriteRule::RE_EQ_ELIM,
+                           TheoryRewriteCtx::PRE_DSL);
   registerProofRewriteRule(ProofRewriteRule::MACRO_RE_INTER_UNION_INCLUSION,
                            TheoryRewriteCtx::PRE_DSL);
   registerProofRewriteRule(ProofRewriteRule::STR_IN_RE_EVAL,
@@ -92,7 +91,7 @@ SequencesRewriter::SequencesRewriter(NodeManager* nm,
   registerProofRewriteRule(ProofRewriteRule::MACRO_STR_COMPONENT_CTN,
                            TheoryRewriteCtx::POST_DSL);
   registerProofRewriteRule(ProofRewriteRule::SEQ_EVAL_OP,
-                           TheoryRewriteCtx::PRE_DSL);
+                           TheoryRewriteCtx::DSL_SUBCALL);
   // make back pointer to this (for rewriting contains)
   se.d_rewriter = this;
 }
@@ -102,6 +101,7 @@ Node SequencesRewriter::rewriteViaRule(ProofRewriteRule id, const Node& n)
   switch (id)
   {
     case ProofRewriteRule::RE_LOOP_ELIM: return rewriteViaReLoopElim(n);
+    case ProofRewriteRule::RE_EQ_ELIM: return rewriteViaReEqElim(n);
     case ProofRewriteRule::MACRO_RE_INTER_UNION_INCLUSION:
       return rewriteViaMacroReInterUnionInclusion(n);
     case ProofRewriteRule::RE_INTER_INCLUSION:
@@ -200,7 +200,10 @@ Node SequencesRewriter::rewriteViaRule(ProofRewriteRule id, const Node& n)
       return rewriteViaMacroStrStripEndpoints(n, nb, nrem, ne);
     }
     case ProofRewriteRule::MACRO_RE_INTER_UNION_CONST_ELIM:
-      return rewriteViaMacroReInterUnionConstElim(n);
+    {
+      Node conflict;
+      return rewriteViaMacroReInterUnionConstElim(n, conflict);
+    }
     case ProofRewriteRule::MACRO_STR_COMPONENT_CTN:
     {
       if (n.getKind() == Kind::STRING_CONTAINS)
@@ -1181,7 +1184,8 @@ Node SequencesRewriter::rewriteAndOrRegExp(TNode node)
     }
   }
   // try to eliminate components via constant membership tests
-  Node retNode = rewriteViaMacroReInterUnionConstElim(node);
+  Node conflict;
+  Node retNode = rewriteViaMacroReInterUnionConstElim(node, conflict);
   if (!retNode.isNull())
   {
     return returnRewrite(node, retNode, Rewrite::RE_ANDOR_CONST_REMOVE);
@@ -1412,6 +1416,20 @@ Node SequencesRewriter::rewriteViaReLoopElim(const Node& node)
                       << std::endl;
   Assert(retNode != node);
   return retNode;
+}
+
+Node SequencesRewriter::rewriteViaReEqElim(const Node& n)
+{
+  if (n.getKind() != Kind::EQUAL || !n[0].getType().isRegExp())
+  {
+    return Node::null();
+  }
+  NodeManager* nm = nodeManager();
+  Node v = SkolemCache::mkRegExpEqVar(nm, n);
+  Node mem1 = nm->mkNode(Kind::STRING_IN_REGEXP, v, n[0]);
+  Node mem2 = nm->mkNode(Kind::STRING_IN_REGEXP, v, n[1]);
+  return nm->mkNode(
+      Kind::FORALL, nm->mkNode(Kind::BOUND_VAR_LIST, v), mem1.eqNode(mem2));
 }
 
 Node SequencesRewriter::rewriteViaStrInReEval(const Node& node)
@@ -1677,7 +1695,8 @@ Node SequencesRewriter::rewriteViaMacroStrStripEndpoints(
   return Node::null();
 }
 
-Node SequencesRewriter::rewriteViaMacroReInterUnionConstElim(const Node& n)
+Node SequencesRewriter::rewriteViaMacroReInterUnionConstElim(const Node& n,
+                                                             Node& conflict)
 {
   Kind k = n.getKind();
   if (k != Kind::REGEXP_INTER && k != Kind::REGEXP_UNION)
@@ -1747,6 +1766,7 @@ Node SequencesRewriter::rewriteViaMacroReInterUnionConstElim(const Node& n)
         Trace("strings-rewrite-debug") << "...not included" << std::endl;
         if (k == Kind::REGEXP_INTER)
         {
+          conflict = c;
           // (re.inter .. (str.to_re c) .. R ..) ---> re.none
           // if c is not a member of R.
           return nodeManager()->mkNode(Kind::REGEXP_NONE);
@@ -1998,18 +2018,30 @@ Node SequencesRewriter::rewriteDifferenceRegExp(TNode node)
 Node SequencesRewriter::rewriteRangeRegExp(TNode node)
 {
   Assert(node.getKind() == Kind::REGEXP_RANGE);
+  NodeManager* nm = nodeManager();
   unsigned ch[2];
+  bool hasNonConst = false;
   for (size_t i = 0; i < 2; ++i)
   {
-    if (!node[i].isConst() || node[i].getConst<String>().size() != 1)
+    if (!node[i].isConst())
     {
-      // not applied to characters, it is not handled
-      return node;
+      hasNonConst = true;
+      continue;
+    }
+    else if (node[i].getConst<String>().size()!=1)
+    {
+      // non-singleton means empty
+      Node retNode = nm->mkNode(Kind::REGEXP_NONE);
+      return returnRewrite(node, retNode, Rewrite::RE_RANGE_NON_SINGLETON);
     }
     ch[i] = node[i].getConst<String>().front();
   }
+  if (hasNonConst)
+  {
+    // not applied to characters, it is not handled
+    return node;
+  }
 
-  NodeManager* nm = nodeManager();
   if (node[0] == node[1])
   {
     Node retNode = nm->mkNode(Kind::STRING_TO_REGEXP, node[0]);
@@ -2811,7 +2843,7 @@ Node SequencesRewriter::rewriteContains(Node node)
         nb << emp.eqNode(t);
         for (const Node& c : vec)
         {
-          Assert(c.getType() == t.getType());
+          AssertEqual(c.getType(), t.getType());
           nb << c.eqNode(t);
         }
 
@@ -3782,8 +3814,17 @@ Node SequencesRewriter::rewriteReplaceAll(Node node)
         children.push_back(Word::substr(s, index, sizeS - index));
       }
     } while (curr != std::string::npos && curr < sizeS);
-    // constant evaluation
-    Node res = utils::mkConcat(children, stype);
+    Assert (!children.empty());
+    // constant evaluation, construct the concatenation and flatten it.
+    Node res;
+    if (node[2].isConst())
+    {
+      res = Word::mkWordFlatten(children);
+    }
+    else
+    {
+      res = utils::mkConcat(children, stype);
+    }
     return returnRewrite(node, res, Rewrite::REPLALL_CONST);
   }
 

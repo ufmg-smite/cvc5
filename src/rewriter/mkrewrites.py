@@ -1,10 +1,7 @@
 ###############################################################################
-# Top contributors (to current version):
-#   Haniel Barbosa, Leni Aniva, Andrew Reynolds
-#
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -101,7 +98,8 @@ def gen_mk_node(defns, expr):
     elif isinstance(expr, App):
         args = ",".join(gen_mk_node(defns, child) for child in expr.children)
         if expr.op in {Op.EXTRACT, Op.REPEAT, Op.ZERO_EXTEND,  Op.SIGN_EXTEND,
-                       Op.ROTATE_LEFT, Op.ROTATE_RIGHT, Op.INT_TO_BV, Op.REGEXP_LOOP, Op.DIVISIBLE}:
+                       Op.ROTATE_LEFT, Op.ROTATE_RIGHT, Op.INT_TO_BV,
+                       Op.REGEXP_LOOP, Op.REGEXP_REPEAT, Op.DIVISIBLE}:
           args = f'nm->mkConst(GenericOp(Kind::{gen_kind(expr.op)})),' + args
           return f'nm->mkNode(Kind::APPLY_INDEXED_SYMBOLIC, {{ {args} }})'
         elif expr.op in {Op.REAL_PI}:

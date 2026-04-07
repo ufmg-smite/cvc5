@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Morgan Deters, Aina Niemetz, Mathias Preiner
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -51,7 +48,11 @@ class SafeLogicException : public LogicException
 {
  public:
   SafeLogicException(const std::string& s)
+#if defined(CVC5_SAFE_MODE) || defined(CVC5_STABLE_MODE)
       : LogicException("Logic restricted in safe mode. " + s)
+#else
+      : LogicException(s)
+#endif
   {
   }
 };
