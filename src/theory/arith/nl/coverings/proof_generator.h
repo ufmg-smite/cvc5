@@ -93,6 +93,7 @@ class CoveringsProofGenerator : protected EnvObj
     });
   }
   void setupOnlyUniv();
+  void sortRoots();
   void addUnivRoots(const std::vector<poly::Value>& roots,
                     poly::Polynomial polys);
   void closeUnivProof(std::vector<Node> constraints, VariableMapper &vm);

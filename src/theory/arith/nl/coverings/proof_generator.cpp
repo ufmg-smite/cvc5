@@ -141,6 +141,12 @@ CDProof* CoveringsProofGenerator::getUnivProofGenerator() const
   return d_cdp;
 }
 
+void CoveringsProofGenerator::sortRoots()
+{
+  std::sort(d_polysRoots.begin(), d_polysRoots.end(),
+      [] (auto& a, auto& b) { return a.second < b.second; });
+}
+
 void CoveringsProofGenerator::addUnivRoots(
     const std::vector<poly::Value>& roots, poly::Polynomial poly)
 {
