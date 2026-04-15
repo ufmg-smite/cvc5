@@ -143,19 +143,11 @@ CDProof* CoveringsProofGenerator::getUnivProofGenerator() const
 
 void CoveringsProofGenerator::sortAndEraseDupsRoots()
 {
-  std::cout << "before:\n";
-  for (const auto& r : d_polysRoots) {
-    std::cout << r.second << "\n";
-  }
   std::sort(d_polysRoots.begin(), d_polysRoots.end(),
       [] (auto& a, auto& b) { return a.second < b.second; });
   auto last = std::unique(d_polysRoots.begin(), d_polysRoots.end(),
       [] (auto& a, auto& b) { return a.second == b.second; });
   d_polysRoots.erase(last, d_polysRoots.end());
-  std::cout << "after:\n";
-  for (const auto& r : d_polysRoots) {
-    std::cout << r.second << "\n";
-  }
 }
 
 void CoveringsProofGenerator::addUnivRoots(
