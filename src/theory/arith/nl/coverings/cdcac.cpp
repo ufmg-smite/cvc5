@@ -198,7 +198,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   }
   if (isProofEnabled())
   {
-    d_proof->sortRoots();
+    d_proof->sortAndEraseDupsRoots();
   }
   pruneRedundantIntervals(res);
   return res;
