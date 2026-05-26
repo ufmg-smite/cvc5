@@ -35,7 +35,7 @@ class PbProofRules : protected EnvObj
   Node parseLine(const std::string& line);
 
  private:
-  CDProof* d_cdp;
+  CVC5_UNUSED_FIELD CDProof* d_cdp;  // TODO(alanctprado): used once proofs land
 
   /** Rules */
   Node assumption(std::istringstream&);

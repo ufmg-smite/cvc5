@@ -41,7 +41,8 @@ class PbProofManager : protected EnvObj
                       pb_proof);  // TODO(alanctprado): do not copy proof
 
  private:
-  PbBlastProofGenerator* d_pbbpg;
+  CVC5_UNUSED_FIELD PbBlastProofGenerator*
+      d_pbbpg;  // TODO(alanctprado): used once proofs land
   CDProof* d_cdp;
   PbProofRules* d_pbpr;
   std::vector<Node> parseProofLines(std::vector<std::string> proofLines);
