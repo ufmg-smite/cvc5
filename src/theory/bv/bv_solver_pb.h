@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -22,10 +22,10 @@
 
 #include "context/cdqueue.h"
 #include "theory/bv/bv_solver.h"
-#include "theory/bv/pb/pb_solver.h"
-#include "theory/bv/pb/pb_node_blaster.h"
 #include "theory/bv/pb/pb_blast_proof_generator.h"
+#include "theory/bv/pb/pb_node_blaster.h"
 #include "theory/bv/pb/pb_proof_manager.h"
+#include "theory/bv/pb/pb_solver.h"
 
 namespace cvc5::internal {
 
@@ -56,7 +56,8 @@ class BVSolverPseudoBoolean : public BVSolver
    * Not used by this decision procedure. Why is it an abstract function if
    * BVSolverBitblast does not use it as well?
    */
-  void preRegisterTerm(CVC5_UNUSED TNode n) override {}  // same as BVSolverBitblast
+  void preRegisterTerm(CVC5_UNUSED TNode n) override {
+  }  // same as BVSolverBitblast
 
   /** TODO(alanctprado): document */
   void postCheck(Theory::Effort level) override;

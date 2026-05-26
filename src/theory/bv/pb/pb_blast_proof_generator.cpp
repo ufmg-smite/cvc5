@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -18,14 +18,14 @@
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
-namespace pb{
+namespace pb {
 
-PbBlastProofGenerator::PbBlastProofGenerator(Env& env) : EnvObj(env)
-{}
+PbBlastProofGenerator::PbBlastProofGenerator(Env& env) : EnvObj(env) {}
 
-std::shared_ptr<ProofNode> PbBlastProofGenerator::getProofFor(CVC5_UNUSED Node eq)
+std::shared_ptr<ProofNode> PbBlastProofGenerator::getProofFor(
+    CVC5_UNUSED Node eq)
 {
-    return nullptr;
+  return nullptr;
 }
 
 }  // namespace pb

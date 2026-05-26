@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -15,13 +15,11 @@
 
 #include "theory/bv/bv_solver_pb.h"
 
-#include "theory/theory_model.h"
-
 #include "options/bv_options.h"
-#include "theory/bv/theory_bv.h"
-
 #include "theory/bv/pb/exact.h"
 #include "theory/bv/pb/roundingsat.h"
+#include "theory/bv/theory_bv.h"
+#include "theory/theory_model.h"
 
 namespace cvc5::internal {
 namespace theory {
@@ -72,9 +70,11 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
 
   d_pbSolver->reset();
   Trace("bv-postcheck") << "Post Check\n";
-  for (const Node& fact : d_assumptions) {
+  for (const Node& fact : d_assumptions)
+  {
     Trace("bv-postcheck") << fact << "\n";
-    for (const Node& constraint : d_pbBlaster->getAtom(fact)) {
+    for (const Node& constraint : d_pbBlaster->getAtom(fact))
+    {
       d_pbSolver->addConstraint(constraint);
     }
   }
@@ -91,7 +91,8 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
     Node conflict = nm->mkAnd(blasted_atoms);
     d_im.conflict(conflict, InferenceId::BV_PB_BLAST_CONFLICT);
   }
-  else if (s == PbSolveState::PB_SAT) {
+  else if (s == PbSolveState::PB_SAT)
+  {
     Trace("bv-pb") << "SATISFIABLE\n";
     // for (const auto& atom : blasted_atoms) debugSatisfiedAtom(atom);
   }
@@ -100,8 +101,11 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
   Trace("bv-pb") << "\n";
 }
 
-bool BVSolverPseudoBoolean::preNotifyFact(
-    CVC5_UNUSED TNode atom, CVC5_UNUSED bool pol, TNode fact, CVC5_UNUSED bool isPrereg, CVC5_UNUSED bool isInternal)
+bool BVSolverPseudoBoolean::preNotifyFact(CVC5_UNUSED TNode atom,
+                                          CVC5_UNUSED bool pol,
+                                          TNode fact,
+                                          CVC5_UNUSED bool isPrereg,
+                                          CVC5_UNUSED bool isInternal)
 {
   Trace("bv-pb") << "BVSolverPseudoBoolean::preNotifyFact: " << fact << "\n";
   /**
@@ -121,7 +125,7 @@ bool BVSolverPseudoBoolean::preNotifyFact(
    * available if we are using the equality engine. I don't think it is our
    * case. I wish there was some better documentation
    */
-  return 1;
+  return true;
 }
 
 /** TODO(alanctprado): Used in BVSolverBitblast. Not sure we need it. */
@@ -133,13 +137,14 @@ TrustNode BVSolverPseudoBoolean::explain(TNode n)
 }
 
 /** TODO(alanctprado): Used in BVSolverBitblast. Not sure we need it. */
-void BVSolverPseudoBoolean::computeRelevantTerms(std::set<Node>& termSet)
+void BVSolverPseudoBoolean::computeRelevantTerms(
+    CVC5_UNUSED std::set<Node>& termSet)
 {
   // if (options().bv.bitblastMode == options::BitblastMode::EAGER)
   // {
   //   d_bitblaster->computeRelevantTerms(termSet);
   // }
-   Unimplemented();
+  Unimplemented();
 }
 
 bool BVSolverPseudoBoolean::collectModelValues(TheoryModel* m,
@@ -150,7 +155,7 @@ bool BVSolverPseudoBoolean::collectModelValues(TheoryModel* m,
     if (!d_pbBlaster->hasTerm(term)) continue;
 
     Node variables = d_pbBlaster->getTerm(term);
-    Node const_value; // = d_pbSolver->modelValue(variables);
+    Node const_value;  // = d_pbSolver->modelValue(variables);
     Assert(const_value.isNull() || const_value.isConst());
     if (!const_value.isNull())
     {
@@ -172,7 +177,8 @@ Node BVSolverPseudoBoolean::getValue(TNode node, bool initialize)
 
   if (!d_pbBlaster->hasTerm(node))
   {
-    return initialize ? utils::mkConst(nodeManager(), utils::getSize(node), 0u) : Node();
+    return initialize ? utils::mkConst(nodeManager(), utils::getSize(node), 0u)
+                      : Node();
   }
 
   // std::vector<Node> bits;
@@ -204,26 +210,24 @@ void BVSolverPseudoBoolean::initPbSolver()
   {
     case options::BvPbSolver::EXACT:
       Trace("bv-pb") << "Initializing Exact PB Solver...\n";
-      #ifdef CVC5_USE_EXACT
-        d_pbSolver.reset(new ExactSolver(
-            d_env,
-            statisticsRegistry(),
-            "theory::bv::BVSolverPseudoBoolean::"));
-        Trace("bv-pb") << "Initialization successful.\n";
-      #endif
+#ifdef CVC5_USE_EXACT
+      d_pbSolver.reset(new ExactSolver(
+          d_env, statisticsRegistry(), "theory::bv::BVSolverPseudoBoolean::"));
+      Trace("bv-pb") << "Initialization successful.\n";
+#endif
       break;
     case options::BvPbSolver::ROUNDINGSAT:
       Trace("bv-pb") << "Initializing RoundingSat PB Solver...\n";
-      #ifdef CVC5_USE_ROUNDINGSAT
-        Trace("bv-pb") << "RoundingSat path: " << ROUNDINGSAT_PATH << "\n";
-        d_pbSolver.reset(new RoundingSatSolver(
-            ROUNDINGSAT_PATH,
-            d_env,
-            statisticsRegistry(),
-            "theory::bv::BVSolverPseudoBoolean::",
-            d_isProofProducing));
-        Trace("bv-pb") << "Initialization successful.\n";
-      #endif
+#ifdef CVC5_USE_ROUNDINGSAT
+      Trace("bv-pb") << "RoundingSat path: " << ROUNDINGSAT_PATH << "\n";
+      d_pbSolver.reset(
+          new RoundingSatSolver(ROUNDINGSAT_PATH,
+                                d_env,
+                                statisticsRegistry(),
+                                "theory::bv::BVSolverPseudoBoolean::",
+                                d_isProofProducing));
+      Trace("bv-pb") << "Initialization successful.\n";
+#endif
       break;
     default: Unimplemented();
   }
@@ -259,8 +263,8 @@ void BVSolverPseudoBoolean::debugSatisfiedAtom(TNode atom)
   }
   else
   {
-  lhs = atom[0];
-  rhs = atom[1];
+    lhs = atom[0];
+    rhs = atom[1];
   }
   Trace("bv-pb-debug") << "\nDebugging atom " << atom << "\n";
   Trace("bv-pb-debug") << "KIND: " << atom.getKind() << "\n";

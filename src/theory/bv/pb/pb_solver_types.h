@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -36,14 +36,16 @@ typedef uint32_t ConstraintId;
 typedef std::string VariableId;
 
 /** Possible states of the PB solver. */
-enum PbSolveState {
+enum PbSolveState
+{
   PB_UNKNOWN,
   PB_SAT,
   PB_UNSAT
 };
 
 /** Values of a PB variable. */
-enum PbValue {
+enum PbValue
+{
   PB_TRUE,
   PB_FALSE
 };

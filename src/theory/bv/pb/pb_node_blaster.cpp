@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -14,6 +14,7 @@
  */
 
 #include "theory/bv/pb/pb_node_blaster.h"
+
 #include <string>
 
 namespace cvc5::internal {
@@ -21,7 +22,7 @@ namespace theory {
 namespace bv {
 namespace pb {
 
-PseudoBooleanBlaster::PseudoBooleanBlaster(Env& env, TheoryState* s)
+PseudoBooleanBlaster::PseudoBooleanBlaster(Env& env, CVC5_UNUSED TheoryState* s)
     : TPseudoBooleanBlaster<Node>(env.getNodeManager()), EnvObj(env)
 {
   d_varCounter = 1;
@@ -35,7 +36,8 @@ void PseudoBooleanBlaster::blastAtom(Node atom)
    */
   if (hasAtom(atom))
   {
-    // Trace("bv-pb") << "PseudoBooleanBlaster::blastAtom recovered from cache: "
+    // Trace("bv-pb") << "PseudoBooleanBlaster::blastAtom recovered from cache:
+    // "
     //               << atom << "\n";
     return;
   }
@@ -64,7 +66,8 @@ void PseudoBooleanBlaster::blastAtom(Node atom)
   Trace("bv-pb-blast") << "Blasted atom:\n";
   if (TraceIsOn("bv-pb-blast"))
   {
-    for (const Node& c : resulting_constraints) Trace("bv-pb-blast") << c << "\n";
+    for (const Node& c : resulting_constraints)
+      Trace("bv-pb-blast") << c << "\n";
   }
 
   storeAtom(atom, resulting_constraints);
@@ -95,7 +98,8 @@ Node PseudoBooleanBlaster::blastTerm(Node term)
   Trace("bv-pb") << "PseudoBooleanBlaster::blastTerm: " << term << "\n";
   Kind kind = term.getKind();
   Node result = d_termStrategies[static_cast<uint32_t>(kind)](term, this);
-  Trace("bv-pb") << "PseudoBooleanBlaster::blastTerm result for " << term << "\n";
+  Trace("bv-pb") << "PseudoBooleanBlaster::blastTerm result for " << term
+                 << "\n";
   Trace("bv-pb-constraints") << result[1].toString() << "\n";
   Assert(result[0].getNumChildren() == utils::getSize(term));
   storeTerm(term, result);

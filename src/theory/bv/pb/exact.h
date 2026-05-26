@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -23,16 +23,16 @@
 
 #include <Exact.hpp>
 
-//#include "context/cdhashset.h"
-#include "theory/bv/pb/pb_solver.h"
+// #include "context/cdhashset.h"
 #include "smt/env_obj.h"
+#include "theory/bv/pb/pb_solver.h"
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
 namespace pb {
 
-//class CadicalPropagator;
+// class CadicalPropagator;
 
 class ExactSolver : public PseudoBooleanSolver<Node>, protected EnvObj
 {
@@ -46,7 +46,7 @@ class ExactSolver : public PseudoBooleanSolver<Node>, protected EnvObj
   void addVariable(const Node variable) override;
   PbSolveState solve() override;
 
-// private:   TODO: should the constructor be private (factory)?
+  // private:   TODO: should the constructor be private (factory)?
   /**
    * Constructor.
    * Private to disallow creation outside of PbSolverFactory.
@@ -60,6 +60,7 @@ class ExactSolver : public PseudoBooleanSolver<Node>, protected EnvObj
               StatisticsRegistry& registry,
               const std::string& name = "",
               bool logProofs = false);
+
  private:
   /**
    * Initialize PB solver instance.

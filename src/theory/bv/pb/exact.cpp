@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -19,19 +19,18 @@
 
 #include "theory/bv/pb/exact.h"
 
-//#include "base/check.h"
-//#include "options/main_options.h"
-//#include "options/proof_options.h"
-//#include "prop/theory_proxy.h"
-//#include "util/resource_manager.h"
-//#include "util/statistics_registry.h"
+// #include "base/check.h"
+// #include "options/main_options.h"
+// #include "options/proof_options.h"
+// #include "prop/theory_proxy.h"
+// #include "util/resource_manager.h"
+// #include "util/statistics_registry.h"
 #include "util/rational.h"
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
 namespace pb {
-
 
 ExactSolver::ExactSolver(Env& env,
                          StatisticsRegistry& registry,
@@ -49,7 +48,9 @@ ExactSolver::ExactSolver(Env& env,
 void ExactSolver::init()
 {
   d_solver->setOption("verbosity", "0");
-  if (d_logProofs) { /** TODO */ }
+  if (d_logProofs)
+  { /** TODO */
+  }
 }
 
 void ExactSolver::addVariable(const Node variable)
@@ -95,7 +96,8 @@ void ExactSolver::addConstraint(const Node constraint)
     }
   }
 
-  else Unreachable();
+  else
+    Unreachable();
 
   bool use_ub = constraint.getKind() == Kind::EQUAL;
   std::string rhs = constraint[1].getConst<Rational>().toString();
@@ -108,18 +110,18 @@ void ExactSolver::addConstraint(const Node constraint)
 PbSolveState ExactSolver::solve()
 {
   SolveState s = d_solver->runFull(0);
-  switch (s) {
-    case SolveState::SAT:
-      return PB_SAT;
-    case SolveState::UNSAT:
-      return PB_UNSAT;
-    default:
-      return PB_UNKNOWN;
+  switch (s)
+  {
+    case SolveState::SAT: return PB_SAT;
+    case SolveState::UNSAT: return PB_UNSAT;
+    default: return PB_UNKNOWN;
   }
 }
 
-ExactSolver::Statistics::Statistics(CVC5_UNUSED StatisticsRegistry& registry, CVC5_UNUSED const std::string& prefix)
-{}
+ExactSolver::Statistics::Statistics(CVC5_UNUSED StatisticsRegistry& registry,
+                                    CVC5_UNUSED const std::string& prefix)
+{
+}
 
 }  // namespace pb
 }  // namespace bv

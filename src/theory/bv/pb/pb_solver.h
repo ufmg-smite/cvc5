@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -18,9 +18,10 @@
 #ifndef CVC5__THEORY__BV__PB__PB_SOLVER_H
 #define CVC5__THEORY__BV__PB__PB_SOLVER_H
 
-#include "theory/bv/pb/pb_solver_types.h"
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "theory/bv/pb/pb_solver_types.h"
 
 namespace cvc5::internal {
 namespace theory {
@@ -28,8 +29,9 @@ namespace bv {
 namespace pb {
 
 template <class T>
-class PseudoBooleanSolver {
-public:
+class PseudoBooleanSolver
+{
+ public:
   /** Virtual destructor */
   virtual ~PseudoBooleanSolver() {}
   /** Add a variable to the solver. */

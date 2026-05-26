@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -14,6 +14,7 @@
  */
 
 #include <cstdint>
+
 #include "cvc5_private.h"
 
 #ifndef CVC5__THEORY__BV__PB__PB_BLAST_UTILS_H
@@ -61,7 +62,7 @@ std::vector<std::string> mkPbXor(T a, T b, T res);
 /** Other auxiliary functions */
 template <class T = Node>
 inline std::vector<T> bvToSigned(unsigned sz, NodeManager* nm, int sign = 1);
-template <class T = Node> // TODO: I don't really want to set T as Node
+template <class T = Node>  // TODO: I don't really want to set T as Node
 inline std::vector<T> bvToUnsigned(unsigned sz, NodeManager* nm, int sign = 1);
 template <class T>
 inline int ceilLog2(T a);
@@ -106,10 +107,10 @@ inline T mkConstraintNode(Kind k,
 
 template <class T>
 inline T mkLongConstraintNode(Kind k,
-                          std::vector<T> variables,
-                          std::vector<int64_t> coefficients,
-                          int value,
-                          NodeManager* nm)
+                              std::vector<T> variables,
+                              std::vector<int64_t> coefficients,
+                              int value,
+                              NodeManager* nm)
 {
   Assert(variables.size() == coefficients.size());
   std::vector<T> coefficients_t;
@@ -188,8 +189,11 @@ inline std::vector<T> mkPbXor(T a, T b, T res, NodeManager* nm)
   constraints.push_back(mkConstraintNode(
       Kind::GEQ, std::vector<T>{a, b, res}, std::vector<int>{-1, 1, 1}, 0, nm));
   // ~a or ~b or ~res <-> ~a + ~b + ~res >= 1 <-> -a - b - res >= -2
-  constraints.push_back(mkConstraintNode(
-      Kind::GEQ, std::vector<T>{a, b, res}, std::vector<int>{-1, -1, -1}, -2, nm));
+  constraints.push_back(mkConstraintNode(Kind::GEQ,
+                                         std::vector<T>{a, b, res},
+                                         std::vector<int>{-1, -1, -1},
+                                         -2,
+                                         nm));
   return constraints;
 }
 
@@ -199,12 +203,13 @@ inline std::vector<T> bvToSigned(unsigned size, NodeManager* nm, int sign)
   Assert(size > 0);
   std::ostringstream os;
   std::vector<T> coefficients;
-  for (int i = 0; i < ((int) size) - 1; i++) {
+  for (int i = 0; i < ((int)size) - 1; i++)
+  {
     coefficients.push_back(
-      nm->mkConstInt(Rational(Integer(sign).multiplyByPow2(i))));
+        nm->mkConstInt(Rational(Integer(sign).multiplyByPow2(i))));
   }
   coefficients.push_back(
-    nm->mkConstInt(Rational(Integer(-sign).multiplyByPow2(((int) size) - 1))));
+      nm->mkConstInt(Rational(Integer(-sign).multiplyByPow2(((int)size) - 1))));
   return coefficients;
 }
 
@@ -213,9 +218,10 @@ inline std::vector<T> bvToUnsigned(unsigned size, NodeManager* nm, int sign)
 {
   std::ostringstream os;
   std::vector<T> coefficients;
-  for (int i = 0; i < (int) size; i++) {
+  for (int i = 0; i < (int)size; i++)
+  {
     coefficients.push_back(
-      nm->mkConstInt(Rational(Integer(sign).multiplyByPow2(i))));
+        nm->mkConstInt(Rational(Integer(sign).multiplyByPow2(i))));
   }
   return coefficients;
 }

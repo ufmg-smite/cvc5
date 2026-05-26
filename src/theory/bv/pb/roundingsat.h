@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -21,8 +21,8 @@
 #ifndef CVC5__THEORY__BV__PB__ROUNDINGSAT_H
 #define CVC5__THEORY__BV__PB__ROUNDINGSAT_H
 
-#include "theory/bv/pb/pb_solver.h"
 #include "smt/env_obj.h"
+#include "theory/bv/pb/pb_solver.h"
 
 namespace cvc5::internal {
 namespace theory {
@@ -44,7 +44,7 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
   void reset() override;
   std::vector<std::string> getProof() override;
 
-// private:   TODO: should the constructor be private (factory)?
+  // private:   TODO: should the constructor be private (factory)?
   /**
    * Constructor.
    * Private to disallow creation outside of PbSolverFactory.
@@ -59,9 +59,11 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
                     StatisticsRegistry& registry,
                     const std::string& name = "",
                     bool logProofs = false);
+
  private:
-  std::string buildCliCommand(std::string input_path, std::string output_path,
-                                std::string proof_path);
+  std::string buildCliCommand(std::string input_path,
+                              std::string output_path,
+                              std::string proof_path);
   void computeSatisfyingAssignment();
   PbSolveState parseOutput(std::string output_path);
   void parseProof(std::string proof_path);

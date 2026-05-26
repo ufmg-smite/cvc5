@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -14,13 +14,15 @@
  */
 
 #include "theory/bv/pb/pb_proof_rules.h"
-#include "util/string.h"
+
 #include <stack>
+
+#include "util/string.h"
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
-namespace pb{
+namespace pb {
 
 PbProofRules::PbProofRules(Env& env, CDProof* cdp) : EnvObj(env), d_cdp(cdp)
 {
@@ -30,26 +32,33 @@ PbProofRules::PbProofRules(Env& env, CDProof* cdp) : EnvObj(env), d_cdp(cdp)
 void PbProofRules::initializeRules()
 {
   rules = {
-    {"del", [this](std::istringstream& iss) { return deleteConstraints2(iss); }},
-    {"d", [this](std::istringstream& iss) { return deleteConstraints(iss); }},
-    {"a", [this](std::istringstream& iss) { return assumption(iss); }},
-    {"u", [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
-    {"rup", [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
-    {"e", [this](std::istringstream& iss) { return constraintEquals(iss); }},
-    {"i", [this](std::istringstream& iss) { return constraintImplies(iss); }},
-    {"j", [this](std::istringstream& iss) { return constraintImpliesGetImplied(iss); }},
-    {"v", [this](std::istringstream& iss) { return solution(iss); }},
-    {"ov", [this](std::istringstream& iss) { return originalSolution(iss); }},
-    {"o", [this](std::istringstream& iss) { return objectiveBound(iss); }},
-    {"c", [this](std::istringstream& iss) { return isContradiction(iss); }},
-    {"p", [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
-    {"pol", [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
-    {"f", [this](std::istringstream& iss) { return loadFormula(iss); }},
-    {"l", [this](std::istringstream& iss) { return loadAxiom(iss); }},
-    {"core", [this](std::istringstream& iss) { return markCore(iss); }},
-    {"#", [this](std::istringstream& iss) { return setLevel(iss); }},
-    {"w", [this](std::istringstream& iss) { return wipeLevel(iss); }}
-  };
+      {"del",
+       [this](std::istringstream& iss) { return deleteConstraints2(iss); }},
+      {"d", [this](std::istringstream& iss) { return deleteConstraints(iss); }},
+      {"a", [this](std::istringstream& iss) { return assumption(iss); }},
+      {"u",
+       [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
+      {"rup",
+       [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
+      {"e", [this](std::istringstream& iss) { return constraintEquals(iss); }},
+      {"i", [this](std::istringstream& iss) { return constraintImplies(iss); }},
+      {"j",
+       [this](std::istringstream& iss) {
+         return constraintImpliesGetImplied(iss);
+       }},
+      {"v", [this](std::istringstream& iss) { return solution(iss); }},
+      {"ov", [this](std::istringstream& iss) { return originalSolution(iss); }},
+      {"o", [this](std::istringstream& iss) { return objectiveBound(iss); }},
+      {"c", [this](std::istringstream& iss) { return isContradiction(iss); }},
+      {"p",
+       [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
+      {"pol",
+       [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
+      {"f", [this](std::istringstream& iss) { return loadFormula(iss); }},
+      {"l", [this](std::istringstream& iss) { return loadAxiom(iss); }},
+      {"core", [this](std::istringstream& iss) { return markCore(iss); }},
+      {"#", [this](std::istringstream& iss) { return setLevel(iss); }},
+      {"w", [this](std::istringstream& iss) { return wipeLevel(iss); }}};
 }
 
 Node PbProofRules::parseLine(const std::string& line)
@@ -60,7 +69,8 @@ Node PbProofRules::parseLine(const std::string& line)
   auto it = rules.find(ruleId);
   if (it == rules.end())
   {
-    Unreachable() << "\nPbProofRules::parseLine: failed parsing line:\n" << line << "\n";
+    Unreachable() << "\nPbProofRules::parseLine: failed parsing line:\n"
+                  << line << "\n";
   }
   return it->second(iss);
 }
@@ -80,7 +90,8 @@ Node PbProofRules::constraintImplies(CVC5_UNUSED std::istringstream& iss)
   Unimplemented();
 }
 
-Node PbProofRules::constraintImpliesGetImplied(CVC5_UNUSED std::istringstream& iss)
+Node PbProofRules::constraintImpliesGetImplied(
+    CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
 }
@@ -200,16 +211,20 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
   if (coefficient[0] == '=')
   {
     relational_operator = Kind::EQUAL;
-    if (coefficient == "=") iss >> rhs;
-    else rhs = coefficient.substr(1);
+    if (coefficient == "=")
+      iss >> rhs;
+    else
+      rhs = coefficient.substr(1);
     if (rhs.back() == ';') rhs.pop_back();
   }
 
   else
   {
     relational_operator = Kind::GEQ;
-    if (coefficient == ">=") iss >> rhs;
-    else rhs = coefficient.substr(2);
+    if (coefficient == ">=")
+      iss >> rhs;
+    else
+      rhs = coefficient.substr(2);
     if (rhs.back() == ';') rhs.pop_back();
   }
 
@@ -218,7 +233,8 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
   {
     Node coefficient_node = nm->mkConstInt(Rational(Integer(sum[i])));
     Node variable_node = nm->mkBoundVar(sum[i + 1], nm->booleanType());
-    sum_nodes.push_back(nm->mkNode(Kind::MULT, coefficient_node, variable_node));
+    sum_nodes.push_back(
+        nm->mkNode(Kind::MULT, coefficient_node, variable_node));
   }
 
   /* TODO(alanctprado)
@@ -236,15 +252,18 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
    *
    */
   Node lhs_node;
-  if (sum_nodes.size() == 0) lhs_node = nm->mkConstInt(Rational(0));
-  else lhs_node = nm->mkNode(Kind::ADD, sum_nodes);
+  if (sum_nodes.size() == 0)
+    lhs_node = nm->mkConstInt(Rational(0));
+  else
+    lhs_node = nm->mkNode(Kind::ADD, sum_nodes);
 
   Node rhs_node = nm->mkConstInt(Rational(Integer(rhs)));
 
   return nm->mkNode(relational_operator, lhs_node, rhs_node);
 }
 
-// Based on https://github.com/StephanGocht/VeriPB?tab=readme-ov-file#reverse-polish-notation
+// Based on
+// https://github.com/StephanGocht/VeriPB?tab=readme-ov-file#reverse-polish-notation
 Node PbProofRules::parsePolishNotation(std::istringstream& iss)
 {
   Trace("bv-pb-proof") << "PbProofRules::parsePolishNotation\n";
@@ -254,23 +273,32 @@ Node PbProofRules::parsePolishNotation(std::istringstream& iss)
   std::stack<Node> stack;
 
   auto popOne = [&stack]() -> Node {
-    Node n = stack.top(); stack.pop();
+    Node n = stack.top();
+    stack.pop();
     return n;
   };
   auto popTwo = [&stack]() -> std::pair<Node, Node> {
-    Node rhs = stack.top(); stack.pop();
-    Node lhs = stack.top(); stack.pop();
+    Node rhs = stack.top();
+    stack.pop();
+    Node lhs = stack.top();
+    stack.pop();
     return {lhs, rhs};
   };
 
   while (iss >> token)
   {
-    if (token == "+") stack.push(polishAddition(popTwo()));
-    else if (token == "*") stack.push(polishMultiplication(popTwo()));
-    else if (token == "d") stack.push(polishDivision(popTwo()));
-    else if (token == "s") stack.push(polishSaturation(popOne()));
-    else if (token == "w") stack.push(polishWeakening(popTwo()));
-    else stack.push(nm->mkConst(String(token)));
+    if (token == "+")
+      stack.push(polishAddition(popTwo()));
+    else if (token == "*")
+      stack.push(polishMultiplication(popTwo()));
+    else if (token == "d")
+      stack.push(polishDivision(popTwo()));
+    else if (token == "s")
+      stack.push(polishSaturation(popOne()));
+    else if (token == "w")
+      stack.push(polishWeakening(popTwo()));
+    else
+      stack.push(nm->mkConst(String(token)));
   }
 
   if (stack.size() == 2) stack.pop();  // Remove final 0
@@ -293,7 +321,8 @@ Node PbProofRules::polishDivision(std::pair<Node, Node> operands)
   auto [lhs, rhs] = operands;
   Node constraint = polishConstraint(lhs);
   if (rhs.getKind() != Kind::CONST_STRING) Unreachable();
-  Node factor = nm->mkConstInt(Rational(Integer(rhs.getConst<String>().toString())));
+  Node factor =
+      nm->mkConstInt(Rational(Integer(rhs.getConst<String>().toString())));
   return nm->mkNode(Kind::DIVISION, constraint, factor);
 }
 
@@ -303,14 +332,12 @@ Node PbProofRules::polishMultiplication(std::pair<Node, Node> operands)
   auto [lhs, rhs] = operands;
   Node constraint = polishConstraint(lhs);
   if (rhs.getKind() != Kind::CONST_STRING) Unreachable();
-  Node factor = nm->mkConstInt(Rational(Integer(rhs.getConst<String>().toString())));
+  Node factor =
+      nm->mkConstInt(Rational(Integer(rhs.getConst<String>().toString())));
   return nm->mkNode(Kind::MULT, constraint, factor);
 }
 
-Node PbProofRules::polishSaturation(Node operand)
-{
-  return operand;
-}
+Node PbProofRules::polishSaturation(Node operand) { return operand; }
 
 Node PbProofRules::polishWeakening(std::pair<Node, Node> operands)
 {

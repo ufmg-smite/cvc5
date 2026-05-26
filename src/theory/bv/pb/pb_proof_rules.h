@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -17,8 +17,8 @@
 #ifndef CVC5__THEORY__BV__PB__PB_PROOF_RULES_H
 #define CVC5__THEORY__BV__PB__PB_PROOF_RULES_H
 
-#include "smt/env_obj.h"
 #include "proof/proof.h"
+#include "smt/env_obj.h"
 
 namespace cvc5::internal {
 
@@ -30,7 +30,7 @@ class PbProofRules : protected EnvObj
 {
  public:
   PbProofRules(Env& env, CDProof* cdp);
-  ~PbProofRules(){};
+  ~PbProofRules() {};
 
   Node parseLine(const std::string& line);
 
@@ -68,7 +68,8 @@ class PbProofRules : protected EnvObj
   Node polishWeakening(std::pair<Node, Node>);
   Node polishConstraint(Node);
 
-  std::unordered_map<std::string, std::function<Node(std::istringstream&)>> rules;
+  std::unordered_map<std::string, std::function<Node(std::istringstream&)>>
+      rules;
 };
 
 }  // namespace pb
