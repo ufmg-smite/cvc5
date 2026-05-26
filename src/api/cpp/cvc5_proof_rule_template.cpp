@@ -44,7 +44,8 @@ const char* toString(ProofRule rule)
     case ProofRule::DRAT_REFUTATION: return "DRAT_REFUTATION";
     case ProofRule::SAT_EXTERNAL_PROVE: return "SAT_EXTERNAL_PROVE";
     //================================================= Cutting-plane rules
-    case ProofRule::CUTTING_PLANES_REFUTATION: return "CUTTING_PLANE_REFUTATION";
+    case ProofRule::CUTTING_PLANES_REFUTATION:
+      return "CUTTING_PLANE_REFUTATION";
     //================================================= Boolean rules
     case ProofRule::RESOLUTION: return "RESOLUTION";
     case ProofRule::CHAIN_RESOLUTION: return "CHAIN_RESOLUTION";
