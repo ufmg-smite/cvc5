@@ -55,7 +55,8 @@ TheoryBV::TheoryBV(Env& env,
       break;
 
     default:
-      AlwaysAssert(options().bv.bvSolver == options::BVSolver::BITBLAST_INTERNAL);
+      AlwaysAssert(options().bv.bvSolver
+                   == options::BVSolver::BITBLAST_INTERNAL);
       d_internal.reset(new BVSolverBitblastInternal(d_env, &d_state, d_im));
   }
   d_theoryState = &d_state;
@@ -297,10 +298,7 @@ EqualityStatus TheoryBV::getEqualityStatus(TNode a, TNode b)
 
 TrustNode TheoryBV::explain(TNode node) { return d_internal->explain(node); }
 
-void TheoryBV::notifySharedTerm(TNode t)
-{
-  d_internal->notifySharedTerm(t);
-}
+void TheoryBV::notifySharedTerm(TNode t) { d_internal->notifySharedTerm(t); }
 
 void TheoryBV::ppStaticLearn(TNode in, std::vector<TrustNode>& learned)
 {

@@ -74,6 +74,7 @@ The following flags enable optional packages (disable with --no-<option name>).
   --exact                  use the Exact Pseudo-Boolean solver
   --roundingsat            use the RoundingSat Pseudo-Boolean solver
   --editline               support the editline library
+  --mpfr                   use MPFR for FP constant folding instead of SymFPU
 
 Optional Path to Optional Packages:
   --glpk-dir=PATH          path to top level of GLPK installation
@@ -155,6 +156,7 @@ python_only_src=default
 pyvenv=default
 java_bindings=default
 editline=default
+mpfr=default
 build_shared=ON
 safe_mode=default
 stable_mode=default
@@ -340,6 +342,9 @@ do
     --editline) editline=ON;;
     --no-editline) editline=OFF;;
 
+    --mpfr) mpfr=ON;;
+    --no-mpfr) mpfr=OFF;;
+
     --glpk-dir) die "missing argument to $1 (try -h)" ;;
     --glpk-dir=*) glpk_dir=${1##*=} ;;
 
@@ -511,6 +516,8 @@ fi
   && cmake_opts="$cmake_opts -DUSE_EXACT=$exact"
 [ $roundingsat != default ] \
   && cmake_opts="$cmake_opts -DUSE_ROUNDINGSAT=$roundingsat"
+[ $mpfr != default ] \
+  && cmake_opts="$cmake_opts -DUSE_MPFR=$mpfr"
 [ "$glpk_dir" != default ] \
   && cmake_opts="$cmake_opts -DGLPK_DIR=$glpk_dir"
 [ "$dep_path" != default ] \
