@@ -118,6 +118,29 @@ PbSolveState ExactSolver::solve()
   }
 }
 
+void ExactSolver::reset()
+{
+  // Exact has no in-place reset, so recreate the underlying instance to clear
+  // all variables and constraints and re-apply the initial options.
+  d_solver.reset(new Exact());
+  d_variableSet.clear();
+  d_constraintSet.clear();
+  init();
+}
+
+PbValue ExactSolver::modelValue(CVC5_UNUSED const VariableId variable)
+{
+  // TODO(alanctprado): extract the satisfying assignment from Exact.
+  Unimplemented();
+}
+
+std::vector<std::string> ExactSolver::getProof()
+{
+  // TODO(alanctprado): proof logging is not yet supported by the Exact
+  // back-end (see the logProofs guard in the constructor).
+  Unimplemented();
+}
+
 ExactSolver::Statistics::Statistics(CVC5_UNUSED StatisticsRegistry& registry,
                                     CVC5_UNUSED const std::string& prefix)
 {

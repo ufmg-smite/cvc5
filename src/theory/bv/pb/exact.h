@@ -45,6 +45,9 @@ class ExactSolver : public PseudoBooleanSolver<Node>, protected EnvObj
   void addConstraint(const Node constraint) override;
   void addVariable(const Node variable) override;
   PbSolveState solve() override;
+  PbValue modelValue(const VariableId variable) override;
+  void reset() override;
+  std::vector<std::string> getProof() override;
 
   // private:   TODO: should the constructor be private (factory)?
   /**
