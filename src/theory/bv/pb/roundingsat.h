@@ -25,10 +25,12 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "smt/env_obj.h"
 #include "theory/bv/pb/pb_solver.h"
+#include "util/integer.h"
 
 namespace rs::api {
 class PbSolver;
@@ -53,8 +55,12 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
 
   /* RoundingSatSolver interface -------------------------------------------- */
   void addConstraint(const Node constraint) override;
+  void addConstraint(const Node constraint, const Node selector) override;
   void addVariable(const Node variable) override;
   PbSolveState solve() override;
+  PbSolveState solve(const std::vector<Node>& assumptions) override;
+  std::vector<Node> getUnsatCore() override;
+  bool supportsCores() const override { return true; }
   PbValue modelValue(const VariableId variable) override;
   void reset() override;
   std::vector<std::string> getProof() override;
@@ -79,6 +85,26 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
   /** Return the RoundingSat variable for `node`, allocating it if needed. */
   RsVar toRsVar(const Node& node);
 
+  /**
+   * Decompose a constraint Node into integer (coefficient, variable) terms and
+   * its right-hand side, allocating RoundingSat variables as needed. Returns
+   * the relation kind (Kind::GEQ or Kind::EQUAL).
+   */
+  Kind parseConstraint(const Node& constraint,
+                       std::vector<std::pair<Integer, RsVar>>& terms,
+                       Integer& rhs);
+
+  /**
+   * Add the guarded constraint `sum(terms) >= rhs`, relaxed when `selector` is
+   * false. Encoded as `terms ∪ {(L - rhs, selector)} >= L`, where L is the sum
+   * of the negative coefficients (the minimum of the left-hand side): with the
+   * selector true this is the original constraint, with it false the
+   * constraint reduces to `sum >= L`, which always holds.
+   */
+  void addGuardedGeq(const std::vector<std::pair<Integer, RsVar>>& terms,
+                     const Integer& rhs,
+                     RsVar selector);
+
   /** The underlying RoundingSat solver. */
   std::unique_ptr<rs::api::PbSolver> d_solver;
 
@@ -94,6 +120,9 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
 
   /** Maps each cvc5 PB variable to its RoundingSat variable id. */
   std::unordered_map<Node, RsVar> d_nodeToVar;
+
+  /** Reverse of d_nodeToVar, for mapping unsat-core literals back to Nodes. */
+  std::unordered_map<RsVar, Node> d_varToNode;
 
   /** Maps a variable's string id (its toString()) to its RoundingSat variable. */
   std::unordered_map<VariableId, RsVar> d_nameToVar;

@@ -15,6 +15,9 @@
 
 #include "theory/bv/bv_solver_pb.h"
 
+#include <unordered_map>
+#include <vector>
+
 #include "options/bv_options.h"
 #include "theory/bv/pb/exact.h"
 #include "theory/bv/pb/roundingsat.h"
@@ -70,15 +73,40 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
 
   d_pbSolver->reset();
   Trace("bv-postcheck") << "Post Check\n";
+
+  // When the backend supports unsat cores we guard each fact's constraints with
+  // a fresh selector variable, assume all selectors true, and read back the
+  // core to build a minimized conflict. Otherwise we add the constraints
+  // unconditionally and conflict over all blasted atoms.
+  const bool useCores = d_pbSolver->supportsCores();
+  std::vector<Node> selectors;
+  std::vector<Node> allFacts;
+  std::unordered_map<Node, Node> selectorToFact;
   for (const Node& fact : d_assumptions)
   {
     Trace("bv-postcheck") << fact << "\n";
-    for (const Node& constraint : d_pbBlaster->getAtom(fact))
+    allFacts.push_back(fact);
+    if (useCores)
     {
-      d_pbSolver->addConstraint(constraint);
+      Node selector = d_pbBlaster->newVariable(1)[0];
+      selectors.push_back(selector);
+      selectorToFact.emplace(selector, fact);
+      for (const Node& constraint : d_pbBlaster->getAtom(fact))
+      {
+        d_pbSolver->addConstraint(constraint, selector);
+      }
+    }
+    else
+    {
+      for (const Node& constraint : d_pbBlaster->getAtom(fact))
+      {
+        d_pbSolver->addConstraint(constraint);
+      }
     }
   }
-  PbSolveState s = d_pbSolver->solve();
+
+  PbSolveState s =
+      useCores ? d_pbSolver->solve(selectors) : d_pbSolver->solve();
 
   if (s == PbSolveState::PB_UNSAT)
   {
@@ -88,7 +116,25 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
       d_pbpm->addPbProof(proof);
     }
     NodeManager* nm = nodeManager();
-    Node conflict = nm->mkAnd(blasted_atoms);
+    Node conflict;
+    if (useCores)
+    {
+      std::vector<Node> coreFacts;
+      for (const Node& selector : d_pbSolver->getUnsatCore())
+      {
+        coreFacts.push_back(selectorToFact.at(selector));
+      }
+      // A guarded encoding is always satisfiable with the selectors off, so an
+      // unsat result must implicate at least one selector; fall back to all
+      // facts only defensively.
+      Trace("bv-pb") << "UNSAT core: " << coreFacts.size() << " of "
+                     << allFacts.size() << " facts\n";
+      conflict = nm->mkAnd(coreFacts.empty() ? allFacts : coreFacts);
+    }
+    else
+    {
+      conflict = nm->mkAnd(blasted_atoms);
+    }
     d_im.conflict(conflict, InferenceId::BV_PB_BLAST_CONFLICT);
   }
   else if (s == PbSolveState::PB_SAT)

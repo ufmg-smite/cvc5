@@ -38,8 +38,33 @@ class PseudoBooleanSolver
   virtual void addVariable(const T variable) = 0;
   /** Assert a constraint to the solver. */
   virtual void addConstraint(const T constraint) = 0;
-  /** Check the satisfiability of the added clauses */
+  /**
+   * Assert a constraint guarded by `selector`: when `selector` is assumed
+   * false, the constraint is relaxed (trivially satisfied). Backends that
+   * support unsat cores use this to make each constraint toggleable; the
+   * default ignores the selector and asserts the constraint unconditionally.
+   */
+  virtual void addConstraint(const T constraint, const T /*selector*/)
+  {
+    addConstraint(constraint);
+  }
+  /** Check the satisfiability of the added constraints. */
   virtual PbSolveState solve() = 0;
+  /**
+   * Check satisfiability under the given assumption literals (e.g. selectors).
+   * The default ignores the assumptions and solves unconditionally.
+   */
+  virtual PbSolveState solve(const std::vector<T>& /*assumptions*/)
+  {
+    return solve();
+  }
+  /**
+   * The subset of the last solve()'s assumptions that forms an unsat core.
+   * Valid after solve(assumptions) returned PB_UNSAT. Empty if unsupported.
+   */
+  virtual std::vector<T> getUnsatCore() { return {}; }
+  /** Whether this backend can produce unsat cores via solve(assumptions). */
+  virtual bool supportsCores() const { return false; }
   /** Call modelValue() when the search is done. */
   virtual PbValue modelValue(const VariableId variable) = 0;
   /** Reset solver. */
