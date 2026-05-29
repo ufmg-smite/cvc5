@@ -1,6 +1,6 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Alan Prado
+ *   Alan Prado, Pedro Saccomani
  *
  * This file is part of the cvc5 project.
  *
@@ -21,20 +21,35 @@
 #ifndef CVC5__THEORY__BV__PB__ROUNDINGSAT_H
 #define CVC5__THEORY__BV__PB__ROUNDINGSAT_H
 
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
 #include "smt/env_obj.h"
 #include "theory/bv/pb/pb_solver.h"
+
+namespace rs::api {
+class PbSolver;
+}
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
 namespace pb {
 
+/**
+ * In-process wrapper around RoundingSat's `rs::api::PbSolver` library. Constraint
+ * Nodes (linear forms over Boolean PB variables) are translated into the solver's
+ * native representation and solved without spawning an external process.
+ */
 class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
 {
   // friend class PbSolverFactory;
 
  public:
-  ~RoundingSatSolver() override = default;
+  ~RoundingSatSolver() override;
 
   /* RoundingSatSolver interface -------------------------------------------- */
   void addConstraint(const Node constraint) override;
@@ -47,31 +62,27 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
   // private:   TODO: should the constructor be private (factory)?
   /**
    * Constructor.
-   * Private to disallow creation outside of PbSolverFactory.
-   * Function init() must be called after creation.
    * @param env       The associated environment.
    * @param registry  The associated statistics registry.
    * @param name      The name of the PB solver.
-   * @param logProofs Whether to log proofs
+   * @param logProofs Whether to log proofs.
    */
-  RoundingSatSolver(std::string solverPath,
-                    Env& env,
+  RoundingSatSolver(Env& env,
                     StatisticsRegistry& registry,
                     const std::string& name = "",
                     bool logProofs = false);
 
  private:
-  std::string buildCliCommand(std::string input_path,
-                              std::string output_path,
-                              std::string proof_path);
-  void computeSatisfyingAssignment();
-  PbSolveState parseOutput(std::string output_path);
-  void parseProof(std::string proof_path);
-  void writeInput(std::string input_path);
+  /** rs::api::Var, kept as int to avoid leaking the RoundingSat header. */
+  using RsVar = int;
 
-  std::string d_binPath;
+  /** Return the RoundingSat variable for `node`, allocating it if needed. */
+  RsVar toRsVar(const Node& node);
 
-  /** Whether we are logging proofs */
+  /** The underlying RoundingSat solver. */
+  std::unique_ptr<rs::api::PbSolver> d_solver;
+
+  /** Whether we are logging proofs. */
   bool d_logProofs;
 
   /** TODO: implement statistics */
@@ -81,20 +92,14 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
   };
   Statistics d_statistics;
 
-  /** Set of variables already in the solver */
-  std::unordered_set<Node> d_variableSet;
+  /** Maps each cvc5 PB variable to its RoundingSat variable id. */
+  std::unordered_map<Node, RsVar> d_nodeToVar;
 
-  /** Set of constraints already in the solver */
+  /** Maps a variable's string id (its toString()) to its RoundingSat variable. */
+  std::unordered_map<VariableId, RsVar> d_nameToVar;
+
+  /** Set of constraints already in the solver. */
   std::unordered_set<Node> d_constraintSet;
-
-  /** TODO(alanctprado) */
-  std::vector<std::string> d_pboConstraints;
-
-  /** TODO(alanctprado) */
-  std::vector<std::string> d_proofLines;
-
-  /** Assignment map */
-  std::unordered_map<VariableId, PbValue> d_assignmentMap;
 };
 
 }  // namespace pb
@@ -102,5 +107,5 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
 }  // namespace theory
 }  // namespace cvc5::internal
 
-#endif  // CVC5__THEORY__BV__PB__ROUDNINGSAT_H
-#endif  // CVC5_USE_ROUDNINGSAT
+#endif  // CVC5__THEORY__BV__PB__ROUNDINGSAT_H
+#endif  // CVC5_USE_ROUNDINGSAT

@@ -1,6 +1,6 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Alan Prado
+ *   Alan Prado, Pedro Saccomani
  *
  * This file is part of the cvc5 project.
  *
@@ -12,21 +12,18 @@
  *
  * Wrapper for the RoundingSat PB Solver.
  *
- * Implementation of the RoundingSat PB solver for cvc5 (bit-vectors).
+ * Implementation of the RoundingSat PB solver for cvc5 (bit-vectors), built on
+ * the in-process `rs::api::PbSolver` library.
  */
 
 #ifdef CVC5_USE_ROUNDINGSAT
 
 #include "theory/bv/pb/roundingsat.h"
 
-// #include "base/check.h"
-// #include "options/main_options.h"
-// #include "options/proof_options.h"
-// #include "prop/theory_proxy.h"
-// #include "util/resource_manager.h"
-// #include "util/statistics_registry.h"
-#include <cstdio>
+#include <utility>
 
+#include "api/PbSolver.hpp"
+#include "base/check.h"
 #include "util/rational.h"
 
 namespace cvc5::internal {
@@ -34,234 +31,117 @@ namespace theory {
 namespace bv {
 namespace pb {
 
-RoundingSatSolver::RoundingSatSolver(std::string solverPath,
-                                     Env& env,
+RoundingSatSolver::RoundingSatSolver(Env& env,
                                      StatisticsRegistry& registry,
                                      const std::string& name,
                                      bool logProofs)
     : EnvObj(env),
-      d_binPath(solverPath),
+      d_solver(std::make_unique<rs::api::PbSolver>(logProofs)),
       d_logProofs(logProofs),
       d_statistics(registry, name)
 {
 }
+
+RoundingSatSolver::~RoundingSatSolver() = default;
 
 void RoundingSatSolver::addVariable(const Node variable)
 {
   Trace("bv-pb-roundingsat")
       << "RoundingSatSolver::addVariable " << variable << "\n";
   Assert(variable.isVar());
-  if (d_variableSet.count(variable)) return;
-  d_variableSet.emplace(variable);
+  if (d_nodeToVar.count(variable)) return;
+  RsVar v = d_solver->addVariable();
+  d_nodeToVar.emplace(variable, v);
+  d_nameToVar.emplace(variable.toString(), v);
   // TODO: ++d_statistics.d_numVariables;
+}
+
+RoundingSatSolver::RsVar RoundingSatSolver::toRsVar(const Node& node)
+{
+  auto it = d_nodeToVar.find(node);
+  if (it != d_nodeToVar.end()) return it->second;
+  addVariable(node);
+  return d_nodeToVar.at(node);
 }
 
 void RoundingSatSolver::addConstraint(const Node constraint)
 {
   Trace("bv-pb-roundingsat")
       << "RoundingSatSolver::addConstraint " << constraint << "\n";
-  if (d_constraintSet.count(constraint)) return;
+  if (!d_constraintSet.emplace(constraint).second) return;
 
-  std::vector<std::string> variables, coefficients;
-  std::string result;
+  // Build the left-hand side as (coefficient, literal) pairs. Coefficients are
+  // passed as decimal strings to preserve arbitrary precision (bit-vector
+  // place values exceed int64_t for wide bit-vectors). All PB variables appear
+  // as positive literals.
+  std::vector<std::pair<std::string, rs::api::Lit>> lhs;
 
-  Node linear_form = constraint[0];
+  const Node& linear_form = constraint[0];
+  auto pushTerm = [&](const Node& term) {
+    Assert(term.getNumChildren() == 2);
+    Assert(term[0].isConst());
+    Assert(term[1].isVar());
+    const Rational& coeff = term[0].getConst<Rational>();
+    Assert(coeff.isIntegral());
+    lhs.emplace_back(coeff.getNumerator().toString(), toRsVar(term[1]));
+  };
 
   if (linear_form.getKind() == Kind::MULT)
   {
-    Assert(linear_form.getNumChildren() == 2);
-    Assert(linear_form[0].isConst());
-    Assert(linear_form[1].isVar());
-    coefficients.push_back(linear_form[0].getConst<Rational>().toString());
-    if (!d_variableSet.count(linear_form[1])) addVariable(linear_form[1]);
-    variables.push_back(linear_form[1].toString());
+    pushTerm(linear_form);
   }
-
   else if (linear_form.getKind() == Kind::ADD)
   {
     for (const Node& term : linear_form)
     {
-      Assert(term.getNumChildren() == 2);
-      Assert(term[0].isConst());
-      Assert(term[1].isVar());
-      coefficients.push_back(term[0].getConst<Rational>().toString());
-      if (!d_variableSet.count(term[1])) addVariable(term[1]);
-      variables.push_back(term[1].toString());
+      pushTerm(term);
     }
   }
-
   else
+  {
     Unreachable();
-
-  for (unsigned i = 0; i < variables.size(); i++)
-  {
-    if (coefficients[i][0] != '-') result += "+";
-    result += coefficients[i] + " ";
-    result += variables[i] + " ";
   }
 
-  if (constraint.getKind() == Kind::EQUAL)
-    result += "= ";
-  else
-    result += ">= ";
-  result += constraint[1].getConst<Rational>().toString();
-  result += ";\n";
+  const Rational& rhsRat = constraint[1].getConst<Rational>();
+  Assert(rhsRat.isIntegral());
+  std::string rhs = rhsRat.getNumerator().toString();
 
+  rs::api::PbRelOp op = (constraint.getKind() == Kind::EQUAL)
+                            ? rs::api::PbRelOp::EQUAL
+                            : rs::api::PbRelOp::GEQ;
+
+  d_solver->addConstraint(lhs, rhs, op);
   // TODO: ++d_statistics.d_numConstraints;
-  d_pboConstraints.push_back(result);
-  Trace("bv-pb-roundingsat") << "results in " << result;
-}
-
-void RoundingSatSolver::writeInput(std::string path)
-{
-  std::ofstream file(path);
-  file << "* #variable= " << d_variableSet.size()
-       << " #constraint= " << d_pboConstraints.size() << "\n";
-  for (std::string constraint : d_pboConstraints)
-  {
-    file << constraint;
-  }
-  file.close();
-
-  if (TraceIsOn("bv-pb-rs-input"))
-  {
-    std::ifstream ifile(path);
-    Trace("bv-pb-rs-input") << "Contents of the file " << path << " are:\n";
-    ifile.seekg(0);
-    std::string line;
-    while (getline(ifile, line))
-    {
-      Trace("bv-pb-rs-input") << line << '\n';
-    }
-    ifile.close();
-  }
-}
-
-std::string RoundingSatSolver::buildCliCommand(std::string input_path,
-                                               std::string output_path,
-                                               std::string proof_path)
-{
-  std::string command = d_binPath;
-  command += " --bits-learned=0 --bits-overflow=0 --bits-reduced=0 --lp=0";
-  if (d_logProofs)
-  {
-    command += " --proof-log=" + proof_path;
-  }
-  command += " " + input_path + " > " + output_path;
-  Trace("bv-pb-roundingsat") << "Built command: " << command << "\n";
-  return command;
 }
 
 void RoundingSatSolver::reset()
 {
   d_constraintSet.clear();
-  d_variableSet.clear();
-  d_pboConstraints.clear();
+  d_nodeToVar.clear();
+  d_nameToVar.clear();
+  d_solver->reset();
 }
 
-PbSolveState RoundingSatSolver::parseOutput(std::string output_path)
+std::vector<std::string> RoundingSatSolver::getProof()
 {
-  std::ifstream output(output_path);
-  std::string line, result;
-  Trace("bv-pb-rs-output") << "RoundingSat result:\n";
-  while (getline(output, line))
-  {
-    Trace("bv-pb-rs-output") << line << '\n';
-    if (line[0] == 's')
-    {
-      result = line.substr(2, line.length() - 2);
-    }
-  }
-  output.close();
-  if (result == "SATISFIABLE")
-  {
-    // computeSatisfyingAssignment();
-    return PB_SAT;
-  }
-  if (result == "UNSATISFIABLE") return PB_UNSAT;
-  return PB_UNKNOWN;
+  return d_solver->getProof();
 }
-
-void RoundingSatSolver::parseProof(std::string proof_path)
-{
-  if (TraceIsOn("bv-pb-proof"))
-  {
-    d_proofLines.clear();
-    std::ifstream proof_file(proof_path + ".proof");
-    std::string line;
-    while (getline(proof_file, line))
-    {
-      d_proofLines.push_back(line);
-    }
-  }
-}
-
-std::vector<std::string> RoundingSatSolver::getProof() { return d_proofLines; }
 
 PbSolveState RoundingSatSolver::solve()
 {
-  std::string input_path = std::string(std::tmpnam(nullptr)) + ".pbo";
-  std::string output_path = std::string(std::tmpnam(nullptr)) + "txt";
-  std::string proof_path = std::string(std::tmpnam(nullptr));
-
-  writeInput(input_path);
-  std::string command = buildCliCommand(input_path, output_path, proof_path);
-
-  std::system(command.c_str());
-
-  if (d_logProofs) parseProof(proof_path);
-
-  return parseOutput(output_path);
-}
-
-void RoundingSatSolver::computeSatisfyingAssignment()
-{
-  Unimplemented();
-  // std::string output_file = std::tmpnam(nullptr);
-  // output_file += ".txt";
-  // std::string command = d_binPath;
-  // command += " --bits-learned=0 --bits-overflow=0 --bits-reduced=0 --lp=0";
-  // command += " --print-sol=1";
-  // command += " " + d_pboPath + " > " + output_file;
-  // Trace("bv-pb-debug") << "    The command is: " << command << "\n";
-
-  // std::system(command.c_str());
-
-  // std::fstream output;
-  // output.open(output_file);
-  // Trace("bv-pb-debug") << "RoundingSat result:\n";
-  // std::string line;
-  // std::string result;
-  // std::string assignment;
-  // while (getline (output,line))
-  // {
-  //   // Trace("bv-pb-debug") << line << '\n';
-  //   if (line[0] == 's') result = line.substr(2, line.length() - 2);
-  //   if (line[0] == 'v') assignment = line.substr(2, line.length() - 2);
-  // }
-  // output.close();
-  // Assert(result == "SATISFIABLE");
-  // Trace("bv-pb-debug") << "Assignment:\n";
-  // Trace("bv-pb-debug") << assignment;
-
-  // std::vector<std::string> variables;
-  // std::stringstream ss(assignment);
-  // std::string var;
-  // while (ss >> var) variables.push_back(var);
-
-  // d_assignmentMap.clear();
-  // for (const auto& variable : variables) {
-  //   int value = (variable[0] == '-') ? 0 : 1;
-  //   VariableId variable_id = variable.substr(1 - value);
-  //   d_assignmentMap[variable_id] = (value == 0) ? PB_FALSE : PB_TRUE;
-  //   Trace("bv-pb-debug") << variable << " = " << d_assignmentMap[variable_id]
-  //   << "\n";
-  // }
+  switch (d_solver->solve())
+  {
+    case rs::api::PbSolveState::SAT: return PB_SAT;
+    case rs::api::PbSolveState::UNSAT: return PB_UNSAT;
+    default: return PB_UNKNOWN;
+  }
 }
 
 PbValue RoundingSatSolver::modelValue(const VariableId variable)
 {
-  return d_assignmentMap[variable];
+  auto it = d_nameToVar.find(variable);
+  Assert(it != d_nameToVar.end());
+  return d_solver->modelValue(it->second) ? PB_TRUE : PB_FALSE;
 }
 
 RoundingSatSolver::Statistics::Statistics(

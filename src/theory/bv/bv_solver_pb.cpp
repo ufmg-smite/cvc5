@@ -219,10 +219,8 @@ void BVSolverPseudoBoolean::initPbSolver()
     case options::BvPbSolver::ROUNDINGSAT:
       Trace("bv-pb") << "Initializing RoundingSat PB Solver...\n";
 #ifdef CVC5_USE_ROUNDINGSAT
-      Trace("bv-pb") << "RoundingSat path: " << ROUNDINGSAT_PATH << "\n";
       d_pbSolver.reset(
-          new RoundingSatSolver(ROUNDINGSAT_PATH,
-                                d_env,
+          new RoundingSatSolver(d_env,
                                 statisticsRegistry(),
                                 "theory::bv::BVSolverPseudoBoolean::",
                                 d_isProofProducing));

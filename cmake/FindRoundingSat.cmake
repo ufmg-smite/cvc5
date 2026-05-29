@@ -1,10 +1,10 @@
 ###############################################################################
 # Top contributors (to current version):
-# Alan Prado
+#   Alan Prado, Pedro Saccomani
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -19,7 +19,17 @@
 include(deps-helper)
 include(ExternalProject)
 
-#TODO: add rules to use the user's installation of RoundingSAT (if there is one)
+# We consume a prebuilt static library + headers published as a GitLab release
+# of psaccomani15/roundingsat (the `pb-solver-api` work, tag v0.1.0). The
+# release ships:
+#   lib/libroundingsat_lib.a   - the PB solver as a static library
+#   include/                   - public API (api/PbSolver.hpp) + internal headers
+# The public header surface (api/PbSolver.hpp) uses only standard-library types,
+# so cvc5 does NOT need Boost: boost::multiprecision is compiled into the
+# archive and the boost::iostreams CLI/parsing path is never referenced by the
+# API, so static linking drops it.
+
+#TODO: add rules to use the user's installation of RoundingSat (if there is one)
 set(RoundingSat_FOUND_SYSTEM FALSE)
 if(NOT ENABLE_AUTO_DOWNLOAD)
   message(FATAL_ERROR "Could not find the required dependency RoundingSat \
@@ -27,65 +37,75 @@ if(NOT ENABLE_AUTO_DOWNLOAD)
                       let us download and build it for you.")
 endif()
 
-#TODO: figure out RoundingSat's version
 set(RoundingSat_VERSION "1.0.0")
 
-if("${CMAKE_GENERATOR}" STREQUAL "Unix Makefiles")
-  # use $(MAKE) instead of "make" to allow for parallel builds
-  set(make_cmd "$(MAKE)")
+# The published release this build pins to. The release ships two PIC-built
+# toolchain variants; we must match cvc5's C++ standard library, because the
+# archive embeds std:: symbols (libc++ uses the std::__1 inline namespace,
+# libstdc++ uses std::__cxx11) and mixing them is an ABI mismatch.
+set(RoundingSat_TAG "v0.1.5")
+
+# Detect the standard library in effect (honouring the user's CXXFLAGS, e.g.
+# -stdlib=libc++). libc++ defines _LIBCPP_VERSION; libstdc++ does not.
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("
+  #include <version>
+  #ifndef _LIBCPP_VERSION
+  #error not libc++
+  #endif
+  int main() { return 0; }"
+  RoundingSat_STDLIB_IS_LIBCXX)
+
+if(RoundingSat_STDLIB_IS_LIBCXX)
+  set(RoundingSat_VARIANT "clang-libcxx")
+  set(RoundingSat_CHECKSUM
+      "77421a04443f88134554d02702a612c7ec0f6b51c689d27f9a0c8f92da455fd3")
 else()
-  # $(MAKE) does not work with ninja
-  set(make_cmd "make")
+  set(RoundingSat_VARIANT "gcc-libstdcxx")
+  set(RoundingSat_CHECKSUM
+      "97c1cd6136c07f0a3695e99098c055ec871ce635f13e5c027964d55fe4e36a78")
 endif()
 
-if(NOT EXISTS "${DEPS_BASE}/bin")
-  file(MAKE_DIRECTORY "${DEPS_BASE}/bin")
-endif()
+set(RoundingSat_ARCHIVE "roundingsat-lib-${RoundingSat_VARIANT}-${RoundingSat_TAG}.tar.gz")
+set(RoundingSat_URL
+    "https://gitlab.com/api/v4/projects/82575733/packages/generic/roundingsat-lib/${RoundingSat_TAG}/${RoundingSat_ARCHIVE}")
 
-# -------BOOST---------------------------------------------------------------------------------------------------------------------
-
-# find_package(Boost 1.67)
-
-# if(NOT Boost_FOUND)
-  ExternalProject_Add(
-    Boost-EP
-    ${COMMON_EP_CONFIG}
-    URL "https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.gz"
-    DOWNLOAD_NAME boost.tar.gz
-    URL_HASH SHA256=f55c340aa49763b1925ccf02b2e83f35fdcf634c9d5164a2acb87540173c741d
-    CONFIGURE_COMMAND ./bootstrap.sh --prefix=<INSTALL_DIR>
-    BUILD_COMMAND ./b2 install
-    INSTALL_COMMAND ""
-    BUILD_IN_SOURCE YES
-  )
-
-  add_library(Boost::Boost INTERFACE IMPORTED)
-  set_target_properties(Boost::Boost PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "<INSTALL_DIR>/include"
-    INTERFACE_LINK_LIBRARIES "<INSTALL_DIR>/lib"
-  )
-# endif()
-
-# ---------------------------------------------------------------------------------------------------------------------------------
+# Destinations need to exist before the imported target references them.
+file(MAKE_DIRECTORY "${DEPS_BASE}/lib")
+file(MAKE_DIRECTORY "${DEPS_BASE}/include/roundingsat")
 
 ExternalProject_Add(
   RoundingSat-EP
   ${COMMON_EP_CONFIG}
-  URL "https://gitlab.com/api/v4/projects/16394380/repository/archive.tar.gz?sha=d34b6bed0ea5e0a54189650ee5acf5fcaa6b8581"
-  DOWNLOAD_NAME roundingsat.tar.gz
-  URL_HASH SHA256=85ba9da0429be6998287820f7d268390745d612757f2f8f2d35a5bcab8ae2098
-  PATCH_COMMAND ${SHELL} ${CMAKE_CURRENT_LIST_DIR}/deps-utils/roundingsat-d34b6be-patch.sh <SOURCE_DIR>/CMakeLists.txt
-  BUILD_IN_SOURCE YES
-  CONFIGURE_COMMAND ${CMAKE_COMMAND} -B build -DCMAKE_BUILD_TYPE=Release -Dbuild_result=StaticLib -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-  BUILD_COMMAND ${make_cmd} -C <SOURCE_DIR>/build
-  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/build/roundingsat ${DEPS_BASE}/bin/roundingsat
-  BUILD_BYPRODUCTS <INSTALL_DIR>/build/roundingsat
+  URL "${RoundingSat_URL}"
+  DOWNLOAD_NAME roundingsat-lib.tar.gz
+  URL_HASH SHA256=${RoundingSat_CHECKSUM}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND
+    ${CMAKE_COMMAND} -E copy
+      <SOURCE_DIR>/lib/libroundingsat_lib.a
+      ${DEPS_BASE}/lib/libroundingsat_lib.a
+  COMMAND
+    ${CMAKE_COMMAND} -E copy_directory
+      <SOURCE_DIR>/include ${DEPS_BASE}/include/roundingsat
+  BUILD_BYPRODUCTS ${DEPS_BASE}/lib/libroundingsat_lib.a
 )
 
-add_dependencies(RoundingSat-EP Boost-EP)
-
-add_compile_definitions(ROUNDINGSAT_PATH="${DEPS_BASE}/bin/roundingsat")
+set(RoundingSat_INCLUDE_DIR "${DEPS_BASE}/include/roundingsat")
+set(RoundingSat_LIBRARIES "${DEPS_BASE}/lib/libroundingsat_lib.a")
 
 set(RoundingSat_FOUND TRUE)
+
+add_library(RoundingSat STATIC IMPORTED GLOBAL)
+set_target_properties(RoundingSat PROPERTIES
+  IMPORTED_LOCATION "${RoundingSat_LIBRARIES}")
+set_target_properties(RoundingSat PROPERTIES
+  INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${RoundingSat_INCLUDE_DIR}")
+
 mark_as_advanced(RoundingSat_FOUND)
 mark_as_advanced(RoundingSat_FOUND_SYSTEM)
+mark_as_advanced(RoundingSat_INCLUDE_DIR)
+mark_as_advanced(RoundingSat_LIBRARIES)
+
+add_dependencies(RoundingSat RoundingSat-EP)
