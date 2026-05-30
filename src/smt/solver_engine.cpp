@@ -1855,6 +1855,60 @@ void SolverEngine::getRelevantQuantTermVectors(
   d_ucManager->getRelevantQuantTermVectors(insts, sks, getDebugInfo);
 }
 
+void printProofTree(std::shared_ptr<ProofNode> p, int aux = 0)
+{
+  if (p == nullptr) 
+  {
+    return;
+  }
+
+  for (int i = 0; i < aux; ++i)
+  {
+    std::cout << "  ";
+  }
+
+  std::cout << p->getRule() << " -> " << p->getResult() << std::endl;
+
+  for (const std::shared_ptr<ProofNode>& child : p->getChildren())
+  {
+    printProofTree(child, aux + 1);
+  }
+}
+
+void getInterpolant2(
+  std::shared_ptr<ProofNode> p,
+  std::unordered_set<Node>& aAssertions,
+  std::unordered_set<Node>& bAssertions)
+{
+  if (p == nullptr) 
+  {
+    return;
+  }
+
+  if (p->getRule() == ProofRule::ASSUME)
+  {
+    Node f = p->getResult(); 
+      if (aAssertions.find(f) != aAssertions.end())
+    {
+      std::cout << "A";
+    }
+    else if (bAssertions.find(f) != bAssertions.end())
+    {
+      std::cout << "B";
+    }
+    else
+    {
+      std::cout << "?";
+    }
+  }
+
+  for (const std::shared_ptr<ProofNode>& child : p->getChildren())
+  {
+    getInterpolant2(child, aAssertions, bAssertions);
+  }
+  
+}
+
 std::vector<std::shared_ptr<ProofNode>> SolverEngine::getProof(
     modes::ProofComponent c)
 {
@@ -1946,9 +2000,39 @@ std::vector<std::shared_ptr<ProofNode>> SolverEngine::getProof(
     {
       Assert(p != nullptr);
       p = d_pfManager->connectProofToAssertions(
-          p, d_smtSolver->getAssertions(), scopeMode);
+          p, d_smtSolver->getAssertions(), scopeMode); 
     }
   }
+
+  std::unordered_set<Node> assertionsA;
+  std::unordered_set<Node> assertionsB;
+  const auto assertions = getAssertionsInternal();
+  bool first = true;
+
+  for (const Node& n : assertions)
+  {
+    if (first)
+    {
+      assertionsA.insert(n);
+      first = false;
+    }
+    else
+    {       
+      assertionsB.insert(n);
+    }
+  }
+
+  std::shared_ptr<ProofNode> proof = pe->getProof();
+  Trace("test") << "Endereço da prova: " << proof << std::endl;
+  
+  std::cout << "-------- ARVORE DE PROVAS --------" << std::endl;
+  
+  printProofTree(proof);
+
+  std::cout << "----- FIM DA ARVORE DE PROVAS -----" << std::endl;
+
+  getInterpolant2(proof, assertionsA, assertionsB);
+  
   return ps;
 }
 
