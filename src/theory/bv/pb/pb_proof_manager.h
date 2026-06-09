@@ -37,8 +37,9 @@ class PbProofManager : protected EnvObj
   PbProofManager(Env& env, PbBlastProofGenerator* pbbpg);
   ~PbProofManager() {};
 
+  void convertProof(std::vector<Node> veriPbProof);
   void addPbProof(std::vector<std::string>
-                      pb_proof);  // TODO(alanctprado): do not copy proof
+                      pb_proof, bool veriPbFormat = true);  // TODO(alanctprado): do not copy proof
 
  private:
   CVC5_UNUSED_FIELD PbBlastProofGenerator*

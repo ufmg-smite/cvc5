@@ -39,21 +39,26 @@ class PbProofRules : protected EnvObj
 
   /** Rules */
   Node assumption(std::istringstream&);
+  Node conclusionSection(std::istringstream&);
   Node constraintEquals(std::istringstream&);
   Node constraintImplies(std::istringstream&);
   Node constraintImpliesGetImplied(std::istringstream&);
   Node deleteConstraints(std::istringstream&);
   Node deleteConstraints2(std::istringstream&);
+  Node endProof(std::istringstream&);
   Node isContradiction(std::istringstream&);
   Node loadAxiom(std::istringstream&);
   Node loadFormula(std::istringstream&);
   Node markCore(std::istringstream&);
   Node objectiveBound(std::istringstream&);
   Node originalSolution(std::istringstream&);
+  Node outputSection(std::istringstream&);
+  Node redundancy(std::istringstream&);
   Node reversePolishNotation(std::istringstream&);
   Node reverseUnitPropagation(std::istringstream&);
   Node setLevel(std::istringstream&);
   Node solution(std::istringstream&);
+  Node syntacticImpliesAdd(std::istringstream&);
   Node wipeLevel(std::istringstream&);
 
   /** Internal */

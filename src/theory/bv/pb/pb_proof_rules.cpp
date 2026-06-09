@@ -42,6 +42,8 @@ void PbProofRules::initializeRules()
        [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
       {"e", [this](std::istringstream& iss) { return constraintEquals(iss); }},
       {"i", [this](std::istringstream& iss) { return constraintImplies(iss); }},
+      {"ia",
+       [this](std::istringstream& iss) { return syntacticImpliesAdd(iss); }},
       {"j",
        [this](std::istringstream& iss) {
          return constraintImpliesGetImplied(iss);
@@ -58,7 +60,13 @@ void PbProofRules::initializeRules()
       {"l", [this](std::istringstream& iss) { return loadAxiom(iss); }},
       {"core", [this](std::istringstream& iss) { return markCore(iss); }},
       {"#", [this](std::istringstream& iss) { return setLevel(iss); }},
-      {"w", [this](std::istringstream& iss) { return wipeLevel(iss); }}};
+      {"w", [this](std::istringstream& iss) { return wipeLevel(iss); }},
+      {"red", [this](std::istringstream& iss) { return redundancy(iss); }},
+      {"output",
+       [this](std::istringstream& iss) { return outputSection(iss); }},
+      {"conclusion",
+       [this](std::istringstream& iss) { return conclusionSection(iss); }},
+      {"end", [this](std::istringstream& iss) { return endProof(iss); }}};
 }
 
 Node PbProofRules::parseLine(const std::string& line)
@@ -75,9 +83,22 @@ Node PbProofRules::parseLine(const std::string& line)
   return it->second(iss);
 }
 
-Node PbProofRules::assumption(CVC5_UNUSED std::istringstream& iss)
+Node PbProofRules::assumption(std::istringstream& iss)
 {
-  Unimplemented();
+  Trace("bv-pb-proof") << "PbProofRules::assumption\n";
+  NodeManager* nm = nodeManager();
+  Node constraint = parseOpbFormat(iss);
+
+  // RoundingSat's logAssumption emits no trailing separator, but we tolerate a
+  // stray ';' defensively. Any other leftover token is a parsing error.
+  std::string token;
+  while (iss >> token)
+  {
+    if (token != ";")
+      Unreachable() << "\nPbProofRules::assumption: unexpected token '" << token
+                    << "'\n";
+  }
+  return nm->mkNode(Kind::PB_PROOF_ASSUMPTION, constraint);
 }
 
 Node PbProofRules::constraintEquals(CVC5_UNUSED std::istringstream& iss)
@@ -101,9 +122,30 @@ Node PbProofRules::deleteConstraints(CVC5_UNUSED std::istringstream& iss)
   Unimplemented();
 }
 
-Node PbProofRules::deleteConstraints2(CVC5_UNUSED std::istringstream& iss)
+Node PbProofRules::deleteConstraints2(std::istringstream& iss)
 {
-  Unimplemented();
+  Trace("bv-pb-proof") << "PbProofRules::deleteConstraints2\n";
+  NodeManager* nm = nodeManager();
+
+  std::string sub;
+  iss >> sub;
+  if (sub != "id")
+  {
+    // 'del spec <ineq>' (VeriPB 3.0 augmented, DRAT-style) not yet supported;
+    // RoundingSat does not emit it.
+    Unimplemented() << "\nPbProofRules::deleteConstraints2: unsupported "
+                    << "'del " << sub << "' form\n";
+  }
+
+  std::vector<Node> ids;
+  std::string token;
+  while (iss >> token)
+  {
+    if (token == ";") continue;  // defensive; RoundingSat emits no terminator
+    ids.push_back(nm->mkBoundVar(token, nm->stringType()));
+  }
+  Node id_list = nm->mkNode(Kind::SEXPR, ids);
+  return nm->mkNode(Kind::PB_PROOF_DELETE_BY_ID, id_list);
 }
 
 Node PbProofRules::isContradiction(std::istringstream& iss)
@@ -127,19 +169,26 @@ Node PbProofRules::isContradiction(std::istringstream& iss)
 Node PbProofRules::loadAxiom(std::istringstream& iss)
 {
   Trace("bv-pb-proof") << "PbProofRules::loadAxiom\n";
-  std::string axiom_id;
+  size_t axiom_id;
   iss >> axiom_id;
 
   if (!iss.eof()) Unreachable() << "\nParsing error\n";
 
   NodeManager* nm = nodeManager();
-  Node axiom = nm->mkBoundVar(axiom_id, nm->stringType());
-  return nm->mkNode(Kind::PB_PROOF_LOAD_AXIOM, axiom);
+  return nm->mkConstInt(axiom_id);
 }
 
-Node PbProofRules::loadFormula(CVC5_UNUSED std::istringstream& iss)
+Node PbProofRules::loadFormula(std::istringstream& iss)
 {
-  Unimplemented();
+  Trace("bv-pb-proof") << "PbProofRules::loadFormula\n";
+  size_t num_constraints;
+  iss >> num_constraints;
+
+  if (!iss.eof()) Unreachable() << "\nParsing error\n";
+
+  NodeManager* nm = nodeManager();
+  return nm->mkNode(Kind::PB_PROOF_LOAD_FORMULA,
+                    nm->mkConstInt(Rational(num_constraints)));
 }
 
 Node PbProofRules::markCore(CVC5_UNUSED std::istringstream& iss)
@@ -168,9 +217,21 @@ Node PbProofRules::reversePolishNotation(std::istringstream& iss)
 Node PbProofRules::reverseUnitPropagation(std::istringstream& iss)
 {
   Trace("bv-pb-proof") << "PbProofRules::reverseUnitPropagation\n";
-  Node rup_constraint = parseOpbFormat(iss);
   NodeManager* nm = nodeManager();
-  return nm->mkNode(Kind::PB_PROOF_REVERSE_UNIT_PROPAGATION, rup_constraint);
+  Node rup_constraint = parseOpbFormat(iss);
+
+  std::vector<Node> hint_ids;
+  std::string token;
+  while (iss >> token)
+  {
+    // Tolerate stray ';' (VeriPB 2.0) and ':' (VeriPB 3.0 hint delimiter).
+    if (token == ";" || token == ":") continue;
+    hint_ids.push_back(nm->mkBoundVar(token, nm->stringType()));
+  }
+  Node hints = nm->mkNode(Kind::SEXPR, hint_ids);
+  return nm->mkNode(Kind::PB_PROOF_REVERSE_UNIT_PROPAGATION,
+                    rup_constraint,
+                    hints);
 }
 
 Node PbProofRules::setLevel(CVC5_UNUSED std::istringstream& iss)
@@ -183,9 +244,108 @@ Node PbProofRules::solution(CVC5_UNUSED std::istringstream& iss)
   Unimplemented();
 }
 
+Node PbProofRules::syntacticImpliesAdd(std::istringstream& iss)
+{
+  Trace("bv-pb-proof") << "PbProofRules::syntacticImpliesAdd\n";
+  NodeManager* nm = nodeManager();
+  Node constraint = parseOpbFormat(iss);
+
+  std::vector<Node> hint_ids;
+  std::string token;
+  while (iss >> token)
+  {
+    // Tolerate stray ';' (VeriPB 2.0) and ':' (VeriPB 3.0 hint delimiter).
+    if (token == ";" || token == ":") continue;
+    hint_ids.push_back(nm->mkBoundVar(token, nm->stringType()));
+  }
+  Node hints = nm->mkNode(Kind::SEXPR, hint_ids);
+  return nm->mkNode(Kind::PB_PROOF_SYNTACTIC_IMPLIES_ADD, constraint, hints);
+}
+
 Node PbProofRules::wipeLevel(CVC5_UNUSED std::istringstream& iss)
 {
   Unimplemented();
+}
+
+Node PbProofRules::redundancy(std::istringstream& iss)
+{
+  Trace("bv-pb-proof") << "PbProofRules::redundancy\n";
+  NodeManager* nm = nodeManager();
+  Node constraint = parseOpbFormat(iss);
+
+  // Witness tokens up to the ';' terminator: each token is a piece of the
+  // substitution (e.g. 'xV', '->', '1' or 'xU'). RoundingSat may emit an empty
+  // witness ('addWitness({})' -> just '; '), in which case the SEXPR is empty.
+  std::vector<Node> witness;
+  std::string token;
+  while (iss >> token)
+  {
+    if (token == ";") break;
+    witness.push_back(nm->mkBoundVar(token, nm->stringType()));
+  }
+  Node witness_sexpr = nm->mkNode(Kind::SEXPR, witness);
+
+  // Optional subproof body: everything after the ';' (typically a block
+  // 'begin\n ... \nend' that the line-gluer in PbProofManager::parseProofLines
+  // has already collapsed into this single string). Stored verbatim; consumers
+  // that need structured access to inner steps can re-parse it.
+  std::ostringstream rest;
+  rest << iss.rdbuf();
+  std::string subproof_text = rest.str();
+  size_t start = subproof_text.find_first_not_of(" \t\n\r");
+  subproof_text =
+      (start == std::string::npos) ? std::string() : subproof_text.substr(start);
+  Node subproof = nm->mkConst(String(subproof_text));
+
+  return nm->mkNode(Kind::PB_PROOF_REDUNDANCY,
+                    constraint,
+                    witness_sexpr,
+                    subproof);
+}
+
+Node PbProofRules::outputSection(std::istringstream& iss)
+{
+  Trace("bv-pb-proof") << "PbProofRules::outputSection\n";
+  NodeManager* nm = nodeManager();
+  std::vector<Node> tokens;
+  std::string token;
+  while (iss >> token)
+  {
+    if (token == ";") continue;
+    tokens.push_back(nm->mkBoundVar(token, nm->stringType()));
+  }
+  Node content = nm->mkNode(Kind::SEXPR, tokens);
+  return nm->mkNode(Kind::PB_PROOF_OUTPUT, content);
+}
+
+Node PbProofRules::conclusionSection(std::istringstream& iss)
+{
+  Trace("bv-pb-proof") << "PbProofRules::conclusionSection\n";
+  NodeManager* nm = nodeManager();
+  std::vector<Node> tokens;
+  std::string token;
+  while (iss >> token)
+  {
+    // Skip ';' (statement terminator) and ':' (UNSAT/SAT payload separator).
+    if (token == ";" || token == ":") continue;
+    tokens.push_back(nm->mkBoundVar(token, nm->stringType()));
+  }
+  Node content = nm->mkNode(Kind::SEXPR, tokens);
+  return nm->mkNode(Kind::PB_PROOF_CONCLUSION, content);
+}
+
+Node PbProofRules::endProof(std::istringstream& iss)
+{
+  Trace("bv-pb-proof") << "PbProofRules::endProof\n";
+  NodeManager* nm = nodeManager();
+  std::vector<Node> tokens;
+  std::string token;
+  while (iss >> token)
+  {
+    tokens.push_back(nm->mkBoundVar(token, nm->stringType()));
+  }
+  Node content = nm->mkNode(Kind::SEXPR, tokens);
+  return nm->mkNode(Kind::PB_PROOF_END, content);
 }
 
 // Based on http://www.cril.univ-artois.fr/PB12/format.pdf
