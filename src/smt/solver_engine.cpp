@@ -1924,8 +1924,8 @@ Node shared(Node clause, std::unordered_set<Node>& bSymbols, NodeManager* nm)
         {
           break;
         }
+        sharedVar.push_back(literal);
       }
-      sharedVar.push_back(literal);
     }
   }
   else
