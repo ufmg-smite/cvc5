@@ -1857,7 +1857,7 @@ void SolverEngine::getRelevantQuantTermVectors(
 
 void printProofTree(std::shared_ptr<ProofNode> p, int aux = 0)
 {
-  if (p == nullptr) 
+  if (p == nullptr)
   {
     return;
   }
@@ -1875,38 +1875,177 @@ void printProofTree(std::shared_ptr<ProofNode> p, int aux = 0)
   }
 }
 
-void getInterpolant2(
-  std::shared_ptr<ProofNode> p,
-  std::unordered_set<Node>& aAssertions,
-  std::unordered_set<Node>& bAssertions)
+bool isLocalA(Node pivot,
+              const std::unordered_set<Node>& symbolsA,
+              const std::unordered_set<Node>& symbolsB)
 {
-  if (p == nullptr) 
+  std::unordered_set<Node> pivotSymbols;
+  expr::getSymbols(pivot, pivotSymbols);
+
+  if (pivotSymbols.empty())
   {
-    return;
+    return false;
   }
 
+  for (const Node& s : pivotSymbols)
+  {
+    if (symbolsA.find(s) == symbolsA.end())
+    {
+      return false;
+    }
+
+    if (symbolsB.find(s) != symbolsB.end())
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+Node shared(Node clause, std::unordered_set<Node>& bSymbols, NodeManager* nm)
+{
+  std::unordered_set<Node> clauseSymbols;
+  std::vector<Node> sharedVar;
+
+
+  if (clause.getKind() == Kind::OR)
+  {
+    expr::getSymbols(clause, clauseSymbols);
+
+    for (const Node& literal : clause)
+    {
+      std::unordered_set<Node> litSymbols;
+      expr::getSymbols(literal, litSymbols);
+
+      for (const Node& n : litSymbols)
+      {
+        if (bSymbols.find(n) == bSymbols.end())
+        {
+          break;
+        }
+      }
+      sharedVar.push_back(literal);
+    }
+  }
+  else
+  {
+    expr::getSymbols(clause, clauseSymbols);
+    for (const Node& n : clauseSymbols)
+    {
+      if (bSymbols.find(n) == bSymbols.end() || clauseSymbols.empty())
+      {
+        //std::cout << "n: " << n << std::endl;
+        break;
+      }
+      sharedVar.push_back(clause);
+    }
+  }
+
+  return nm->mkOr(sharedVar);
+}
+
+Node getPartialItp(std::shared_ptr<ProofNode> p,           // no atual
+                   std::unordered_set<Node>& aAssertions,  // clausulas de A
+                   std::unordered_set<Node>& bAssertions,  // clausulas de B
+                   std::unordered_set<Node>& aSymbols,     // variaveis de A
+                   std::unordered_set<Node>& bSymbols,     // variaveis de B
+                   NodeManager* nm)                        // gerenciador de nos
+{
   if (p->getRule() == ProofRule::ASSUME)
   {
-    Node f = p->getResult(); 
-      if (aAssertions.find(f) != aAssertions.end())
+    Node f = p->getResult();
+    if (aAssertions.find(f) != aAssertions.end())
     {
-      std::cout << "A";
+      std::cout << "A: " << f << std::endl;
+      return shared(f, bSymbols, nm);
     }
     else if (bAssertions.find(f) != bAssertions.end())
     {
-      std::cout << "B";
+      std::cout << "B: " << f << std::endl;
+      return nm->mkConst(true);
+    }
+  }
+  else if (p->getRule() == ProofRule::CONTRA)
+  {
+    const auto& children = p->getChildren();
+
+    Node itp0 = getPartialItp(
+        children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm);
+
+    Node itp1 = getPartialItp(
+        children[1], aAssertions, bAssertions, aSymbols, bSymbols, nm);
+
+    Node pivot = children[0]->getResult();
+
+    // if (pivot.getKind() == Kind::NOT)
+    // {
+    //   pivot = pivot[0];
+    // }
+
+    bool pivotLocalA = isLocalA(pivot, aSymbols, bSymbols);
+
+    Node itp;
+    if (pivotLocalA)
+    {
+      itp = nm->mkNode(Kind::OR, itp0, itp1);
     }
     else
     {
-      std::cout << "?";
+      itp = nm->mkNode(Kind::AND, itp0, itp1);
     }
-  }
 
-  for (const std::shared_ptr<ProofNode>& child : p->getChildren())
-  {
-    getInterpolant2(child, aAssertions, bAssertions);
+    return itp;
   }
-  
+  else if (p->getRule() == ProofRule::CHAIN_RESOLUTION
+           || p->getRule() == ProofRule::CHAIN_M_RESOLUTION)
+  {
+    const auto& children = p->getChildren();
+    const auto& args = p->getArguments();
+
+    Node itp0 = getPartialItp(
+        children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm);
+
+    for (size_t i = 1; i < children.size(); i++)
+    {
+      Node child_itp = getPartialItp(
+          children[i], aAssertions, bAssertions, aSymbols, bSymbols, nm);
+      Node pivot;
+
+      if (p->getRule() == ProofRule::CHAIN_RESOLUTION)
+      {
+        pivot = args[1][i - 1];
+        std::cout << "pivo: " << pivot << std::endl;
+      }
+      else if (p->getRule() == ProofRule::CHAIN_M_RESOLUTION)
+      {
+        pivot = args[2][i - 1];
+      }
+
+      bool pivotLocalA = isLocalA(pivot, aSymbols, bSymbols);
+
+      if (pivotLocalA)
+      {
+        itp0 = nm->mkNode(Kind::OR, itp0, child_itp);
+      }
+      else
+      {
+        itp0 = nm->mkNode(Kind::AND, itp0, child_itp);
+      }
+    }
+    return itp0;
+  }
+  else if (p->getRule() == ProofRule::REORDERING
+           || p->getRule() == ProofRule::FACTORING)
+  {
+    return getPartialItp(
+        p->getChildren()[0], aAssertions, bAssertions, aSymbols, bSymbols, nm);
+  }
+  else
+  {
+    Node itp = nm->mkConst(true);
+    return itp;
+  }
 }
 
 std::vector<std::shared_ptr<ProofNode>> SolverEngine::getProof(
@@ -2000,39 +2139,85 @@ std::vector<std::shared_ptr<ProofNode>> SolverEngine::getProof(
     {
       Assert(p != nullptr);
       p = d_pfManager->connectProofToAssertions(
-          p, d_smtSolver->getAssertions(), scopeMode); 
+          p, d_smtSolver->getAssertions(), scopeMode);
     }
   }
 
   std::unordered_set<Node> assertionsA;
   std::unordered_set<Node> assertionsB;
   const auto assertions = getAssertionsInternal();
-  bool first = true;
+  int aux = 4;
 
+  // Separa entre A e B
   for (const Node& n : assertions)
   {
-    if (first)
+    if (aux > 0)
     {
       assertionsA.insert(n);
-      first = false;
+
+      if (n.getKind() == Kind::AND)
+      {
+        for (const Node& child : n)
+        {
+          assertionsA.insert(child);
+        }
+      }
+
+      aux--;
     }
     else
-    {       
+    {
       assertionsB.insert(n);
     }
   }
+  // Reordering, CHAIN_M_RESOLUTION, factoring
+  // generaizar pra get symbols
 
   std::shared_ptr<ProofNode> proof = pe->getProof();
   Trace("test") << "Endereço da prova: " << proof << std::endl;
-  
+
   std::cout << "-------- ARVORE DE PROVAS --------" << std::endl;
-  
+
   printProofTree(proof);
 
   std::cout << "----- FIM DA ARVORE DE PROVAS -----" << std::endl;
 
-  getInterpolant2(proof, assertionsA, assertionsB);
-  
+  NodeManager* nm = d_env->getNodeManager();
+
+  std::cout << "ASSERTIONS A:" << std::endl;
+  for (const Node& a : assertionsA)
+  {
+    std::cout << a << std::endl;
+  }
+
+  std::cout << "ASSERTIONS B:" << std::endl;
+  for (const Node& b : assertionsB)
+  {
+    std::cout << b << std::endl;
+  }
+
+  std::cout << "----------------" << std::endl;
+
+  std::unordered_set<Node> symbolsA;
+  std::unordered_set<Node> symbolsB;
+
+  for (const Node& a : assertionsA)
+  {
+    expr::getSymbols(a, symbolsA);
+  }
+
+  for (const Node& b : assertionsB)
+  {
+    expr::getSymbols(b, symbolsB);
+  }
+
+  Node itp =
+      getPartialItp(proof, assertionsA, assertionsB, symbolsA, symbolsB, nm);
+  std::cout << "----------------" << std::endl;
+  std::cout << "itp: " << itp << std::endl;
+  itp = d_env->getRewriter()->rewrite(itp);
+  std::cout << "itp reescrita: " << itp << std::endl;
+
   return ps;
 }
 
