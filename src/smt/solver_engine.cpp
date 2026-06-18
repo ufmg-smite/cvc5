@@ -1903,6 +1903,21 @@ bool isLocalA(Node pivot,
   return true;
 }
 
+bool isSharedLiteral(Node literal, std::unordered_set<Node>& bSymbols)
+{
+  std::unordered_set<Node> litSymbols;
+  expr::getSymbols(literal, litSymbols);
+
+  if (litSymbols.empty()) return false;
+
+  for (const Node& n : litSymbols)
+  {
+    if(bSymbols.find(n) == bSymbols.end()) return false;
+  }
+  return true;
+
+}
+
 Node shared(Node clause, std::unordered_set<Node>& bSymbols, NodeManager* nm)
 {
   std::unordered_set<Node> clauseSymbols;
@@ -1911,141 +1926,144 @@ Node shared(Node clause, std::unordered_set<Node>& bSymbols, NodeManager* nm)
 
   if (clause.getKind() == Kind::OR)
   {
-    expr::getSymbols(clause, clauseSymbols);
 
     for (const Node& literal : clause)
     {
       std::unordered_set<Node> litSymbols;
       expr::getSymbols(literal, litSymbols);
 
-      for (const Node& n : litSymbols)
-      {
-        if (bSymbols.find(n) == bSymbols.end())
-        {
-          break;
-        }
-        sharedVar.push_back(literal);
-      }
+      if (isSharedLiteral(literal, bSymbols)) sharedVar.push_back(literal);
+      
     }
   }
   else
   {
-    expr::getSymbols(clause, clauseSymbols);
-    for (const Node& n : clauseSymbols)
-    {
-      if (bSymbols.find(n) == bSymbols.end() || clauseSymbols.empty())
-      {
-        //std::cout << "n: " << n << std::endl;
-        break;
-      }
-      sharedVar.push_back(clause);
-    }
+      if(isSharedLiteral(clause, bSymbols)) sharedVar.push_back(clause);
   }
 
   return nm->mkOr(sharedVar);
 }
 
-Node getPartialItp(std::shared_ptr<ProofNode> p,           // no atual
-                   std::unordered_set<Node>& aAssertions,  // clausulas de A
-                   std::unordered_set<Node>& bAssertions,  // clausulas de B
-                   std::unordered_set<Node>& aSymbols,     // variaveis de A
-                   std::unordered_set<Node>& bSymbols,     // variaveis de B
-                   NodeManager* nm)                        // gerenciador de nos
+Node getItp(std::shared_ptr<ProofNode> p,          
+                   std::unordered_set<Node>& aAssertions,  
+                   std::unordered_set<Node>& bAssertions,  
+                   std::unordered_set<Node>& aSymbols,    
+                   std::unordered_set<Node>& bSymbols,     
+                   NodeManager* nm, 
+                   std::unordered_map<ProofNode*, Node>& cache)  
 {
-  if (p->getRule() == ProofRule::ASSUME)
+
+  auto it = cache.find(p.get());
+  if (it != cache.end())
   {
-    Node f = p->getResult();
-    if (aAssertions.find(f) != aAssertions.end())
-    {
-      std::cout << "A: " << f << std::endl;
-      return shared(f, bSymbols, nm);
-    }
-    else if (bAssertions.find(f) != bAssertions.end())
-    {
-      std::cout << "B: " << f << std::endl;
-      return nm->mkConst(true);
-    }
+    return it->second;
   }
-  else if (p->getRule() == ProofRule::CONTRA)
+
+  Node result;
+
+  switch (p->getRule())
   {
-    const auto& children = p->getChildren();
-
-    Node itp0 = getPartialItp(
-        children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm);
-
-    Node itp1 = getPartialItp(
-        children[1], aAssertions, bAssertions, aSymbols, bSymbols, nm);
-
-    Node pivot = children[0]->getResult();
-
-    // if (pivot.getKind() == Kind::NOT)
-    // {
-    //   pivot = pivot[0];
-    // }
-
-    bool pivotLocalA = isLocalA(pivot, aSymbols, bSymbols);
-
-    Node itp;
-    if (pivotLocalA)
+    case ProofRule::ASSUME:
     {
-      itp = nm->mkNode(Kind::OR, itp0, itp1);
-    }
-    else
-    {
-      itp = nm->mkNode(Kind::AND, itp0, itp1);
-    }
-
-    return itp;
-  }
-  else if (p->getRule() == ProofRule::CHAIN_RESOLUTION
-           || p->getRule() == ProofRule::CHAIN_M_RESOLUTION)
-  {
-    const auto& children = p->getChildren();
-    const auto& args = p->getArguments();
-
-    Node itp0 = getPartialItp(
-        children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm);
-
-    for (size_t i = 1; i < children.size(); i++)
-    {
-      Node child_itp = getPartialItp(
-          children[i], aAssertions, bAssertions, aSymbols, bSymbols, nm);
-      Node pivot;
-
-      if (p->getRule() == ProofRule::CHAIN_RESOLUTION)
+      Node f = p->getResult();
+      if (aAssertions.find(f) != aAssertions.end())
       {
-        pivot = args[1][i - 1];
-        std::cout << "pivo: " << pivot << std::endl;
+        result = shared(f, bSymbols, nm);
       }
-      else if (p->getRule() == ProofRule::CHAIN_M_RESOLUTION)
+      else if (bAssertions.find(f) != bAssertions.end())
       {
-        pivot = args[2][i - 1];
+        result = nm->mkConst(true);
       }
+      break;
+    }
+    case ProofRule::CONTRA:
+    {
+      const auto& children = p->getChildren();
+
+      Node itp0 = getItp(
+          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache);
+
+      Node itp1 = getItp(
+          children[1], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache);
+
+      Node pivot = children[0]->getResult();
 
       bool pivotLocalA = isLocalA(pivot, aSymbols, bSymbols);
 
+      Node itp;
       if (pivotLocalA)
       {
-        itp0 = nm->mkNode(Kind::OR, itp0, child_itp);
+        result =  nm->mkNode(Kind::OR, itp0, itp1);
       }
       else
       {
-        itp0 = nm->mkNode(Kind::AND, itp0, child_itp);
+        result = nm->mkNode(Kind::AND, itp0, itp1);
       }
+      break;
+
     }
-    return itp0;
+    case ProofRule::CHAIN_RESOLUTION:
+    case ProofRule::CHAIN_M_RESOLUTION:
+    {
+      const auto& children = p->getChildren();
+      const auto& args = p->getArguments();
+
+      Node itp0 = getItp(
+          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache);
+
+      for (size_t i = 1; i < children.size(); i++)
+      {
+        Node child_itp = getItp(
+            children[i], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache);
+        Node pivot;
+
+        if (p->getRule() == ProofRule::CHAIN_RESOLUTION)
+        {
+          pivot = args[1][i - 1];
+          std::cout << "pivo: " << pivot << std::endl;
+        }
+        else if (p->getRule() == ProofRule::CHAIN_M_RESOLUTION)
+        {
+          pivot = args[2][i - 1];
+        }
+
+        bool pivotLocalA = isLocalA(pivot, aSymbols, bSymbols);
+
+        if (pivotLocalA)
+        {
+          itp0 = nm->mkNode(Kind::OR, itp0, child_itp);
+        }
+        else
+        {
+          itp0 = nm->mkNode(Kind::AND, itp0, child_itp);
+        }
+      }
+      result = itp0;
+      break;
+    }
+    case ProofRule::REORDERING:
+    case ProofRule::FACTORING:
+    {
+      result = getItp(p->getChildren()[0],
+                           aAssertions,
+                           bAssertions,
+                           aSymbols,
+                           bSymbols,
+                           nm,
+                           cache);
+      break;
+    }
+    default:
+    {
+      result = nm->mkConst(true);
+      break;
+    }
+
   }
-  else if (p->getRule() == ProofRule::REORDERING
-           || p->getRule() == ProofRule::FACTORING)
-  {
-    return getPartialItp(
-        p->getChildren()[0], aAssertions, bAssertions, aSymbols, bSymbols, nm);
-  }
-  else
-  {
-    Node itp = nm->mkConst(true);
-    return itp;
-  }
+
+  cache[p.get()] = result;
+  return result;
+
 }
 
 std::vector<std::shared_ptr<ProofNode>> SolverEngine::getProof(
@@ -2211,8 +2229,9 @@ std::vector<std::shared_ptr<ProofNode>> SolverEngine::getProof(
     expr::getSymbols(b, symbolsB);
   }
 
+  std::unordered_map<ProofNode*, Node> cache;
   Node itp =
-      getPartialItp(proof, assertionsA, assertionsB, symbolsA, symbolsB, nm);
+      getItp(proof, assertionsA, assertionsB, symbolsA, symbolsB, nm, cache);
   std::cout << "----------------" << std::endl;
   std::cout << "itp: " << itp << std::endl;
   itp = d_env->getRewriter()->rewrite(itp);
