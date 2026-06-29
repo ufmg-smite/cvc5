@@ -18,6 +18,8 @@
 #ifndef CVC5__THEORY__BV__PB__PB_BLAST_STRATEGIES_TEMPLATE_H
 #define CVC5__THEORY__BV__PB__PB_BLAST_STRATEGIES_TEMPLATE_H
 
+#include <cmath>
+
 #include "theory/bv/pb/pb_blast_utils.h"
 #include "theory/bv/theory_bv_utils.h"
 #include "util/bitvector.h"
@@ -843,6 +845,89 @@ T DefaultSubPb(T term, TPseudoBooleanBlaster<T>* pbb)
   T rewritten_node = nm->mkNode(
       Kind::BITVECTOR_ADD, term[0], nm->mkNode(Kind::BITVECTOR_NEG, term[1]));
   return pbb->blastTerm(rewritten_node);
+}
+
+template <class T>
+T DefaultShlPb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+    Assert(term.getKind() == Kind::BITVECTOR_SHL);
+
+    T a = pbb->blastTerm(term[0]);
+    T b = pbb->blastTerm(term[1]);
+
+    NodeManager* nm = pbb->getNodeManager();
+    unsigned num_bits = utils::getSize(term);
+    unsigned log2_size = std::ceil(log2((double)num_bits));
+
+    std::unordered_set<Node> constraints;
+    T prev_z = a[0];
+    for (unsigned j = 0; j < log2_size; j++) {
+        unsigned threshold = pow(2, j);
+        T z = pbb->newVariable(num_bits);
+
+        for (unsigned i = 0; i < num_bits; i++) {
+            std::vector<Node> unit_constraint = {z[i], prev_z[i], b[0][j]};
+            constraints.insert(mkConstraintNode(
+                    Kind::GEQ, unit_constraint, {1, -1, 1}, 0, nm));
+            constraints.insert(mkConstraintNode(
+                    Kind::GEQ, unit_constraint, {-1, 1, 1}, 0, nm));
+            if (i < threshold) {
+                std::vector<Node> unit_constraint_2 = {z[i], b[0][j]};
+                constraints.insert(mkConstraintNode(
+                    Kind::GEQ, unit_constraint_2, {-1, -1}, -1, nm));
+            }
+            else {
+                std::vector<Node> unit_constraint_2 = {z[i], prev_z[i - threshold], b[0][j]};
+                constraints.insert(mkConstraintNode(
+                    Kind::GEQ, unit_constraint_2, {1, -1, -1}, -1, nm));
+                constraints.insert(mkConstraintNode(
+                    Kind::GEQ, unit_constraint_2, {-1, 1, -1}, -1, nm));
+            }
+        }
+
+        prev_z = z;
+    }
+
+    T result_vars = pbb->newVariable(num_bits);
+
+    // -r - y >= -1
+    for (unsigned i = 0; i < num_bits; i++){
+        for (unsigned j = log2_size; j < num_bits; j++) {
+            std::vector<Node> unit_constraint = {result_vars[i], b[0][j]};
+            constraints.insert(mkConstraintNode(
+                Kind::GEQ, unit_constraint, {-1, -1}, -1, nm));
+        }
+    }
+
+    std::vector<T> variables;
+    std::vector<int> coefficients;
+    for (unsigned j = log2_size; j < num_bits; j++) {
+        variables.push_back(b[0][j]);
+        coefficients.push_back(1);
+    }
+    coefficients.push_back(1); coefficients.push_back(-1);
+
+    for (unsigned i = 0; i < num_bits; i++) {
+        // -r + z >= 0
+        std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
+        constraints.insert(mkConstraintNode(
+            Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
+
+        // r + sum(y) - z >= 0
+        variables.push_back(result_vars[i]); 
+        variables.push_back(prev_z[i]);
+
+        constraints.insert(mkConstraintNode(
+            Kind::GEQ, variables, coefficients, 0, nm));
+        
+        variables.pop_back(); variables.pop_back();
+    }
+
+    for (const T& c : a[1]) constraints.insert(c);
+    for (const T& c : b[1]) constraints.insert(c);
+
+    T blasted_term = mkTermNode(result_vars, constraints, nm);
+    return blasted_term;
 }
 
 }  // namespace pb
