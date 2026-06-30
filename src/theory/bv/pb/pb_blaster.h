@@ -154,6 +154,10 @@ void TPseudoBooleanBlaster<T>::initTermStrategies()
       DefaultSubPb<T>;
   d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_SHL)] =
       DefaultShlPb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_LSHR)] =
+      DefaultLshrPb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_ASHR)] =
+      DefaultAshrPb<T>;
 }
 
 template <class T>
