@@ -850,256 +850,596 @@ T DefaultSubPb(T term, TPseudoBooleanBlaster<T>* pbb)
 template <class T>
 T DefaultShlPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
-    Assert(term.getKind() == Kind::BITVECTOR_SHL);
+  Assert(term.getKind() == Kind::BITVECTOR_SHL);
 
-    T a = pbb->blastTerm(term[0]);
-    T b = pbb->blastTerm(term[1]);
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
 
-    NodeManager* nm = pbb->getNodeManager();
-    unsigned num_bits = utils::getSize(term);
-    unsigned log2_size = std::ceil(log2((double)num_bits));
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  unsigned log2_size = ceilLog2(num_bits);
 
-    std::unordered_set<Node> constraints;
-    T prev_z = a[0];
-    for (unsigned j = 0; j < log2_size; j++) {
-        unsigned threshold = pow(2, j);
-        T z = pbb->newVariable(num_bits);
+  std::unordered_set<Node> constraints;
+  T prev_z = a[0];
+  for (unsigned j = 0; j < log2_size; j++)
+  {
+    unsigned threshold = pow(2, j);
+    T z = pbb->newVariable(num_bits);
 
-        for (unsigned i = 0; i < num_bits; i++) {
-            std::vector<Node> unit_constraint = {z[i], prev_z[i], b[0][j]};
-            constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint, {1, -1, 1}, 0, nm));
-            constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint, {-1, 1, 1}, 0, nm));
-            if (i < threshold) {
-                std::vector<Node> unit_constraint_2 = {z[i], b[0][j]};
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {-1, -1}, -1, nm));
-            }
-            else {
-                std::vector<Node> unit_constraint_2 = {z[i], prev_z[i - threshold], b[0][j]};
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {1, -1, -1}, -1, nm));
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {-1, 1, -1}, -1, nm));
-            }
-        }
-
-        prev_z = z;
-    }
-
-    T result_vars = pbb->newVariable(num_bits);
-
-    // -r - y >= -1
-    for (unsigned i = 0; i < num_bits; i++){
-        for (unsigned j = log2_size; j < num_bits; j++) {
-            std::vector<Node> unit_constraint = {result_vars[i], b[0][j]};
-            constraints.insert(mkConstraintNode(
-                Kind::GEQ, unit_constraint, {-1, -1}, -1, nm));
-        }
-    }
-
-    std::vector<T> variables;
-    std::vector<int> coefficients;
-    for (unsigned j = log2_size; j < num_bits; j++) {
-        variables.push_back(b[0][j]);
-        coefficients.push_back(1);
-    }
-    coefficients.push_back(1); coefficients.push_back(-1);
-
-    for (unsigned i = 0; i < num_bits; i++) {
-        // -r + z >= 0
-        std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
+    for (unsigned i = 0; i < num_bits; i++)
+    {
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ,
+                           std::vector<Node>{z[i], prev_z[i], b[0][j]},
+                           {1, -1, 1},
+                           0,
+                           nm));
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ,
+                           std::vector<Node>{z[i], prev_z[i], b[0][j]},
+                           {-1, 1, 1},
+                           0,
+                           nm));
+      if (i < threshold)
+      {
         constraints.insert(mkConstraintNode(
-            Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
-
-        // r + sum(y) - z >= 0
-        variables.push_back(result_vars[i]); 
-        variables.push_back(prev_z[i]);
-
+            Kind::GEQ, std::vector<Node>{z[i], b[0][j]}, {-1, -1}, -1, nm));
+      }
+      else
+      {
         constraints.insert(mkConstraintNode(
-            Kind::GEQ, variables, coefficients, 0, nm));
-        
-        variables.pop_back(); variables.pop_back();
+            Kind::GEQ,
+            std::vector<Node>{z[i], prev_z[i - threshold], b[0][j]},
+            {1, -1, -1},
+            -1,
+            nm));
+        constraints.insert(mkConstraintNode(
+            Kind::GEQ,
+            std::vector<Node>{z[i], prev_z[i - threshold], b[0][j]},
+            {-1, 1, -1},
+            -1,
+            nm));
+      }
     }
 
-    for (const T& c : a[1]) constraints.insert(c);
-    for (const T& c : b[1]) constraints.insert(c);
+    prev_z = z;
+  }
 
-    T blasted_term = mkTermNode(result_vars, constraints, nm);
-    return blasted_term;
+  T result_vars = pbb->newVariable(num_bits);
+
+  // -r - y >= -1
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (unsigned j = log2_size; j < num_bits; j++)
+    {
+      std::vector<Node> unit_constraint = {result_vars[i], b[0][j]};
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, unit_constraint, {-1, -1}, -1, nm));
+    }
+  }
+
+  std::vector<T> variables;
+  std::vector<int> coefficients;
+  for (unsigned j = log2_size; j < num_bits; j++)
+  {
+    variables.push_back(b[0][j]);
+    coefficients.push_back(1);
+  }
+  coefficients.push_back(1);
+  coefficients.push_back(-1);
+
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    // -r + z >= 0
+    std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
+
+    // r + sum(y) - z >= 0
+    variables.push_back(result_vars[i]);
+    variables.push_back(prev_z[i]);
+
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, variables, coefficients, 0, nm));
+
+    variables.pop_back();
+    variables.pop_back();
+  }
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  return blasted_term;
 }
 
 template <class T>
 T DefaultLshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
-    Assert(term.getKind() == Kind::BITVECTOR_LSHR);
+  Assert(term.getKind() == Kind::BITVECTOR_LSHR);
 
-    T a = pbb->blastTerm(term[0]);
-    T b = pbb->blastTerm(term[1]);
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
 
-    NodeManager* nm = pbb->getNodeManager();
-    unsigned num_bits = utils::getSize(term);
-    unsigned log2_size = std::ceil(log2((double)num_bits));
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  unsigned log2_size = ceilLog2(num_bits);
 
-    std::unordered_set<Node> constraints;
-    T prev_z = a[0];
-    for (unsigned j = 0; j < log2_size; j++) {
-        unsigned threshold = pow(2, j);
-        T z = pbb->newVariable(num_bits);
+  std::unordered_set<Node> constraints;
+  T prev_z = a[0];
+  for (unsigned j = 0; j < log2_size; j++)
+  {
+    unsigned threshold = pow(2, j);
+    T z = pbb->newVariable(num_bits);
 
-        for (unsigned i = 0; i < num_bits; i++) {
-            std::vector<Node> unit_constraint = {z[i], prev_z[i], b[0][j]};
-            constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint, {1, -1, 1}, 0, nm));
-            constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint, {-1, 1, 1}, 0, nm));
-            if (i + threshold >= num_bits) {
-                std::vector<Node> unit_constraint_2 = {z[i], b[0][j]};
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {-1, -1}, -1, nm));
-            }
-            else {
-                std::vector<Node> unit_constraint_2 = {z[i], prev_z[i + threshold], b[0][j]};
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {1, -1, -1}, -1, nm));
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {-1, 1, -1}, -1, nm));
-            }
-        }
-
-        prev_z = z;
-    }
-
-    T result_vars = pbb->newVariable(num_bits);
-
-    // -r - y >= -1
-    for (unsigned i = 0; i < num_bits; i++){
-        for (unsigned j = log2_size; j < num_bits; j++) {
-            std::vector<Node> unit_constraint = {result_vars[i], b[0][j]};
-            constraints.insert(mkConstraintNode(
-                Kind::GEQ, unit_constraint, {-1, -1}, -1, nm));
-        }
-    }
-
-    std::vector<T> variables;
-    std::vector<int> coefficients;
-    for (unsigned j = log2_size; j < num_bits; j++) {
-        variables.push_back(b[0][j]);
-        coefficients.push_back(1);
-    }
-    coefficients.push_back(1); coefficients.push_back(-1);
-
-    for (unsigned i = 0; i < num_bits; i++) {
-        // -r + z >= 0
-        std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
+    for (unsigned i = 0; i < num_bits; i++)
+    {
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ,
+                           std::vector<Node>{z[i], prev_z[i], b[0][j]},
+                           {1, -1, 1},
+                           0,
+                           nm));
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ,
+                           std::vector<Node>{z[i], prev_z[i], b[0][j]},
+                           {-1, 1, 1},
+                           0,
+                           nm));
+      if (i + threshold >= num_bits)
+      {
         constraints.insert(mkConstraintNode(
-            Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
-
-        // r + sum(y) - z >= 0
-        variables.push_back(result_vars[i]); 
-        variables.push_back(prev_z[i]);
-
+            Kind::GEQ, std::vector<Node>{z[i], b[0][j]}, {-1, -1}, -1, nm));
+      }
+      else
+      {
         constraints.insert(mkConstraintNode(
-            Kind::GEQ, variables, coefficients, 0, nm));
-        
-        variables.pop_back(); variables.pop_back();
+            Kind::GEQ,
+            std::vector<Node>{z[i], prev_z[i + threshold], b[0][j]},
+            {1, -1, -1},
+            -1,
+            nm));
+        constraints.insert(mkConstraintNode(
+            Kind::GEQ,
+            std::vector<Node>{z[i], prev_z[i + threshold], b[0][j]},
+            {-1, 1, -1},
+            -1,
+            nm));
+      }
     }
 
-    for (const T& c : a[1]) constraints.insert(c);
-    for (const T& c : b[1]) constraints.insert(c);
+    prev_z = z;
+  }
 
-    T blasted_term = mkTermNode(result_vars, constraints, nm);
-    return blasted_term;
+  T result_vars = pbb->newVariable(num_bits);
+
+  // -r - y >= -1
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (unsigned j = log2_size; j < num_bits; j++)
+    {
+      std::vector<Node> unit_constraint = {result_vars[i], b[0][j]};
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, unit_constraint, {-1, -1}, -1, nm));
+    }
+  }
+
+  std::vector<T> variables;
+  std::vector<int> coefficients;
+  for (unsigned j = log2_size; j < num_bits; j++)
+  {
+    variables.push_back(b[0][j]);
+    coefficients.push_back(1);
+  }
+  coefficients.push_back(1);
+  coefficients.push_back(-1);
+
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    // -r + z >= 0
+    std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
+
+    // r + sum(y) - z >= 0
+    variables.push_back(result_vars[i]);
+    variables.push_back(prev_z[i]);
+
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, variables, coefficients, 0, nm));
+
+    variables.pop_back();
+    variables.pop_back();
+  }
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  return blasted_term;
 }
 
 template <class T>
 T DefaultAshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
-    Assert(term.getKind() == Kind::BITVECTOR_ASHR);
+  Assert(term.getKind() == Kind::BITVECTOR_ASHR);
 
-    T a = pbb->blastTerm(term[0]);
-    T b = pbb->blastTerm(term[1]);
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
 
-    NodeManager* nm = pbb->getNodeManager();
-    unsigned num_bits = utils::getSize(term);
-    unsigned log2_size = std::ceil(log2((double)num_bits));
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  unsigned log2_size = ceilLog2(num_bits);
 
-    std::unordered_set<Node> constraints;
-    T prev_z = a[0];
-    T sign_bit = a[0][num_bits-1]; // assert this
-    for (unsigned j = 0; j < log2_size; j++) {
-        unsigned threshold = pow(2, j);
-        T z = pbb->newVariable(num_bits);
+  std::unordered_set<Node> constraints;
+  T prev_z = a[0];
+  T sign_bit = a[0][num_bits - 1];  // assert this
+  for (unsigned j = 0; j < log2_size; j++)
+  {
+    unsigned threshold = pow(2, j);
+    T z = pbb->newVariable(num_bits);
 
-        for (unsigned i = 0; i < num_bits; i++) {
-            std::vector<Node> unit_constraint = {z[i], prev_z[i], b[0][j]};
-            constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint, {1, -1, 1}, 0, nm));
-            constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint, {-1, 1, 1}, 0, nm));
-            if (i + threshold >= num_bits) {
-                std::vector<Node> unit_constraint_2 = {z[i], sign_bit, b[0][j]};
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {-1, 1, -1}, -1, nm));
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {1, -1, -1}, -1, nm));
-            }
-            else {
-                std::vector<Node> unit_constraint_2 = {z[i], prev_z[i + threshold], b[0][j]};
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {1, -1, -1}, -1, nm));
-                constraints.insert(mkConstraintNode(
-                    Kind::GEQ, unit_constraint_2, {-1, 1, -1}, -1, nm));
-            }
-        }
-
-        prev_z = z;
-    }
-
-    T result_vars = pbb->newVariable(num_bits);
-
-    // -r + sign_bit - y >= -1
-    // r - sign_bit - y >= -1
-    for (unsigned i = 0; i < num_bits; i++){
-        for (unsigned j = log2_size; j < num_bits; j++) {
-            std::vector<Node> unit_constraint = {result_vars[i], sign_bit, b[0][j]};
-            constraints.insert(mkConstraintNode(
-                Kind::GEQ, unit_constraint, {-1, 1, -1}, -1, nm));
-            constraints.insert(mkConstraintNode(
-                Kind::GEQ, unit_constraint, {1, -1, -1}, -1, nm));
-        }
-    }
-
-    std::vector<T> variables;
-    std::vector<int> coefficients;
-    for (unsigned j = log2_size; j < num_bits; j++) {
-        variables.push_back(b[0][j]);
-        coefficients.push_back(1);
-    }
-    coefficients.push_back(1); coefficients.push_back(-1);
-
-    for (unsigned i = 0; i < num_bits; i++) {
-        // -r + z >= 0
-        std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
+    for (unsigned i = 0; i < num_bits; i++)
+    {
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ,
+                           std::vector<Node>{z[i], prev_z[i], b[0][j]},
+                           {1, -1, 1},
+                           0,
+                           nm));
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ,
+                           std::vector<Node>{z[i], prev_z[i], b[0][j]},
+                           {-1, 1, 1},
+                           0,
+                           nm));
+      if (i + threshold >= num_bits)
+      {
+        constraints.insert(
+            mkConstraintNode(Kind::GEQ,
+                             std::vector<Node>{z[i], sign_bit, b[0][j]},
+                             {-1, 1, -1},
+                             -1,
+                             nm));
+        constraints.insert(
+            mkConstraintNode(Kind::GEQ,
+                             std::vector<Node>{z[i], sign_bit, b[0][j]},
+                             {1, -1, -1},
+                             -1,
+                             nm));
+      }
+      else
+      {
         constraints.insert(mkConstraintNode(
-            Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
-
-        // r + sum(y) - z >= 0
-        variables.push_back(result_vars[i]); 
-        variables.push_back(prev_z[i]);
-
+            Kind::GEQ,
+            std::vector<Node>{z[i], prev_z[i + threshold], b[0][j]},
+            {1, -1, -1},
+            -1,
+            nm));
         constraints.insert(mkConstraintNode(
-            Kind::GEQ, variables, coefficients, 0, nm));
-        
-        variables.pop_back(); variables.pop_back();
+            Kind::GEQ,
+            std::vector<Node>{z[i], prev_z[i + threshold], b[0][j]},
+            {-1, 1, -1},
+            -1,
+            nm));
+      }
     }
 
-    for (const T& c : a[1]) constraints.insert(c);
-    for (const T& c : b[1]) constraints.insert(c);
+    prev_z = z;
+  }
 
-    T blasted_term = mkTermNode(result_vars, constraints, nm);
-    return blasted_term;
+  T result_vars = pbb->newVariable(num_bits);
+
+  // -r + sign_bit - y >= -1
+  // r - sign_bit - y >= -1
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (unsigned j = log2_size; j < num_bits; j++)
+    {
+      std::vector<Node> unit_constraint = {result_vars[i], sign_bit, b[0][j]};
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, unit_constraint, {-1, 1, -1}, -1, nm));
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, unit_constraint, {1, -1, -1}, -1, nm));
+    }
+  }
+
+  std::vector<T> variables;
+  std::vector<int> coefficients;
+  for (unsigned j = log2_size; j < num_bits; j++)
+  {
+    variables.push_back(b[0][j]);
+    coefficients.push_back(1);
+  }
+  coefficients.push_back(1);
+  coefficients.push_back(-1);
+
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    // -r + z >= 0
+    std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
+
+    // r + sum(y) - z >= 0
+    variables.push_back(result_vars[i]);
+    variables.push_back(prev_z[i]);
+
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, variables, coefficients, 0, nm));
+
+    variables.pop_back();
+    variables.pop_back();
+  }
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  return blasted_term;
+}
+
+template <class T>
+T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+  Assert(term.getKind() == Kind::BITVECTOR_UDIV);
+
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T quot = pbb->newVariable(num_bits);
+  T rem = pbb->newVariable(num_bits);
+
+  std::unordered_set<Node> constraints;
+  // a = b*quot + rem
+  T tableau = pbb->newVariable(num_bits * num_bits);
+
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (unsigned j = 0; j < num_bits; j++)
+    {
+      std::vector<Node> and_constraint = {
+          b[0][i], quot[j], tableau[i * num_bits + j]};
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, and_constraint, {1, 1, -2}, 0, nm));
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, and_constraint, {-1, -1, 1}, -1, nm));
+    }
+  }
+
+  std::vector<Node> variables;
+  std::vector<Node> coefficients;
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (unsigned j = 0; j < num_bits; j++)
+    {
+      variables.push_back(tableau[i * num_bits + j]);
+      coefficients.push_back(
+          nm->mkConstInt(Rational(Integer(1).multiplyByPow2(i + j))));
+    }
+  }
+
+  for (const T& v : rem) variables.push_back(v);
+  for (const T& c : bvToUnsigned(num_bits, nm))
+  {
+    coefficients.push_back(c);
+  }
+
+  for (const T& v : a[0]) variables.push_back(v);
+  for (const T& c : bvToUnsigned(num_bits, nm, -1))
+  {
+    coefficients.push_back(c);
+  }
+
+  // sum(2^i*t) + sum(2^i*rem) - sum(2^i*a) = 0
+  constraints.insert(
+      mkConstraintNode(Kind::EQUAL, variables, coefficients, pbb->d_ZERO, nm));
+
+  // rem < b -> sum(2^i*b) - sum(2^i*rem) >= 1
+  std::vector<Node> ult_variables;
+  std::vector<Node> ult_coefficients;
+  for (const T& v : b[0]) ult_variables.push_back(v);
+  for (const T& v : rem) ult_variables.push_back(v);
+  for (const T& c : bvToUnsigned(num_bits, nm))
+  {
+    ult_coefficients.push_back(c);
+  }
+  for (const T& c : bvToUnsigned(num_bits, nm, -1))
+  {
+    ult_coefficients.push_back(c);
+  }
+
+  constraints.insert(mkConstraintNode(
+      Kind::GEQ, ult_variables, ult_coefficients, pbb->d_ONE, nm));
+
+  // disjunção dos bits de b
+  T cond = pbb->newVariable(1);
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    std::vector<Node> unit_constraint = {cond[0], b[0][i]};
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, unit_constraint, {1, -1}, 0, nm));
+  }
+  std::vector<Node> disjunction_vars;
+  std::vector<int> disjunction_coef;
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    disjunction_vars.push_back(b[0][i]);
+    disjunction_coef.push_back(1);
+  }
+  disjunction_vars.push_back(cond[0]);
+  disjunction_coef.push_back(-1);
+
+  constraints.insert(
+      mkConstraintNode(Kind::GEQ, disjunction_vars, disjunction_coef, 0, nm));
+
+  // ite: cond ? quo : 11..11
+  T result_vars = pbb->newVariable(num_bits);
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    // -cond + quot - r >= -1
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ,
+                         std::vector<Node>{cond[0], quot[i], result_vars[i]},
+                         {-1, 1, -1},
+                         -1,
+                         nm));
+    // -cond - quot + r >= -1
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ,
+                         std::vector<Node>{cond[0], quot[i], result_vars[i]},
+                         {-1, -1, 1},
+                         -1,
+                         nm));
+    // cond + r >= 1
+    constraints.insert(mkConstraintNode(
+        Kind::GEQ, std::vector<Node>{cond[0], result_vars[i]}, {1, 1}, 1, nm));
+  }
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  return blasted_term;
+}
+
+template <class T>
+T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+  Assert(term.getKind() == Kind::BITVECTOR_UREM);
+
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T quot = pbb->newVariable(num_bits);
+  T rem = pbb->newVariable(num_bits);
+
+  std::unordered_set<Node> constraints;
+  // a = b*quot + rem
+  T tableau = pbb->newVariable(num_bits * num_bits);
+
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (unsigned j = 0; j < num_bits; j++)
+    {
+      std::vector<Node> and_constraint = {
+          b[0][i], quot[j], tableau[i * num_bits + j]};
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, and_constraint, {1, 1, -2}, 0, nm));
+      constraints.insert(
+          mkConstraintNode(Kind::GEQ, and_constraint, {-1, -1, 1}, -1, nm));
+    }
+  }
+
+  std::vector<Node> variables;
+  std::vector<Node> coefficients;
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (unsigned j = 0; j < num_bits; j++)
+    {
+      variables.push_back(tableau[i * num_bits + j]);
+      coefficients.push_back(
+          nm->mkConstInt(Rational(Integer(1).multiplyByPow2(i + j))));
+    }
+  }
+
+  for (const T& v : rem) variables.push_back(v);
+  for (const T& c : bvToUnsigned(num_bits, nm))
+  {
+    coefficients.push_back(c);
+  }
+
+  for (const T& v : a[0]) variables.push_back(v);
+  for (const T& c : bvToUnsigned(num_bits, nm, -1))
+  {
+    coefficients.push_back(c);
+  }
+
+  // sum(2^i*t) + sum(2^i*rem) - sum(2^i*a) = 0
+  constraints.insert(
+      mkConstraintNode(Kind::EQUAL, variables, coefficients, pbb->d_ZERO, nm));
+
+  // rem < b -> sum(2^i*b) - sum(2^i*rem) >= 1
+  std::vector<Node> ult_variables;
+  std::vector<Node> ult_coefficients;
+  for (const T& v : b[0]) ult_variables.push_back(v);
+  for (const T& v : rem) ult_variables.push_back(v);
+  for (const T& c : bvToUnsigned(num_bits, nm))
+  {
+    ult_coefficients.push_back(c);
+  }
+  for (const T& c : bvToUnsigned(num_bits, nm, -1))
+  {
+    ult_coefficients.push_back(c);
+  }
+
+  constraints.insert(mkConstraintNode(
+      Kind::GEQ, ult_variables, ult_coefficients, pbb->d_ONE, nm));
+
+  // disjunção dos bits de b
+  T cond = pbb->newVariable(1);
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    std::vector<Node> unit_constraint = {cond[0], b[0][i]};
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, unit_constraint, {1, -1}, 0, nm));
+  }
+  std::vector<Node> disjunction_vars;
+  std::vector<int> disjunction_coef;
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    disjunction_vars.push_back(b[0][i]);
+    disjunction_coef.push_back(1);
+  }
+  disjunction_vars.push_back(cond[0]);
+  disjunction_coef.push_back(-1);
+
+  constraints.insert(
+      mkConstraintNode(Kind::GEQ, disjunction_vars, disjunction_coef, 0, nm));
+
+  // ite: cond ? rem : a
+  T result_vars = pbb->newVariable(num_bits);
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    // -cond + rem - r >= -1
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ,
+                         std::vector<Node>{cond[0], rem[i], result_vars[i]},
+                         {-1, 1, -1},
+                         -1,
+                         nm));
+    // -cond - rem + r >= -1
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ,
+                         std::vector<Node>{cond[0], rem[i], result_vars[i]},
+                         {-1, -1, 1},
+                         -1,
+                         nm));
+    // cond + a - r >= 0
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ,
+                         std::vector<Node>{cond[0], a[0][i], result_vars[i]},
+                         {1, 1, -1},
+                         0,
+                         nm));
+    // cond - a + r >= 0
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ,
+                         std::vector<Node>{cond[0], a[0][i], result_vars[i]},
+                         {1, -1, 1},
+                         0,
+                         nm));
+  }
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  return blasted_term;
 }
 
 }  // namespace pb
