@@ -387,6 +387,10 @@ std::shared_ptr<ProofNode> CadicalSolver::getProof()
   {
     ProofNodeManager* pnm = d_env.getProofNodeManager();
     NodeManager* nm = d_env.getNodeManager();
+
+    Node itp = d_proof_tracer->get_interpolant(nm, d_proxy);
+    std::cout << std::endl << "INTERPOLANTE: " << itp << std::endl << std::endl;
+
     return d_proof_tracer->get_chain_resolution_proof(pnm, nm, d_proxy);
   }
   return nullptr;

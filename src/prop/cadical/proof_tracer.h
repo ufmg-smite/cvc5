@@ -101,6 +101,12 @@ class ProofTracer : public CaDiCaL::Tracer
   std::shared_ptr<ProofNode> get_chain_resolution_proof(ProofNodeManager* pnm,
                                                         NodeManager* nm,
                                                         TheoryProxy* proxy);
+  
+  Node get_interpolant(NodeManager* nm, TheoryProxy* proxy);
+  void set_current_partition(unsigned p); 
+  void print_proof_tree() const;
+
+  
 
  private:
   /**
@@ -151,6 +157,10 @@ class ProofTracer : public CaDiCaL::Tracer
   std::unordered_map<uint64_t, ClauseInfo> d_clauses;
   /** Stores the final clause ids used to conclude unsat. */
   std::vector<uint64_t> d_final_clauses;
+
+  int count = 0;
+  unsigned d_current_partition = 0;
+  std::unordered_map<uint64_t, unsigned> d_partition;
 };
 
 }  // namespace cvc5::internal::prop::cadical

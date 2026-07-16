@@ -99,6 +99,11 @@ ProofTracer::ProofTracer(const CadicalPropagator& propagator)
 {
 }
 
+void ProofTracer::set_current_partition(unsigned p){
+
+  d_current_partition = p;
+}
+
 void ProofTracer::add_original_clause(uint64_t clause_id,
                                       CVC5_UNUSED bool redundant,
                                       const std::vector<int>& clause,
@@ -108,6 +113,13 @@ void ProofTracer::add_original_clause(uint64_t clause_id,
       d_propagator.in_search() ? ClauseType::THEORY : ClauseType::INPUT;
   d_clauses.emplace(clause_id, ClauseInfo(clause_id, ctype, clause));
   Trace("cadical::prooftracer") << d_clauses.at(clause_id) << std::endl;
+
+  d_partition[clause_id] = (count < 6) ? 1 : 2;
+  
+  count++;
+
+  std::cout << "clause " << clause_id << " -> partition "
+            << d_partition[clause_id] << std::endl;
 }
 
 void ProofTracer::add_derived_clause(CVC5_UNUSED uint64_t clause_id,
@@ -140,6 +152,7 @@ void ProofTracer::conclude_unsat(CVC5_UNUSED CaDiCaL::ConclusionType type,
 {
   // Store final clause ids that concluded unsat.
   d_final_clauses = clause_ids;
+  print_proof_tree();
 }
 
 void ProofTracer::compute_proof_core(std::vector<uint64_t>& core) const
@@ -171,6 +184,149 @@ void ProofTracer::compute_proof_core(std::vector<uint64_t>& core) const
     }
   }
 }
+
+Node ProofTracer::get_interpolant(NodeManager* nm, TheoryProxy* proxy)
+{
+
+  std::vector<uint64_t> core;
+  compute_proof_core(core);
+  std::sort(core.begin(), core.end());
+
+  struct Occurs
+  {
+    bool A = false;
+    bool B = false;
+  };
+
+
+  //Coloring variables
+
+  std::unordered_map<int32_t, Occurs> var_color;
+
+  for (const auto& [cid, color] : d_partition)
+  {
+    for (int32_t lit : d_clauses.at(cid).literals)
+    {
+      int32_t var = std::abs(lit);
+
+      if (color == 1)
+        var_color[var].A = true;
+      else
+        var_color[var].B = true;
+    }
+  }
+
+  std::unordered_map<uint64_t, Node> itp;
+
+  for (uint64_t cid : core)
+  {
+    const ClauseInfo& cl = d_clauses.at(cid);
+
+    if (cl.type == ClauseType::DERIVED)
+    {
+
+      //factoring/reordering
+      if (cl.antecedents.size() == 1) 
+      {
+        itp[cid] = itp.at(cl.antecedents[0]);
+        continue;
+      }
+
+      std::unordered_map<int32_t, uint8_t> marked;
+      Node partial_itp;
+      bool first = true;
+      size_t n = cl.antecedents.size();
+
+      for (size_t i = 0; i < n; i++)
+      {
+        uint64_t ant_id = cl.antecedents[n - i - 1];  //reverse order
+        int32_t pivot = 0;
+
+        for (int32_t lit : d_clauses.at(ant_id).literals)
+        {
+          if (mark_var(marked, lit)) pivot = std::abs(lit);
+        }
+        if (first)
+        {
+          partial_itp = itp.at(ant_id);
+          first = false;
+        }
+        else
+        {
+          const Occurs& o = var_color[pivot];
+          bool pivot_A_local = o.A && !o.B;
+          Node other = itp.at(ant_id);
+          partial_itp = pivot_A_local ? nm->mkNode(Kind::OR, partial_itp, other)
+                              : nm->mkNode(Kind::AND, partial_itp, other);
+        }
+      }
+      itp[cid] = partial_itp;
+    }
+    else
+    {
+      unsigned color = d_partition.at(cid);
+
+      if (color == 2)  // B = true
+      {
+        itp[cid] = nm->mkConst(true);
+      }
+      else  // A = global variables OR
+      {
+        std::vector<Node> globals;
+
+        for (int32_t lit : cl.literals)
+        {
+          Occurs var_side = var_color[std::abs(lit)];
+          bool is_global = var_side.A && var_side.B;
+          if (is_global) globals.push_back(proxy->getNode(toSatLiteral(lit)));
+        }
+
+        itp[cid] = nm->mkOr(globals);
+      }
+    }
+  }
+
+  return itp.at(core.back());
+}
+
+void ProofTracer::print_proof_tree() const
+{
+  std::vector<uint64_t> visit{d_final_clauses};
+  std::unordered_set<uint64_t> visited;
+
+  std::cout << std::endl << "-------- PROOF TREE --------" << std::endl << std::endl;
+
+  while (!visit.empty())
+  {
+    const uint64_t clause_id = visit.back();
+    visit.pop_back();
+
+    if (visited.find(clause_id) == visited.end())
+    {
+      visited.insert(clause_id);
+      const ClauseInfo& ci = d_clauses.at(clause_id);
+
+      std::cout << "clause " << clause_id << ": ";
+      for (int lit : ci.literals) std::cout << lit << " ";
+
+      if(!ci.antecedents.empty()){
+        std::cout << " <- antecedents: ";
+        for (uint64_t a : ci.antecedents) std::cout << a << " ";
+        std::cout << std::endl;
+      } else{
+        std::cout << "<- original ";
+        unsigned color = d_partition.at(clause_id);
+        std::cout << "<- color " << color << std::endl;
+      }
+
+      visit.insert(visit.end(), ci.antecedents.begin(), ci.antecedents.end());
+    }
+
+  }
+
+  std::cout << std::endl << "-------- END OF PROOF TREE --------" << std::endl;
+}
+
 
 std::shared_ptr<ProofNode> ProofTracer::get_chain_resolution_proof(
     ProofNodeManager* pnm, NodeManager* nm, TheoryProxy* proxy)
