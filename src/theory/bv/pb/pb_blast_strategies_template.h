@@ -850,17 +850,21 @@ T DefaultSubPb(T term, TPseudoBooleanBlaster<T>* pbb)
 template <class T>
 T DefaultShlPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
+  Trace("bv-pb") << "theory::bv::pb::DefaultShlPb blasting " << term;
   Assert(term.getKind() == Kind::BITVECTOR_SHL);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_vars = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_vars << "\n";
 
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
-  NodeManager* nm = pbb->getNodeManager();
-  unsigned num_bits = utils::getSize(term);
   unsigned log2_size = ceilLog2(num_bits);
-
   std::unordered_set<Node> constraints;
   T prev_z = a[0];
+  // we only need to look at the bits bellow log2_size
   for (unsigned j = 0; j < log2_size; j++)
   {
     unsigned threshold = pow(2, j);
@@ -905,8 +909,6 @@ T DefaultShlPb(T term, TPseudoBooleanBlaster<T>* pbb)
     prev_z = z;
   }
 
-  T result_vars = pbb->newVariable(num_bits);
-
   // -r - y >= -1
   for (unsigned i = 0; i < num_bits; i++)
   {
@@ -950,23 +952,29 @@ T DefaultShlPb(T term, TPseudoBooleanBlaster<T>* pbb)
   for (const T& c : b[1]) constraints.insert(c);
 
   T blasted_term = mkTermNode(result_vars, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultShlPb done\n";
   return blasted_term;
 }
 
 template <class T>
 T DefaultLshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
+  Trace("bv-pb") << "theory::bv::pb::DefaultLshrPb blasting " << term;
   Assert(term.getKind() == Kind::BITVECTOR_LSHR);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_vars = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_vars << "\n";
 
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
-  NodeManager* nm = pbb->getNodeManager();
-  unsigned num_bits = utils::getSize(term);
   unsigned log2_size = ceilLog2(num_bits);
-
   std::unordered_set<Node> constraints;
   T prev_z = a[0];
+  // we only need to look at the bits bellow log2_size
   for (unsigned j = 0; j < log2_size; j++)
   {
     unsigned threshold = pow(2, j);
@@ -1011,8 +1019,6 @@ T DefaultLshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
     prev_z = z;
   }
 
-  T result_vars = pbb->newVariable(num_bits);
-
   // -r - y >= -1
   for (unsigned i = 0; i < num_bits; i++)
   {
@@ -1056,24 +1062,30 @@ T DefaultLshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
   for (const T& c : b[1]) constraints.insert(c);
 
   T blasted_term = mkTermNode(result_vars, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultLshrPb done\n";
   return blasted_term;
 }
 
 template <class T>
 T DefaultAshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
+  Trace("bv-pb") << "theory::bv::pb::DefaultAshrPb blasting " << term;
   Assert(term.getKind() == Kind::BITVECTOR_ASHR);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_vars = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_vars << "\n";
 
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
-  NodeManager* nm = pbb->getNodeManager();
-  unsigned num_bits = utils::getSize(term);
   unsigned log2_size = ceilLog2(num_bits);
-
   std::unordered_set<Node> constraints;
   T prev_z = a[0];
-  T sign_bit = a[0][num_bits - 1];  // assert this
+  T sign_bit = a[0][num_bits - 1];
+  // we only need to look at the bits bellow log2_size
   for (unsigned j = 0; j < log2_size; j++)
   {
     unsigned threshold = pow(2, j);
@@ -1128,8 +1140,6 @@ T DefaultAshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
     prev_z = z;
   }
 
-  T result_vars = pbb->newVariable(num_bits);
-
   // -r + sign_bit - y >= -1
   // r - sign_bit - y >= -1
   for (unsigned i = 0; i < num_bits; i++)
@@ -1176,22 +1186,27 @@ T DefaultAshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
   for (const T& c : b[1]) constraints.insert(c);
 
   T blasted_term = mkTermNode(result_vars, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultAshrPb done\n";
   return blasted_term;
 }
 
 template <class T>
 T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
+  Trace("bv-pb") << "theory::bv::pb::DefaultUdivPb blasting " << term;
   Assert(term.getKind() == Kind::BITVECTOR_UDIV);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_vars = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_vars << "\n";
 
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
-  NodeManager* nm = pbb->getNodeManager();
-  unsigned num_bits = utils::getSize(term);
   T quot = pbb->newVariable(num_bits);
   T rem = pbb->newVariable(num_bits);
-
   std::unordered_set<Node> constraints;
   // a = b*quot + rem
   T tableau = pbb->newVariable(num_bits * num_bits);
@@ -1254,7 +1269,7 @@ T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
   constraints.insert(mkConstraintNode(
       Kind::GEQ, ult_variables, ult_coefficients, pbb->d_ONE, nm));
 
-  // disjunção dos bits de b
+  // bitwise OR reduction of b
   T cond = pbb->newVariable(1);
   for (unsigned i = 0; i < num_bits; i++)
   {
@@ -1275,8 +1290,7 @@ T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
   constraints.insert(
       mkConstraintNode(Kind::GEQ, disjunction_vars, disjunction_coef, 0, nm));
 
-  // ite: cond ? quo : 11..11
-  T result_vars = pbb->newVariable(num_bits);
+  // result_vars <-> cond ? quo : 11..11
   for (unsigned i = 0; i < num_bits; i++)
   {
     // -cond + quot - r >= -1
@@ -1302,22 +1316,27 @@ T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
   for (const T& c : b[1]) constraints.insert(c);
 
   T blasted_term = mkTermNode(result_vars, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultUdivPb done\n";
   return blasted_term;
 }
 
 template <class T>
 T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
 {
+  Trace("bv-pb") << "theory::bv::pb::DefaultUremPb blasting " << term;
   Assert(term.getKind() == Kind::BITVECTOR_UREM);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_vars = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_vars << "\n";
 
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
-  NodeManager* nm = pbb->getNodeManager();
-  unsigned num_bits = utils::getSize(term);
   T quot = pbb->newVariable(num_bits);
   T rem = pbb->newVariable(num_bits);
-
   std::unordered_set<Node> constraints;
   // a = b*quot + rem
   T tableau = pbb->newVariable(num_bits * num_bits);
@@ -1380,7 +1399,7 @@ T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
   constraints.insert(mkConstraintNode(
       Kind::GEQ, ult_variables, ult_coefficients, pbb->d_ONE, nm));
 
-  // disjunção dos bits de b
+  // bitwise OR reduction of b
   T cond = pbb->newVariable(1);
   for (unsigned i = 0; i < num_bits; i++)
   {
@@ -1401,8 +1420,7 @@ T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
   constraints.insert(
       mkConstraintNode(Kind::GEQ, disjunction_vars, disjunction_coef, 0, nm));
 
-  // ite: cond ? rem : a
-  T result_vars = pbb->newVariable(num_bits);
+  // result_vars <-> cond ? rem : a
   for (unsigned i = 0; i < num_bits; i++)
   {
     // -cond + rem - r >= -1
@@ -1439,6 +1457,8 @@ T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
   for (const T& c : b[1]) constraints.insert(c);
 
   T blasted_term = mkTermNode(result_vars, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultUremPb done\n";
   return blasted_term;
 }
 
