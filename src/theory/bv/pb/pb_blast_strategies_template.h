@@ -1710,6 +1710,45 @@ T DefaultCompPb(T term, TPseudoBooleanBlaster<T>* pbb)
   return blasted_term;
 }
 
+template <class T>
+T DefaultSignExtendPb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+  Trace("bv-pb") << "theory::bv::pb::DefaultSignExtendPb blasting " << term;
+  Assert(term.getKind() == Kind::BITVECTOR_SIGN_EXTEND);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_vars = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_vars << "\n";
+
+  std::unordered_set<T> constraints;
+
+  T blasted = pbb->blastTerm(term[0]);
+  for (const T& c : blasted[1]) constraints.insert(c);
+
+  unsigned blasted_size = blasted[0].getNumChildren();
+  unsigned amount = utils::getSignExtendAmount(term);
+  Assert(blasted_size + amount == num_bits);
+  T sign_bit = blasted[0][blasted_size - 1];
+
+  for (unsigned i = 0; i < blasted_size; i++)
+  {
+    std::vector<Node> vars = {blasted[0][i], result_vars[i]};
+    constraints.insert(mkConstraintNode(Kind::EQUAL, vars, {1, -1}, 0, nm));
+  }
+
+  for (unsigned i = 0; i < amount; i++)
+  {
+    std::vector<Node> vars = {sign_bit, result_vars[blasted_size + i]};
+    constraints.insert(mkConstraintNode(Kind::EQUAL, vars, {1, -1}, 0, nm));
+  }
+
+  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultSignExtendPb done\n";
+  return blasted_term;
+}
+
 }  // namespace pb
 }  // namespace bv
 }  // namespace theory

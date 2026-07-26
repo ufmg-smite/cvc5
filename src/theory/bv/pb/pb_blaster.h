@@ -126,9 +126,10 @@ template <class T>
 void TPseudoBooleanBlaster<T>::initTermStrategies()
 {
   for (uint32_t i = 0; i < static_cast<uint32_t>(Kind::LAST_KIND); i++)
-    d_termStrategies[i] = UndefinedTermPbStrategy<T>;
+    d_termStrategies[i] = DefaultVarPb<T>;
+  // d_termStrategies[i] = UndefinedTermPbStrategy<T>;
   /** Setting default PB strategies for terms */
-  d_termStrategies[static_cast<uint32_t>(Kind::VARIABLE)] = DefaultVarPb<T>;
+  // d_termStrategies[static_cast<uint32_t>(Kind::VARIABLE)] = DefaultVarPb<T>;
   d_termStrategies[static_cast<uint32_t>(Kind::CONST_BITVECTOR)] =
       DefaultConstPb<T>;
   d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_XOR)] =
@@ -150,7 +151,7 @@ void TPseudoBooleanBlaster<T>::initTermStrategies()
       DefaultExtractPb<T>;
   d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_NEG)] =
       DefaultNegPb<T>;
-  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_NEG)] =
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_SUB)] =
       DefaultSubPb<T>;
   d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_SHL)] =
       DefaultShlPb<T>;
@@ -162,6 +163,14 @@ void TPseudoBooleanBlaster<T>::initTermStrategies()
       DefaultUdivPb<T>;
   d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_UREM)] =
       DefaultUremPb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_SDIV)] =
+      DefaultSdivPb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_ITE)] =
+      DefaultItePb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_COMP)] =
+      DefaultCompPb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_SIGN_EXTEND)] =
+      DefaultSignExtendPb<T>;
 }
 
 template <class T>
