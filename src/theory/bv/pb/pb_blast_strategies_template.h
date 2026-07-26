@@ -1659,6 +1659,57 @@ T DefaultItePb(T term, TPseudoBooleanBlaster<T>* pbb)
   return blasted_term;
 }
 
+template <class T>
+T DefaultCompPb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+  Trace("bv-pb") << "theory::bv::pb::DefaultCompPb blasting " << term;
+  Assert(term.getKind() == Kind::BITVECTOR_COMP);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_var = pbb->newVariable(1);
+  Trace("bv-pb") << " with bits " << result_var << "\n";
+
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
+
+  std::unordered_set<T> constraints;
+  T a_xor_b = pbb->newVariable(num_bits);
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (const T& c : mkPbXor(a[0][i], b[0][i], a_xor_b[i], nm))
+      constraints.emplace(c);
+  }
+
+  // NOR with bits from a_xor_b
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    std::vector<Node> unit_constraint = {result_var[0], a_xor_b[i]};
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, unit_constraint, {-1, -1}, -1, nm));
+  }
+  std::vector<Node> nor_variables;
+  std::vector<int> nor_coefficients;
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    nor_variables.push_back(a_xor_b[i]);
+    nor_coefficients.push_back(1);
+  }
+  nor_variables.push_back(result_var[0]);
+  nor_coefficients.push_back(1);
+
+  constraints.insert(
+      mkConstraintNode(Kind::GEQ, nor_variables, nor_coefficients, 1, nm));
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_var, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultCompPb done\n";
+  return blasted_term;
+}
+
 }  // namespace pb
 }  // namespace bv
 }  // namespace theory
