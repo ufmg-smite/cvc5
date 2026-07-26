@@ -1624,6 +1624,41 @@ T DefaultSdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
   return blasted_term;
 }
 
+template <class T>
+T DefaultItePb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+  Trace("bv-pb") << "theory::bv::pb::DefaultItePb blasting " << term;
+  Assert(term.getKind() == Kind::BITVECTOR_ITE);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_vars = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_vars << "\n";
+
+  T cond = pbb->blastTerm(term[0]);
+  T thenpart = pbb->blastTerm(term[1]);
+  T elsepart = pbb->blastTerm(term[2]);
+  Assert(cond[0].getNumChildren() == 1);
+  Assert(thenpart[0].getNumChildren() == elsepart[0].getNumChildren());
+  Assert(num_bits == thenpart[0].getNumChildren());
+
+  std::unordered_set<Node> constraints;
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    for (const T& c : mkPbIte(cond[0][0], thenpart[0][i], elsepart[0][i], result_vars[i], nm))
+      constraints.emplace(c);
+  }
+
+  for (const T& c : cond[1]) constraints.insert(c);
+  for (const T& c : thenpart[1]) constraints.insert(c);
+  for (const T& c : elsepart[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultItePb done\n";
+  return blasted_term;
+}
+
 }  // namespace pb
 }  // namespace bv
 }  // namespace theory
