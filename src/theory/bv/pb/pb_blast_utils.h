@@ -59,6 +59,8 @@ inline T mkAtomNode(std::unordered_set<T> constraints, NodeManager* nm);
 /** PB logic gates */
 template <class T>
 std::vector<std::string> mkPbXor(T a, T b, T res);
+template <class T>
+inline std::vector<T> mkPbIte(T cond, T a, T b, T res, NodeManager* nm);
 /** Other auxiliary functions */
 template <class T = Node>
 inline std::vector<T> bvToSigned(unsigned sz, NodeManager* nm, int sign = 1);
@@ -256,6 +258,37 @@ inline unsigned long long triangularIndex(T a, T b)
   unsigned long long _b = (unsigned long long)b;
   if (_a >= _b) return _a * (_a + 1) / 2 + _b;
   return _b * (_b + 1) / 2 + _a;
+}
+
+template <class T>
+inline std::vector<T> mkPbIte(T cond, T a, T b, T res, NodeManager* nm)
+{
+  std::vector<T> constraints;
+  // -cond + a - res >= -1
+  constraints.push_back(mkConstraintNode(Kind::GEQ,
+                                         std::vector<Node>{cond, a, res},
+                                         std::vector<int>{-1, 1, -1},
+                                         -1,
+                                         nm));
+  // -cond - a + res >= -1
+  constraints.push_back(mkConstraintNode(Kind::GEQ,
+                                         std::vector<Node>{cond, a, res},
+                                         std::vector<int>{-1, -1, 1},
+                                         -1,
+                                         nm));
+  // cond + b - res >= 0
+  constraints.push_back(mkConstraintNode(Kind::GEQ,
+                                         std::vector<Node>{cond, b, res},
+                                         std::vector<int>{1, 1, -1},
+                                         0,
+                                         nm));
+  // cond - b + res >= 0
+  constraints.push_back(mkConstraintNode(Kind::GEQ,
+                                         std::vector<Node>{cond, b, res},
+                                         std::vector<int>{1, -1, 1},
+                                         0,
+                                         nm));
+  return constraints;
 }
 
 }  // namespace pb
