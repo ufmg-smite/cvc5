@@ -1667,22 +1667,24 @@ T DefaultCompPb(T term, TPseudoBooleanBlaster<T>* pbb)
 
   NodeManager* nm = pbb->getNodeManager();
   unsigned num_bits = utils::getSize(term);
-  T result_var = pbb->newVariable(1);
+  T result_var = pbb->newVariable(num_bits);
   Trace("bv-pb") << " with bits " << result_var << "\n";
 
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
+  unsigned blasted_size = a[0].getNumChildren();
+  Assert(a[0].getNumChildren() == b[0].getNumChildren());
   std::unordered_set<T> constraints;
-  T a_xor_b = pbb->newVariable(num_bits);
-  for (unsigned i = 0; i < num_bits; i++)
+  T a_xor_b = pbb->newVariable(blasted_size);
+  for (unsigned i = 0; i < blasted_size; i++)
   {
     for (const T& c : mkPbXor(a[0][i], b[0][i], a_xor_b[i], nm))
       constraints.emplace(c);
   }
 
   // NOR with bits from a_xor_b
-  for (unsigned i = 0; i < num_bits; i++)
+  for (unsigned i = 0; i < blasted_size; i++)
   {
     std::vector<Node> unit_constraint = {result_var[0], a_xor_b[i]};
     constraints.insert(
@@ -1690,7 +1692,7 @@ T DefaultCompPb(T term, TPseudoBooleanBlaster<T>* pbb)
   }
   std::vector<Node> nor_variables;
   std::vector<int> nor_coefficients;
-  for (unsigned i = 0; i < num_bits; i++)
+  for (unsigned i = 0; i < blasted_size; i++)
   {
     nor_variables.push_back(a_xor_b[i]);
     nor_coefficients.push_back(1);
