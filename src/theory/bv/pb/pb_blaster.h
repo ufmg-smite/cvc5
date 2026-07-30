@@ -171,6 +171,10 @@ void TPseudoBooleanBlaster<T>::initTermStrategies()
       DefaultCompPb<T>;
   d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_SIGN_EXTEND)] =
       DefaultSignExtendPb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_ULTBV)] =
+      DefaultUltbvPb<T>;
+  d_termStrategies[static_cast<uint32_t>(Kind::BITVECTOR_SLTBV)] =
+      DefaultSltbvPb<T>;
 }
 
 template <class T>

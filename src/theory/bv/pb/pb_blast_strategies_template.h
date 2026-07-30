@@ -1751,6 +1751,106 @@ T DefaultSignExtendPb(T term, TPseudoBooleanBlaster<T>* pbb)
   return blasted_term;
 }
 
+template <class T>
+T DefaultUltbvPb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+  Trace("bv-pb") << "theory::bv::pb::DefaultUltbvPb blasting " << term;
+  Assert(term.getKind() == Kind::BITVECTOR_ULTBV);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_var = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_var << "\n";
+
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
+
+  unsigned blasted_size = a[0].getNumChildren();
+  Assert(a[0].getNumChildren() == b[0].getNumChildren());
+  T subtraction_vars = pbb->newVariable(blasted_size);
+  std::unordered_set<T> constraints;
+
+  // NUM(a) - NUM(b) - NUM(subtraction_vars concat result_var) = 0
+  std::vector<Node> variables;
+  std::vector<Node> coefficients;
+  std::vector<Node> aux_coefficients_a = bvToUnsigned(blasted_size, nm);
+  std::vector<Node> aux_coefficients_b = bvToUnsigned(blasted_size, nm, -1);
+  for (unsigned i = 0; i < blasted_size; i++)
+  {
+    variables.push_back(a[0][i]);
+    variables.push_back(b[0][i]);
+    coefficients.push_back(aux_coefficients_a[i]);
+    coefficients.push_back(aux_coefficients_b[i]);
+  }
+  for (const T& v : subtraction_vars) variables.push_back(v);
+  variables.push_back(result_var[0]);
+  for (const T& c : bvToSigned(blasted_size + 1, nm, -1))
+  {
+    coefficients.push_back(c);
+  }
+
+  constraints.insert(
+      mkConstraintNode(Kind::EQUAL, variables, coefficients, pbb->d_ZERO, nm));
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_var, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultUltbvPb done\n";
+  return blasted_term;
+}
+
+template <class T>
+T DefaultSltbvPb(T term, TPseudoBooleanBlaster<T>* pbb)
+{
+  Trace("bv-pb") << "theory::bv::pb::DefaultSltbvPb blasting " << term;
+  Assert(term.getKind() == Kind::BITVECTOR_SLTBV);
+
+  NodeManager* nm = pbb->getNodeManager();
+  unsigned num_bits = utils::getSize(term);
+  T result_var = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << result_var << "\n";
+
+  T a = pbb->blastTerm(term[0]);
+  T b = pbb->blastTerm(term[1]);
+
+  unsigned blasted_size = a[0].getNumChildren();
+  Assert(a[0].getNumChildren() == b[0].getNumChildren());
+  T subtraction_vars = pbb->newVariable(blasted_size);
+  std::unordered_set<T> constraints;
+
+  // NUM(a) - NUM(b) - NUM(subtraction_vars concat result_var) = 0
+  std::vector<Node> variables;
+  std::vector<Node> coefficients;
+  std::vector<Node> aux_coefficients_a = bvToSigned(blasted_size, nm);
+  std::vector<Node> aux_coefficients_b = bvToSigned(blasted_size, nm, -1);
+  for (unsigned i = 0; i < blasted_size; i++)
+  {
+    variables.push_back(a[0][i]);
+    variables.push_back(b[0][i]);
+    coefficients.push_back(aux_coefficients_a[i]);
+    coefficients.push_back(aux_coefficients_b[i]);
+  }
+  for (const T& v : subtraction_vars) variables.push_back(v);
+  variables.push_back(result_var[0]);
+  for (const T& c : bvToSigned(blasted_size + 1, nm, -1))
+  {
+    coefficients.push_back(c);
+  }
+
+  constraints.insert(
+      mkConstraintNode(Kind::EQUAL, variables, coefficients, pbb->d_ZERO, nm));
+
+  for (const T& c : a[1]) constraints.insert(c);
+  for (const T& c : b[1]) constraints.insert(c);
+
+  T blasted_term = mkTermNode(result_var, constraints, nm);
+  Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
+  Trace("bv-pb") << "theory::bv::pb::DefaultSltbvPb done\n";
+  return blasted_term;
+}
+
 }  // namespace pb
 }  // namespace bv
 }  // namespace theory
