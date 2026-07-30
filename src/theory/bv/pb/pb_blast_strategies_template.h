@@ -46,7 +46,7 @@ T UndefinedAtomPbStrategy(T atom, CVC5_UNUSED TPseudoBooleanBlaster<T>* pbb)
 }
 
 /** TODO(alanctprado): consider adding bit-level equalities? */
-template <class T>
+/*template <class T>
 T DefaultEqPb(T atom, TPseudoBooleanBlaster<T>* pbb)
 {
   Assert(atom.getKind() == Kind::EQUAL);
@@ -72,6 +72,36 @@ T DefaultEqPb(T atom, TPseudoBooleanBlaster<T>* pbb)
 
   std::unordered_set<T> constraints;
   constraints.insert(atom_constraint);
+  for (const T& c : lhs[1]) constraints.insert(c);
+  for (const T& c : rhs[1]) constraints.insert(c);
+  return mkAtomNode(constraints, nm);
+}*/
+
+template <class T>
+T DefaultEqPb(T atom, TPseudoBooleanBlaster<T>* pbb)
+{
+  Assert(atom.getKind() == Kind::EQUAL);
+  Trace("bv-pb") << "theory::bv::pb::DefaultEqPb " << atom << "\n";
+
+  T lhs = pbb->blastTerm(atom[0]);
+  T rhs = pbb->blastTerm(atom[1]);
+  Assert(lhs[0].getNumChildren() == rhs[0].getNumChildren());
+
+  NodeManager* nm = pbb->getNodeManager();
+  std::vector<T> atom_constraints;
+  for (unsigned i = 0; i < lhs[0].getNumChildren(); i++)
+  {
+    std::vector<Node> unit_constraint = {lhs[0][i], rhs[0][i]};
+    atom_constraints.push_back(
+          mkConstraintNode(Kind::EQUAL, unit_constraint, {1, -1}, 0, nm));
+  }
+
+  Trace("bv-pb") << "theory::bv::pb::DefaultEqPb resulted in constraints";
+  for (const T& c : atom_constraints) Trace("bv-pb") << " " << c;
+  Trace("bv-pb") << "\n";
+
+  std::unordered_set<T> constraints;
+  for (const T& c : atom_constraints) constraints.emplace(c);
   for (const T& c : lhs[1]) constraints.insert(c);
   for (const T& c : rhs[1]) constraints.insert(c);
   return mkAtomNode(constraints, nm);
