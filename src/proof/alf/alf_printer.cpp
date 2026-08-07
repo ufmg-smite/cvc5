@@ -157,8 +157,8 @@ bool AlfPrinter::isHandled(const Options& opts, const ProofNode* pfn)
     case ProofRule::ARITH_TRANS_SINE_TANGENT_PI: return true;
     case ProofRule::ARITH_COVERINGS_UNIV:
     {
-      Kind k = pfn->getArguments()[2][1].getKind();
-      Trace("nl-pf-kind") << std::endl << "Kind is " << k << std::endl;
+      // Kind k = pfn->getArguments()[2][1].getKind();
+      // Trace("nl-pf-kind") << std::endl << "Kind is " << k << std::endl;
       return true;
     }
     case ProofRule::INT_TIGHT_LB:
