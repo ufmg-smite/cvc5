@@ -240,7 +240,12 @@ class CDCAC : protected EnvObj
 
   /** The next interval id */
   size_t d_nextIntervalId = 1;
-  bool d_isUniv;
+  /**
+   * Whether all constraint polynomials are univariate (possibly in different
+   * variables). Problems where this does not hold are rejected in
+   * computeVariableOrdering(), so this always holds once the search runs.
+   */
+  bool d_isUniv = true;
 };
 
 }  // namespace coverings

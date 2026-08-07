@@ -111,7 +111,8 @@ void CoveringsProofGenerator::startNewProof(bool isUniv)
     d_current = d_proofs.allocateProof();
     return;
   }
-  d_cdp = new CDProof(d_env, d_ctx); 
+  d_cdp = new CDProof(d_env, d_ctx);
+  d_polysRoots.clear();
 }
 void CoveringsProofGenerator::startRecursive() { d_current->openChild(); }
 void CoveringsProofGenerator::endRecursive(size_t intervalId)
@@ -162,7 +163,7 @@ void CoveringsProofGenerator::addUnivRoots(
 void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
                                              VariableMapper& vm)
 {
-  Assert(vm.mVarCVCpoly.size() == 1 && vm.mVarpolyCVC.size() == 1);
+  Assert(!vm.mVarCVCpoly.empty());
   Node var = vm.mVarCVCpoly.begin()->first;
   std::vector<Node> args{var};
   for (const auto& pr : d_polysRoots)

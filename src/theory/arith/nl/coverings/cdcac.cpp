@@ -21,6 +21,7 @@
 #ifdef CVC5_POLY_IMP
 
 #include "options/arith_options.h"
+#include "smt/logic_exception.h"
 #include "theory/arith/nl/coverings/lazard_evaluation.h"
 #include "theory/arith/nl/coverings/projections.h"
 #include "theory/arith/nl/coverings/variable_ordering.h"
@@ -105,7 +106,28 @@ void CDCAC::computeVariableOrdering()
   {
     lp_variable_order_push(vo, v.get_internal());
   }
-  d_isUniv = d_variableOrdering.size() == 1;
+  // Reject problems that require multivariate reasoning: every constraint
+  // polynomial must be univariate. Multiple variables are fine, as long as
+  // each polynomial mentions only one of them; the univariate proof
+  // certificate then collects the roots of all polynomials.
+  for (const auto& c : d_constraints.getConstraints())
+  {
+    if (!is_univariate(std::get<0>(c)))
+    {
+      std::stringstream ss;
+      ss << "IS NOT UNIVARIATE";
+      // ss << "Problem requires multivariate reasoning: constraint "
+      //    << std::get<2>(c)
+      //    << " contains a multivariate polynomial. Only problems where every "
+      //       "polynomial is univariate are supported.";
+      throw LogicException(ss.str());
+    }
+  }
+  std::stringstream ss;
+  ss << "IS UNIVARIATE";
+  throw LogicException(ss.str());
+
+  d_isUniv = true;
   Trace("nl-is-univ") << "is univ: " << d_isUniv << " "
                       << d_variableOrdering.size() << std::endl;
 }
