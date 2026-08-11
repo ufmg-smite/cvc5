@@ -222,6 +222,22 @@ class BitVectorAckermanizationUremTypeRule
                               std::ostream* errOut);
 };
 
+/**
+ * Type rule shared by every PB_PROOF_* internal proof-tracking kind. These
+ * kinds carry shape only (constraints, hint id lists, witness tokens, etc.)
+ * and never appear in user formulas, so we report Boolean unconditionally
+ * without inspecting children — the children's types are heterogeneous.
+ */
+class PbProofTypeRule
+{
+ public:
+  static TypeNode preComputeType(NodeManager* nm, TNode n);
+  static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
+};
+
 }  // namespace bv
 }  // namespace theory
 }  // namespace cvc5::internal

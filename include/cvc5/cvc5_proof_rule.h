@@ -530,8 +530,90 @@ enum ENUM(ProofRule)
    */
   EVALUE(CUTTING_PLANES_REFUTATION),
   /**
-   * TODO(alanctprado)
+   * \verbatim embed:rst:leading-asterisk
+   * **Pseudo-Boolean -- Cutting Planes Axiom**
+   *
+   * .. math::
+   *
+   *   \inferrule{- \mid C, L}{C}
+   *
+   * where :math:`L` is a literal (a Boolean variable or its negation) and
+   * :math:`C` is the trivial PB constraint :math:`L \geq 0` (always-true
+   * single-literal inequality used as a leaf of polish-notation derivations).
+   * \endverbatim
    */
+  EVALUE(CUTTING_PLANES_AXIOM),
+  /**
+   * \verbatim embed:rst:leading-asterisk
+   * **Pseudo-Boolean -- Cutting Planes Addition**
+   *
+   * .. math::
+   *
+   *   \inferrule{C_1, C_2 \mid C}{C}
+   *
+   * where :math:`C` is the elementwise sum of the two PB constraints
+   * :math:`C_1` and :math:`C_2`.
+   * \endverbatim
+   */
+  EVALUE(CUTTING_PLANES_ADDITION),
+  /**
+   * \verbatim embed:rst:leading-asterisk
+   * **Pseudo-Boolean -- Cutting Planes Multiplication**
+   *
+   * .. math::
+   *
+   *   \inferrule{C_1 \mid C, k}{C}
+   *
+   * where :math:`k` is a positive integer constant and :math:`C` is
+   * :math:`C_1` with every coefficient (and the right-hand side) scaled by
+   * :math:`k`.
+   * \endverbatim
+   */
+  EVALUE(CUTTING_PLANES_MULTIPLICATION),
+  /**
+   * \verbatim embed:rst:leading-asterisk
+   * **Pseudo-Boolean -- Cutting Planes Division**
+   *
+   * .. math::
+   *
+   *   \inferrule{C_1 \mid C, d}{C}
+   *
+   * where :math:`d` is a positive integer divisor and :math:`C` is obtained
+   * from :math:`C_1` by dividing every coefficient and the right-hand side
+   * by :math:`d`, rounding the right-hand side up (ceiling division).
+   * \endverbatim
+   */
+  EVALUE(CUTTING_PLANES_DIVISION),
+  /**
+   * \verbatim embed:rst:leading-asterisk
+   * **Pseudo-Boolean -- Cutting Planes Saturation**
+   *
+   * .. math::
+   *
+   *   \inferrule{C_1 \mid C}{C}
+   *
+   * where :math:`C` is :math:`C_1` with every coefficient capped at the
+   * right-hand side.
+   * \endverbatim
+   */
+  EVALUE(CUTTING_PLANES_SATURATION),
+  /**
+   * \verbatim embed:rst:leading-asterisk
+   * **Pseudo-Boolean -- Macro Cutting Planes Resolution (PB chain
+   * cancellation)**
+   *
+   * .. math::
+   *
+   *   \inferrule{C_1 \dots C_n \mid C, (pol_1 \dots pol_{n-1}),
+   *              (L_1 \dots L_{n-1})}{C}
+   *
+   * PB analog of N-ary chain Boolean resolution: starting from :math:`C_1`,
+   * each :math:`C_{i+1}` is combined with the running constraint by
+   * eliminating literal :math:`L_i` according to polarity :math:`pol_i`.
+   * Used to encode VeriPB ``rup`` step hint chains.
+   * \endverbatim
+   */
+  EVALUE(MACRO_CUTTING_PLANES_RESOLUTION),
   EVALUE(RESOLUTION),
   /**
    * \verbatim embed:rst:leading-asterisk
@@ -1387,6 +1469,19 @@ enum ENUM(ProofRule)
    * \endverbatim
    */
   EVALUE(BV_BITBLAST_STEP),
+  /**
+   * \verbatim embed:rst:leading-asterisk
+   * **Pseudo-Boolean -- Macro PB-blast step**
+   *
+   * .. math::
+   *
+   *   \inferrule{F \mid C}{C}
+   *
+   * Trusted derivation that the input PB constraint :math:`C` (obtained by
+   * PB-blasting the BV-level fact :math:`F`) follows from :math:`F`.
+   * \endverbatim
+   */
+  EVALUE(MACRO_PB_BLAST_STEP),
   /**
    * \verbatim embed:rst:leading-asterisk
    * **Bit-vectors -- Bit-vector eager atom**

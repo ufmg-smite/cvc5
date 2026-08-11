@@ -17,6 +17,7 @@
 
 #include <stack>
 
+#include "util/rational.h"
 #include "util/string.h"
 
 namespace cvc5::internal {
@@ -31,42 +32,41 @@ PbProofRules::PbProofRules(Env& env, CDProof* cdp) : EnvObj(env), d_cdp(cdp)
 
 void PbProofRules::initializeRules()
 {
-  rules = {
-      {"del",
-       [this](std::istringstream& iss) { return deleteConstraints2(iss); }},
-      {"d", [this](std::istringstream& iss) { return deleteConstraints(iss); }},
-      {"a", [this](std::istringstream& iss) { return assumption(iss); }},
-      {"u",
-       [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
-      {"rup",
-       [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
-      {"e", [this](std::istringstream& iss) { return constraintEquals(iss); }},
-      {"i", [this](std::istringstream& iss) { return constraintImplies(iss); }},
-      {"ia",
-       [this](std::istringstream& iss) { return syntacticImpliesAdd(iss); }},
-      {"j",
-       [this](std::istringstream& iss) {
-         return constraintImpliesGetImplied(iss);
-       }},
-      {"v", [this](std::istringstream& iss) { return solution(iss); }},
-      {"ov", [this](std::istringstream& iss) { return originalSolution(iss); }},
-      {"o", [this](std::istringstream& iss) { return objectiveBound(iss); }},
-      {"c", [this](std::istringstream& iss) { return isContradiction(iss); }},
-      {"p",
-       [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
-      {"pol",
-       [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
-      {"f", [this](std::istringstream& iss) { return loadFormula(iss); }},
-      {"l", [this](std::istringstream& iss) { return loadAxiom(iss); }},
-      {"core", [this](std::istringstream& iss) { return markCore(iss); }},
-      {"#", [this](std::istringstream& iss) { return setLevel(iss); }},
-      {"w", [this](std::istringstream& iss) { return wipeLevel(iss); }},
-      {"red", [this](std::istringstream& iss) { return redundancy(iss); }},
-      {"output",
-       [this](std::istringstream& iss) { return outputSection(iss); }},
-      {"conclusion",
-       [this](std::istringstream& iss) { return conclusionSection(iss); }},
-      {"end", [this](std::istringstream& iss) { return endProof(iss); }}};
+  rules =
+  { {"del",
+     [this](std::istringstream& iss) { return deleteConstraints2(iss); }},
+    {"d", [this](std::istringstream& iss) { return deleteConstraints(iss); }},
+    {"a", [this](std::istringstream& iss) { return assumption(iss); }},
+    {"u",
+     [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
+    {"rup",
+     [this](std::istringstream& iss) { return reverseUnitPropagation(iss); }},
+    {"e", [this](std::istringstream& iss) { return constraintEquals(iss); }},
+    {"i", [this](std::istringstream& iss) { return constraintImplies(iss); }},
+    {"ia",
+     [this](std::istringstream& iss) { return syntacticImpliesAdd(iss); }},
+    {"j",
+     [this](std::istringstream& iss) {
+       return constraintImpliesGetImplied(iss);
+     }},
+    {"v", [this](std::istringstream& iss) { return solution(iss); }},
+    {"ov", [this](std::istringstream& iss) { return originalSolution(iss); }},
+    {"o", [this](std::istringstream& iss) { return objectiveBound(iss); }},
+    {"c", [this](std::istringstream& iss) { return isContradiction(iss); }},
+    {"p",
+     [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
+    {"pol",
+     [this](std::istringstream& iss) { return reversePolishNotation(iss); }},
+    {"f", [this](std::istringstream& iss) { return loadFormula(iss); }},
+    {"l", [this](std::istringstream& iss) { return loadAxiom(iss); }},
+    {"core", [this](std::istringstream& iss) { return markCore(iss); }},
+    {"#", [this](std::istringstream& iss) { return setLevel(iss); }},
+    {"w", [this](std::istringstream& iss) { return wipeLevel(iss); }},
+    {"red", [this](std::istringstream& iss) { return redundancy(iss); }},
+    {"output", [this](std::istringstream& iss) { return outputSection(iss); }},
+    {"conclusion",
+     [this](std::istringstream& iss) { return conclusionSection(iss); }},
+    {"end", [this](std::istringstream& iss) { return endProof(iss); }}};
 }
 
 Node PbProofRules::parseLine(const std::string& line)
@@ -141,8 +141,8 @@ Node PbProofRules::deleteConstraints2(std::istringstream& iss)
   std::string token;
   while (iss >> token)
   {
-    if (token == ";") continue;  // defensive; RoundingSat emits no terminator
-    ids.push_back(nm->mkBoundVar(token, nm->stringType()));
+    if (token == ";") continue;
+    ids.push_back(nm->mkConstInt(Rational(Integer(token))));
   }
   Node id_list = nm->mkNode(Kind::SEXPR, ids);
   return nm->mkNode(Kind::PB_PROOF_DELETE_BY_ID, id_list);
@@ -162,7 +162,7 @@ Node PbProofRules::isContradiction(std::istringstream& iss)
   }
 
   NodeManager* nm = nodeManager();
-  Node constraint = nm->mkBoundVar(constraint_id, nm->stringType());
+  Node constraint = nm->mkConstInt(Rational(Integer(constraint_id)));
   return nm->mkNode(Kind::PB_PROOF_CONTRADICTION, constraint);
 }
 
@@ -226,7 +226,7 @@ Node PbProofRules::reverseUnitPropagation(std::istringstream& iss)
   {
     // Tolerate stray ';' (VeriPB 2.0) and ':' (VeriPB 3.0 hint delimiter).
     if (token == ";" || token == ":") continue;
-    hint_ids.push_back(nm->mkBoundVar(token, nm->stringType()));
+    hint_ids.push_back(nm->mkConstInt(Rational(Integer(token))));
   }
   Node hints = nm->mkNode(Kind::SEXPR, hint_ids);
   return nm->mkNode(Kind::PB_PROOF_REVERSE_UNIT_PROPAGATION,
@@ -256,7 +256,7 @@ Node PbProofRules::syntacticImpliesAdd(std::istringstream& iss)
   {
     // Tolerate stray ';' (VeriPB 2.0) and ':' (VeriPB 3.0 hint delimiter).
     if (token == ";" || token == ":") continue;
-    hint_ids.push_back(nm->mkBoundVar(token, nm->stringType()));
+    hint_ids.push_back(nm->mkConstInt(Rational(Integer(token))));
   }
   Node hints = nm->mkNode(Kind::SEXPR, hint_ids);
   return nm->mkNode(Kind::PB_PROOF_SYNTACTIC_IMPLIES_ADD, constraint, hints);
@@ -322,16 +322,26 @@ Node PbProofRules::conclusionSection(std::istringstream& iss)
 {
   Trace("bv-pb-proof") << "PbProofRules::conclusionSection\n";
   NodeManager* nm = nodeManager();
-  std::vector<Node> tokens;
+  // RoundingSat is decision-mode only, so the conclusion is always
+  // `UNSAT : <id> ;`. Drop the keyword and separators, keep just <id>.
+  std::string keyword;
+  iss >> keyword;
+  Assert(keyword == "UNSAT")
+      << "PbProofRules::conclusionSection: expected `conclusion UNSAT ...`, "
+      << "got `conclusion " << keyword << " ...`";
   std::string token;
+  Node id;
   while (iss >> token)
   {
-    // Skip ';' (statement terminator) and ':' (UNSAT/SAT payload separator).
     if (token == ";" || token == ":") continue;
-    tokens.push_back(nm->mkBoundVar(token, nm->stringType()));
+    Assert(id.isNull())
+        << "PbProofRules::conclusionSection: unexpected extra token `" << token
+        << "` after id";
+    id = nm->mkConstInt(Rational(Integer(token)));
   }
-  Node content = nm->mkNode(Kind::SEXPR, tokens);
-  return nm->mkNode(Kind::PB_PROOF_CONCLUSION, content);
+  Assert(!id.isNull())
+      << "PbProofRules::conclusionSection: missing constraint id after UNSAT";
+  return nm->mkNode(Kind::PB_PROOF_CONCLUSION, id);
 }
 
 Node PbProofRules::endProof(std::istringstream& iss)
@@ -391,10 +401,14 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
   std::vector<Node> sum_nodes;
   for (size_t i = 0; i < sum.size(); i += 2)
   {
-    Node coefficient_node = nm->mkConstInt(Rational(Integer(sum[i])));
+    // GMP's mpz_set_str rejects an explicit '+' sign; VeriPB emits coefficients
+    // like "+1", "-1", so strip the leading '+' before parsing.
+    const std::string& tok = sum[i];
+    std::string digits = (!tok.empty() && tok[0] == '+') ? tok.substr(1) : tok;
+    Node coefficient_node = nm->mkConstInt(Rational(Integer(digits)));
     Node variable_node = nm->mkBoundVar(sum[i + 1], nm->booleanType());
     sum_nodes.push_back(
-        nm->mkNode(Kind::MULT, coefficient_node, variable_node));
+        nm->mkNode(Kind::PB_TERM, coefficient_node, variable_node));
   }
 
   /* TODO(alanctprado)
@@ -414,8 +428,10 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
   Node lhs_node;
   if (sum_nodes.size() == 0)
     lhs_node = nm->mkConstInt(Rational(0));
+  else if (sum_nodes.size() == 1)
+    lhs_node = sum_nodes[0];
   else
-    lhs_node = nm->mkNode(Kind::ADD, sum_nodes);
+    lhs_node = nm->mkNode(Kind::PB_SUM, sum_nodes);
 
   Node rhs_node = nm->mkConstInt(Rational(Integer(rhs)));
 
@@ -514,19 +530,20 @@ Node PbProofRules::polishConstraint(Node node)
   if (content[0] == 'x')
   {
     Node variable = nm->mkBoundVar(content, nm->booleanType());
-    Node lhs = nm->mkNode(Kind::MULT, nm->mkConstInt(Rational(1)), variable);
+    Node lhs = nm->mkNode(Kind::PB_TERM, nm->mkConstInt(Rational(1)), variable);
     Node rhs = nm->mkConstInt(Rational(0));
     return nm->mkNode(Kind::GEQ, lhs, rhs);
   }
   if (content[0] == '~')
   {
     Node variable = nm->mkBoundVar(content.substr(1), nm->booleanType());
-    Node lhs = nm->mkNode(Kind::MULT, nm->mkConstInt(Rational(-1)), variable);
+    Node lhs =
+        nm->mkNode(Kind::PB_TERM, nm->mkConstInt(Rational(-1)), variable);
     Node rhs = nm->mkConstInt(Rational(-1));
     return nm->mkNode(Kind::GEQ, lhs, rhs);
   }
   // case 3: constraint id
-  return nm->mkBoundVar(content, nm->stringType());
+  return nm->mkConstInt(Rational(Integer(content)));
 }
 
 }  // namespace pb

@@ -628,6 +628,18 @@ TypeNode BitVectorAckermanizationUremTypeRule::computeType(
   return ensureBv(nodeManager, lhsType);
 }
 
+TypeNode PbProofTypeRule::preComputeType(NodeManager* nm, CVC5_UNUSED TNode n)
+{
+  return nm->booleanType();
+}
+TypeNode PbProofTypeRule::computeType(NodeManager* nodeManager,
+                                      CVC5_UNUSED TNode n,
+                                      CVC5_UNUSED bool check,
+                                      CVC5_UNUSED std::ostream* errOut)
+{
+  return nodeManager->booleanType();
+}
+
 }  // namespace bv
 }  // namespace theory
 }  // namespace cvc5::internal

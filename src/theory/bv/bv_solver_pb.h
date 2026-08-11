@@ -26,6 +26,7 @@
 #include "theory/bv/pb/pb_node_blaster.h"
 #include "theory/bv/pb/pb_proof_manager.h"
 #include "theory/bv/pb/pb_solver.h"
+#include "theory/bv/bitblast/node_bitblaster.h"
 
 namespace cvc5::internal {
 

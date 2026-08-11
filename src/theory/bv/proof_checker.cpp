@@ -20,7 +20,8 @@ namespace cvc5::internal {
 namespace theory {
 namespace bv {
 
-BVProofRuleChecker::BVProofRuleChecker(NodeManager* nm) : ProofRuleChecker(nm)
+BVProofRuleChecker::BVProofRuleChecker(NodeManager* nm)
+    : ProofRuleChecker(nm), d_pbChecker(nm)
 {
 }
 void BVProofRuleChecker::registerTo(ProofChecker* pc)
@@ -30,6 +31,7 @@ void BVProofRuleChecker::registerTo(ProofChecker* pc)
   pc->registerChecker(ProofRule::BV_POLY_NORM, this);
   pc->registerChecker(ProofRule::BV_POLY_NORM_EQ, this);
   pc->registerChecker(ProofRule::BV_EAGER_ATOM, this);
+  d_pbChecker.registerTo(pc);
 }
 
 Node BVProofRuleChecker::checkInternal(ProofRule id,

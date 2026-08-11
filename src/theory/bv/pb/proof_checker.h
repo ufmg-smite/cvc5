@@ -1,4 +1,7 @@
 /******************************************************************************
+ * Top contributors (to current version):
+ *   Alan Prado
+ *
  * This file is part of the cvc5 project.
  *
  * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
@@ -7,45 +10,51 @@
  * directory for licensing information.
  * ****************************************************************************
  *
- * Bit-Vector proof checker utility.
+ * Pseudo-Boolean / cutting-planes proof checker.
  */
 
 #include "cvc5_private.h"
 
-#ifndef CVC5__THEORY__BV__PROOF_CHECKER_H
-#define CVC5__THEORY__BV__PROOF_CHECKER_H
+#ifndef CVC5__THEORY__BV__PB__PROOF_CHECKER_H
+#define CVC5__THEORY__BV__PB__PROOF_CHECKER_H
 
 #include "expr/node.h"
 #include "proof/proof_checker.h"
 #include "proof/proof_node.h"
-#include "theory/bv/pb/proof_checker.h"
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
+namespace pb {
 
-/** The proof checker for bit-vectors. */
-class BVProofRuleChecker : public ProofRuleChecker
+/**
+ * Proof rule checker for the cutting-planes calculus over pseudo-Boolean
+ * constraints. Registers and checks the CUTTING_PLANES_* primitive rules and
+ * the MACRO_CUTTING_PLANES_RESOLUTION macro used when translating VeriPB
+ * proofs from the PB-blasting backend.
+ *
+ * The current implementation registers the rules but trusts their stated
+ * conclusion (passed as args[0]). Full semantic checking (recomputing the
+ * conclusion from the children + arithmetic args) is a follow-up.
+ */
+class PbProofRuleChecker : public ProofRuleChecker
 {
  public:
-  BVProofRuleChecker(NodeManager* nm);
+  PbProofRuleChecker(NodeManager* nm);
 
   /** Register all rules owned by this rule checker into pc. */
   void registerTo(ProofChecker* pc) override;
 
  protected:
-  /** Return the conclusion of the given proof step, or null if it is invalid */
+  /** Return the conclusion of the given proof step, or null if invalid. */
   Node checkInternal(ProofRule id,
                      const std::vector<Node>& children,
                      const std::vector<Node>& args) override;
-
- private:
-  /** Sub-checker that owns CUTTING_PLANES_* rules emitted by PB-blasting. */
-  pb::PbProofRuleChecker d_pbChecker;
 };
 
+}  // namespace pb
 }  // namespace bv
 }  // namespace theory
 }  // namespace cvc5::internal
 
-#endif /* CVC5__THEORY__BV__PROOF_CHECKER_H */
+#endif /* CVC5__THEORY__BV__PB__PROOF_CHECKER_H */

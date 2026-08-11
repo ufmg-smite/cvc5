@@ -183,6 +183,14 @@ bool EoPrinter::isHandled(const Options& opts, const ProofNode* pfn)
     case ProofRule::BV_POLY_NORM:
     case ProofRule::BV_POLY_NORM_EQ:
     case ProofRule::EXISTS_STRING_LENGTH:
+    case ProofRule::CUTTING_PLANES_REFUTATION:
+    case ProofRule::CUTTING_PLANES_AXIOM:
+    case ProofRule::CUTTING_PLANES_ADDITION:
+    case ProofRule::CUTTING_PLANES_MULTIPLICATION:
+    case ProofRule::CUTTING_PLANES_DIVISION:
+    case ProofRule::CUTTING_PLANES_SATURATION:
+    case ProofRule::MACRO_CUTTING_PLANES_RESOLUTION:
+    case ProofRule::MACRO_PB_BLAST_STEP:
     case ProofRule::DSL_REWRITE: return true;
     case ProofRule::BV_BITBLAST_STEP:
     {

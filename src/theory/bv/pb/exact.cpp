@@ -73,7 +73,7 @@ void ExactSolver::addConstraint(const Node constraint)
 
   Node linear_form = constraint[0];
 
-  if (linear_form.getKind() == Kind::MULT)
+  if (linear_form.getKind() == Kind::PB_TERM)
   {
     Assert(linear_form.getNumChildren() == 2);
     Assert(linear_form[0].isConst());
@@ -83,7 +83,7 @@ void ExactSolver::addConstraint(const Node constraint)
     variables.push_back(linear_form[1].toString());
   }
 
-  else if (linear_form.getKind() == Kind::ADD)
+  else if (linear_form.getKind() == Kind::PB_SUM)
   {
     for (const Node& term : linear_form)
     {

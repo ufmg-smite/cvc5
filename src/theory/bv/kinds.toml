@@ -404,73 +404,99 @@ typerule = "::cvc5::internal::theory::bv::BitVectorEagerAtomTypeRule"
 type     = "operator"
 name     = "PB_PROOF_CONTRADICTION"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "TODO(alanctprado)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_LOAD_AXIOM"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "TODO(alanctprado)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_LOAD_FORMULA"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'f <N>': declares that the input formula contains N PB inequalities, assigned IDs 1..N (input equalities count as two)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_REVERSE_POLISH_NOTATION"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "TODO(alanctprado)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_REVERSE_UNIT_PROPAGATION"
 children = 2
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'rup C [hint ids...]': child 0 is the RUP constraint C, child 1 is an SEXPR of hint constraint IDs (possibly empty)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_SYNTACTIC_IMPLIES_ADD"
 children = 2
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'ia C [hint]': child 0 is the implied constraint C, child 1 is an SEXPR of hint constraint IDs (0 or 1 element)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_ASSUMPTION"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'a C': introduces C into the database as an unverified assumption (VeriPB 2.0; removed in 3.0)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_DELETE_BY_ID"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'del id <ids>': removes the listed constraint IDs from the database; child 0 is an SEXPR of the IDs as string-typed bound vars (possibly empty)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_REDUNDANCY"
 children = 3
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'red C <witness> ; [begin <subproof> end]': child 0 is C, child 1 is an SEXPR of witness tokens ('xV', '->', val), child 2 is the subproof body as a raw constant string (empty if no subproof)"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_OUTPUT"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'output <guarantee> [type] [content]': declares the output guarantee of the proof; child 0 is an SEXPR of the trailing tokens as string-typed bound vars"
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_CONCLUSION"
 children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'conclusion <NONE|UNSAT [: id]|SAT [: assignment]|BOUNDS ...>': declares what the proof established; child 0 is an SEXPR of the trailing tokens as string-typed bound vars (':' separators are skipped during parsing)"
+
+[[kinds]]
+type     = "operator"
+name     = "PB_TERM"
+children = 2
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
+comment  = "A pseudo-Boolean term (coef * literal). Coef is int, literal is a string-named bound var. Bypasses arith MULT rewrites that fail on Boolean literals."
+
+[[kinds]]
+type     = "operator"
+name     = "PB_SUM"
+children = "1:"
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
+comment  = "Variadic sum of PB_TERMs. Bypasses arith ADD rewrites."
 
 [[kinds]]
 type     = "operator"
 name     = "PB_PROOF_END"
 children = 1
-comment  = "VeriPB 'end pseudo-Boolean proof': terminates the proof; child 0 is an SEXPR of the trailing tokens"
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
+comment  = "VeriPB 'end pseudo-Boolean proof': required by the spec to terminate the proof file; child 0 is an SEXPR of the trailing tokens as string-typed bound vars"
 
 ### parameterized operator kinds ----------------------------------------------
 

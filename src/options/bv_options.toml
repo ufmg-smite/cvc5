@@ -1,14 +1,5 @@
 id     = "BV"
 name   = "Bitvector Theory"
-
-[[option]]
-  name       = "bvPbProof"
-  category   = "expert"
-  long       = "bv-pb-proof"
-  type       = "bool"
-  default    = "false"
-  help       = "TO-DO"
-
 [[option]]
   name       = "bvPbSolver"
   category   = "expert"
@@ -23,6 +14,21 @@ name   = "Bitvector Theory"
 [[option.mode.ROUNDINGSAT]]
   name = "roundingsat"
 
+[[option]]
+  name       = "bvPbProofGranularity"
+  category   = "expert"
+  long       = "bv-pb-proof-granularity=MODE"
+  type       = "BvPbProofGranularity"
+  default    = "COARSE"
+  help       = "granularity at which to emit the PB-blasting proof, see --bv-pb-proof-granularity=help"
+  help_mode  = "Granularity of the PB-blasting proof."
+[[option.mode.COARSE]]
+  name = "coarse"
+  help = "emit a single CUTTING_PLANES_REFUTATION step with the parsed VeriPB proof as args"
+[[option.mode.FINE]]
+  name = "fine"
+  help = "decompose the VeriPB proof into per-rule CUTTING_PLANES_* steps via the translator"
+ 
 [[option]]
   name       = "bvSatSolver"
   category   = "regular"

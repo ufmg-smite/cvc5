@@ -46,6 +46,15 @@ const char* toString(ProofRule rule)
     //================================================= Cutting-plane rules
     case ProofRule::CUTTING_PLANES_REFUTATION:
       return "CUTTING_PLANE_REFUTATION";
+    case ProofRule::CUTTING_PLANES_AXIOM: return "CUTTING_PLANES_AXIOM";
+    case ProofRule::CUTTING_PLANES_ADDITION: return "CUTTING_PLANES_ADDITION";
+    case ProofRule::CUTTING_PLANES_MULTIPLICATION:
+      return "CUTTING_PLANES_MULTIPLICATION";
+    case ProofRule::CUTTING_PLANES_DIVISION: return "CUTTING_PLANES_DIVISION";
+    case ProofRule::CUTTING_PLANES_SATURATION:
+      return "CUTTING_PLANES_SATURATION";
+    case ProofRule::MACRO_CUTTING_PLANES_RESOLUTION:
+      return "MACRO_CUTTING_PLANES_RESOLUTION";
     //================================================= Boolean rules
     case ProofRule::RESOLUTION: return "RESOLUTION";
     case ProofRule::CHAIN_RESOLUTION: return "CHAIN_RESOLUTION";
@@ -120,6 +129,7 @@ const char* toString(ProofRule rule)
     //================================================= Bit-Vector rules
     case ProofRule::MACRO_BV_BITBLAST: return "MACRO_BV_BITBLAST";
     case ProofRule::BV_BITBLAST_STEP: return "BV_BITBLAST_STEP";
+    case ProofRule::MACRO_PB_BLAST_STEP: return "MACRO_PB_BLAST_STEP";
     case ProofRule::BV_EAGER_ATOM: return "BV_EAGER_ATOM";
     case ProofRule::BV_POLY_NORM: return "BV_POLY_NORM";
     case ProofRule::BV_POLY_NORM_EQ: return "BV_POLY_NORM_EQ";

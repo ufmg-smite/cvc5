@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "options/bv_options.h"
+#include "proof/trust_node.h"
 #include "theory/bv/pb/exact.h"
 #include "theory/bv/pb/roundingsat.h"
 #include "theory/bv/theory_bv.h"
@@ -36,7 +37,7 @@ BVSolverPseudoBoolean::BVSolverPseudoBoolean(Env& env,
       d_pbBlaster(new PseudoBooleanBlaster(env, s)),
       d_facts(context()),
       d_assumptions(context()),
-      d_isProofProducing(TraceIsOn("bv-pb-proof")),
+      d_isProofProducing(env.isTheoryProofProducing()),
       d_pbbpg(nullptr),
       d_pbpm(nullptr)
 {
@@ -82,6 +83,16 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
   std::vector<Node> selectors;
   std::vector<Node> allFacts;
   std::unordered_map<Node, Node> selectorToFact;
+  // Pair each input PB constraint with its BV fact, matching RoundingSat's
+  // id stream: dedup by Node (RoundingSat does), and push EQUAL twice (split
+  // into >= and <=).
+  std::vector<std::pair<Node, Node>> inputConstraints;
+  std::unordered_set<Node> recordedConstraints;
+  auto recordInput = [&](const Node& c, const Node& fact) {
+    if (!recordedConstraints.insert(c).second) return;
+    inputConstraints.push_back({c, fact});
+    if (c.getKind() == Kind::EQUAL) inputConstraints.push_back({c, fact});
+  };
   for (const Node& fact : d_assumptions)
   {
     Trace("bv-postcheck") << fact << "\n";
@@ -94,6 +105,7 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
       for (const Node& constraint : d_pbBlaster->getAtom(fact))
       {
         d_pbSolver->addConstraint(constraint, selector);
+        recordInput(constraint, fact);
       }
     }
     else
@@ -101,6 +113,7 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
       for (const Node& constraint : d_pbBlaster->getAtom(fact))
       {
         d_pbSolver->addConstraint(constraint);
+        recordInput(constraint, fact);
       }
     }
   }
@@ -113,29 +126,41 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
     if (d_isProofProducing)
     {
       std::vector<std::string> proof = d_pbSolver->getProof();
-      d_pbpm->addPbProof(proof);
+      d_pbpm->addPbProof(proof, inputConstraints);
     }
     NodeManager* nm = nodeManager();
-    Node conflict;
+    std::vector<Node> conflictFacts;
     if (useCores)
     {
-      std::vector<Node> coreFacts;
       for (const Node& selector : d_pbSolver->getUnsatCore())
       {
-        coreFacts.push_back(selectorToFact.at(selector));
+        conflictFacts.push_back(selectorToFact.at(selector));
       }
       // A guarded encoding is always satisfiable with the selectors off, so an
       // unsat result must implicate at least one selector; fall back to all
       // facts only defensively.
-      Trace("bv-pb") << "UNSAT core: " << coreFacts.size() << " of "
+      Trace("bv-pb") << "UNSAT core: " << conflictFacts.size() << " of "
                      << allFacts.size() << " facts\n";
-      conflict = nm->mkAnd(coreFacts.empty() ? allFacts : coreFacts);
+      if (conflictFacts.empty()) conflictFacts = allFacts;
     }
     else
     {
-      conflict = nm->mkAnd(blasted_atoms);
+      conflictFacts = blasted_atoms;
     }
-    d_im.conflict(conflict, InferenceId::BV_PB_BLAST_CONFLICT);
+    Node conflict = nm->mkAnd(conflictFacts);
+    if (d_isProofProducing)
+    {
+      // Attach PbProofManager as the proof generator so the global proof DAG
+      // sees the CUTTING_PLANES_REFUTATION step instead of a TRUST_THEORY_LEMMA.
+      // Skip conflictExp() because the BV-PB backend has no proof equality
+      // engine, which causes conflictExp to drop the PG silently.
+      TrustNode tconf = TrustNode::mkTrustConflict(conflict, d_pbpm);
+      d_im.trustedConflict(tconf, InferenceId::BV_PB_BLAST_CONFLICT);
+    }
+    else
+    {
+      d_im.conflict(conflict, InferenceId::BV_PB_BLAST_CONFLICT);
+    }
   }
   else if (s == PbSolveState::PB_SAT)
   {
