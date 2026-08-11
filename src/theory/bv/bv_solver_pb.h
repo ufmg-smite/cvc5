@@ -18,10 +18,13 @@
 #ifndef CVC5__THEORY__BV__BV_SOLVER_PB_H
 #define CVC5__THEORY__BV__BV_SOLVER_PB_H
 
+#include <unordered_map>
 #include <vector>
 
 #include "context/cdqueue.h"
+#include "theory/bv/bitblast/node_bitblaster.h"
 #include "theory/bv/bv_solver.h"
+#include "theory/bv/pb/clause_cnf_stream.h"
 #include "theory/bv/pb/pb_blast_proof_generator.h"
 #include "theory/bv/pb/pb_node_blaster.h"
 #include "theory/bv/pb/pb_proof_manager.h"
@@ -89,10 +92,42 @@ class BVSolverPseudoBoolean : public BVSolver
   /** Initialize pseudo-boolean solver. */
   void initPbSolver();
 
+  /**
+   * Alternative post-check used when options::bvPbEagerCnf is set. Instead of
+   * PB-blasting each atom, it clausifies the asserted facts with a
+   * ClauseCnfStream and translates every resulting clause into a pseudo-Boolean
+   * constraint (sum of literals >= 1) before solving.
+   */
+  void postCheckEager();
+  /**
+   * Translates a CNF clause into the PB constraint that requires the sum of its
+   * literals to be at least one. A negated literal ~x is encoded as (1 - x),
+   * i.e. it appears with coefficient -1 and lowers the right-hand side by one.
+   */
+  Node clauseToConstraint(const prop::SatClause& clause);
+  /**
+   * Returns the PB variable associated with the given SAT variable, allocating
+   * a fresh one (via the blaster) the first time it is seen.
+   */
+  Node getPbVarForSatVar(prop::SatVariable var);
+
   /** PB solver back end (configured via options::bvSatSolver. */
   std::unique_ptr<PseudoBooleanSolver<Node>> d_pbSolver;
   /** Bit-blaster used to bit-blast atoms/terms. */
   std::unique_ptr<PseudoBooleanBlaster> d_pbBlaster;
+  /**
+   * Bit-blaster producing a Boolean encoding of atoms. Used by the eager-CNF
+   * path (options::bvPbEagerCnf) to obtain a Boolean formula that is then
+   * clausified and translated into PB constraints.
+   */
+  std::unique_ptr<NodeBitblaster> d_bitblaster;
+  /**
+   * CNF converter used by the eager-CNF path (options::bvPbEagerCnf). Stores the
+   * clauses generated from the bit-blasted facts.
+   */
+  std::unique_ptr<ClauseCnfStream> d_cnfStream;
+  /** Map from the CNF stream's SAT variables to their PB variables. */
+  std::unordered_map<prop::SatVariable, Node> d_satVarToPbVar;
 
   /**
    * PB-blast queue for facts sent to this solver.

@@ -19,7 +19,9 @@
 #include <vector>
 
 #include "options/bv_options.h"
+#include "theory/bv/pb/clause_cnf_stream.h"
 #include "theory/bv/pb/exact.h"
+#include "theory/bv/pb/pb_blast_utils.h"
 #include "theory/bv/pb/roundingsat.h"
 #include "theory/bv/theory_bv.h"
 #include "theory/theory_model.h"
@@ -34,6 +36,7 @@ BVSolverPseudoBoolean::BVSolverPseudoBoolean(Env& env,
                                              TheoryInferenceManager& inferMgr)
     : BVSolver(env, *s, inferMgr),
       d_pbBlaster(new PseudoBooleanBlaster(env, s)),
+      d_bitblaster(new NodeBitblaster(env, s)),
       d_facts(context()),
       d_assumptions(context()),
       d_isProofProducing(TraceIsOn("bv-pb-proof")),
@@ -59,6 +62,12 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
 {
   Trace("bv-pb") << "Post check with effort level " << level << "\n";
   if (level != Theory::Effort::EFFORT_FULL) return;  // TODO(alanctprado): why?
+
+  if (options().bv.bvPbEagerCnf)
+  {
+    postCheckEager();
+    return;
+  }
 
   std::vector<Node> blasted_atoms;
   while (!d_facts.empty())
@@ -145,6 +154,104 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
   else
     Unreachable();
   Trace("bv-pb") << "\n";
+}
+
+void BVSolverPseudoBoolean::postCheckEager()
+{
+  Trace("bv-pb") << "Eager CNF post check\n";
+
+  // Remember all newly asserted facts.
+  while (!d_facts.empty())
+  {
+    Node fact = d_facts.front();
+    d_facts.pop();
+    if (fact.getKind() == Kind::BITVECTOR_EAGER_ATOM) Unhandled();
+    d_assumptions.push_back(fact);
+  }
+
+  // Clausify all facts with a fresh CNF stream. The stream stores the generated
+  // clauses instead of sending them to a SAT solver.
+  d_cnfStream.reset(new ClauseCnfStream(d_env,
+                                        context(),
+                                        FormulaLitPolicy::INTERNAL,
+                                        "theory::bv::BVSolverPseudoBoolean::"));
+  d_satVarToPbVar.clear();
+  for (const Node& fact : d_assumptions)
+  {
+    Trace("bv-pb-cnf") << "Bit-blasting and clausifying fact: " << fact << "\n";
+    // Bit-blast the fact into a Boolean formula over bit variables, then
+    // clausify that formula. The CNF stream stores the resulting clauses.
+    d_bitblaster->bbAtom(fact);
+    Node bbFact = d_bitblaster->getStoredBBAtom(fact);
+    d_cnfStream->convertAndAssert(bbFact, /*removable=*/false, /*negated=*/false);
+  }
+
+  // Translate every clause into a pseudo-Boolean constraint (sum of literals
+  // >= 1) and add it to the PB solver.
+  d_pbSolver->reset();
+  for (const prop::SatClause& clause : d_cnfStream->getClauses())
+  {
+    d_pbSolver->addConstraint(clauseToConstraint(clause));
+  }
+
+  PbSolveState s = d_pbSolver->solve();
+  if (s == PbSolveState::PB_UNSAT)
+  {
+    if (d_isProofProducing)
+    {
+      std::vector<std::string> proof = d_pbSolver->getProof();
+      d_pbpm->addPbProof(proof);
+    }
+    std::vector<Node> conflictFacts(d_assumptions.begin(), d_assumptions.end());
+    Node conflict = nodeManager()->mkAnd(conflictFacts);
+    d_im.conflict(conflict, InferenceId::BV_PB_BLAST_CONFLICT);
+  }
+  else if (s == PbSolveState::PB_SAT)
+  {
+    Trace("bv-pb") << "SATISFIABLE\n";
+  }
+  else
+  {
+    Unreachable();
+  }
+}
+
+Node BVSolverPseudoBoolean::getPbVarForSatVar(prop::SatVariable var)
+{
+  auto it = d_satVarToPbVar.find(var);
+  if (it != d_satVarToPbVar.end()) return it->second;
+  Node pbVar = d_pbBlaster->newVariable(1)[0];
+  d_satVarToPbVar.emplace(var, pbVar);
+  return pbVar;
+}
+
+Node BVSolverPseudoBoolean::clauseToConstraint(const prop::SatClause& clause)
+{
+  Assert(!clause.empty()) << "Empty clause in eager CNF translation";
+  std::vector<Node> variables;
+  std::vector<int> coefficients;
+  // A clause (l_1 v ... v l_n) holds iff the sum of its literals is at least
+  // one. A negative literal ~x contributes (1 - x): coefficient -1 and the
+  // right-hand side is lowered by one.
+  int rhs = 1;
+  for (const prop::SatLiteral& lit : clause)
+  {
+    variables.push_back(getPbVarForSatVar(lit.getSatVariable()));
+    if (lit.isNegated())
+    {
+      coefficients.push_back(-1);
+      rhs -= 1;
+    }
+    else
+    {
+      coefficients.push_back(1);
+    }
+  }
+  Trace("bv-pb-cnf") << "Clause: " << clause << std::endl << "Translated into: " << mkConstraintNode<Node>(
+      Kind::GEQ, variables, coefficients, rhs, nodeManager()) << std::endl;
+
+  return mkConstraintNode<Node>(
+      Kind::GEQ, variables, coefficients, rhs, nodeManager());
 }
 
 bool BVSolverPseudoBoolean::preNotifyFact(CVC5_UNUSED TNode atom,

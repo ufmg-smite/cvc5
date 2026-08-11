@@ -675,6 +675,8 @@ libcvc5_add_sources(
   theory/bv/macro_rewrite_elaborator.h
   theory/bv/pb/pb_solver_types.h
   theory/bv/pb/pb_solver.h
+  theory/bv/pb/clause_cnf_stream.cpp
+  theory/bv/pb/clause_cnf_stream.h
   theory/bv/pb/exact.cpp
   theory/bv/pb/exact.h
   theory/bv/pb/pb_blast_proof_generator.cpp

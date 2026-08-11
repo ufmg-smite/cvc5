@@ -24,6 +24,14 @@ name   = "Bitvector Theory"
   name = "roundingsat"
 
 [[option]]
+  name       = "bvPbEagerCnf"
+  category    = "expert"
+  long        = "bv-pb-eager-cnf"
+  type        = "bool"
+  default     = "false"
+  help        = "in the PB-blasting backend, clausify the asserted facts and translate each clause into a pseudo-Boolean constraint (sum of literals >= 1), instead of PB-blasting the atoms directly"
+
+[[option]]
   name       = "bvSatSolver"
   category   = "regular"
   long       = "bv-sat-solver=MODE"
