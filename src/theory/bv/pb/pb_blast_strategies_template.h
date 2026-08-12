@@ -45,38 +45,6 @@ T UndefinedAtomPbStrategy(T atom, CVC5_UNUSED TPseudoBooleanBlaster<T>* pbb)
   Unreachable();
 }
 
-/** TODO(alanctprado): consider adding bit-level equalities? */
-/*template <class T>
-T DefaultEqPb(T atom, TPseudoBooleanBlaster<T>* pbb)
-{
-  Assert(atom.getKind() == Kind::EQUAL);
-  Trace("bv-pb") << "theory::bv::pb::DefaultEqPb " << atom << "\n";
-
-  T lhs = pbb->blastTerm(atom[0]);
-  T rhs = pbb->blastTerm(atom[1]);
-  Assert(lhs[0].getNumChildren() == rhs[0].getNumChildren());
-
-  NodeManager* nm = pbb->getNodeManager();
-  std::vector<T> coefficients = bvToUnsigned(lhs[0].getNumChildren(), nm);
-  for (const T& c : bvToUnsigned(rhs[0].getNumChildren(), nm, -1))
-    coefficients.push_back(c);
-
-  std::vector<T> variables;
-  for (const T& v : lhs[0]) variables.push_back(v);
-  for (const T& v : rhs[0]) variables.push_back(v);
-
-  T atom_constraint =
-      mkConstraintNode(Kind::EQUAL, variables, coefficients, pbb->d_ZERO, nm);
-  Trace("bv-pb") << "theory::bv::pb::DefaultEqPb resulted in constraint "
-                 << atom_constraint << "\n";
-
-  std::unordered_set<T> constraints;
-  constraints.insert(atom_constraint);
-  for (const T& c : lhs[1]) constraints.insert(c);
-  for (const T& c : rhs[1]) constraints.insert(c);
-  return mkAtomNode(constraints, nm);
-}*/
-
 template <class T>
 T DefaultEqPb(T atom, TPseudoBooleanBlaster<T>* pbb)
 {
@@ -93,7 +61,7 @@ T DefaultEqPb(T atom, TPseudoBooleanBlaster<T>* pbb)
   {
     std::vector<Node> unit_constraint = {lhs[0][i], rhs[0][i]};
     atom_constraints.push_back(
-          mkConstraintNode(Kind::EQUAL, unit_constraint, {1, -1}, 0, nm));
+        mkConstraintNode(Kind::EQUAL, unit_constraint, {1, -1}, 0, nm));
   }
 
   Trace("bv-pb") << "theory::bv::pb::DefaultEqPb resulted in constraints";
@@ -844,14 +812,19 @@ T DefaultNegPb(T term, TPseudoBooleanBlaster<T>* pbb)
 
   std::vector<Node> variables;
   std::vector<Node> coefficients;
-  std::vector<Node> aux_coefficients = bvToUnsigned(num_bits, nm);
+  std::vector<Node> aux_coefficients_blasted = bvToUnsigned(num_bits, nm);
+  std::vector<Node> aux_coefficients_res = bvToUnsigned(num_bits + 1, nm);
   for (unsigned i = 0; i < num_bits; i++)
   {
-    variables.push_back(result_vars[i]);
     variables.push_back(blasted[0][i]);
-    coefficients.push_back(aux_coefficients[i]);
-    coefficients.push_back(aux_coefficients[i]);
+    variables.push_back(result_vars[i]);
+    coefficients.push_back(aux_coefficients_blasted[i]);
+    coefficients.push_back(aux_coefficients_res[i]);
   }
+
+  T extra_var = pbb->newVariable(1);
+  variables.push_back(extra_var[0]);
+  coefficients.push_back(aux_coefficients_res[num_bits]);
 
   T rhs = nm->mkConstInt(Rational(Integer(1).multiplyByPow2(num_bits)));
 
@@ -967,7 +940,7 @@ T DefaultShlPb(T term, TPseudoBooleanBlaster<T>* pbb)
     constraints.insert(
         mkConstraintNode(Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
 
-    // r + sum(y) - z >= 0
+    // sum(y) + r - z >= 0
     variables.push_back(result_vars[i]);
     variables.push_back(prev_z[i]);
 
@@ -1077,7 +1050,7 @@ T DefaultLshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
     constraints.insert(
         mkConstraintNode(Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
 
-    // r + sum(y) - z >= 0
+    // sum(y) + r - z >= 0
     variables.push_back(result_vars[i]);
     variables.push_back(prev_z[i]);
 
@@ -1196,12 +1169,17 @@ T DefaultAshrPb(T term, TPseudoBooleanBlaster<T>* pbb)
 
   for (unsigned i = 0; i < num_bits; i++)
   {
-    // -r + z >= 0
-    std::vector<Node> unit_constraint = {result_vars[i], prev_z[i]};
-    constraints.insert(
-        mkConstraintNode(Kind::GEQ, unit_constraint, {-1, 1}, 0, nm));
+    // sum(y) + z - r >= 0
+    variables.push_back(prev_z[i]);
+    variables.push_back(result_vars[i]);
 
-    // r + sum(y) - z >= 0
+    constraints.insert(
+        mkConstraintNode(Kind::GEQ, variables, coefficients, 0, nm));
+
+    variables.pop_back();
+    variables.pop_back();
+
+    // sum(y) + r - z >= 0
     variables.push_back(result_vars[i]);
     variables.push_back(prev_z[i]);
 
@@ -1235,6 +1213,8 @@ T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
+  Assert(a[0].getNumChildren() == num_bits);
+  Assert(a[0].getNumChildren() == b[0].getNumChildren());
   T quot = pbb->newVariable(num_bits);
   T rem = pbb->newVariable(num_bits);
   std::unordered_set<Node> constraints;
@@ -1266,38 +1246,19 @@ T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
     }
   }
 
-  for (const T& v : rem) variables.push_back(v);
-  for (const T& c : bvToUnsigned(num_bits, nm))
+  std::vector<Node> coefficients_rem = bvToUnsigned(num_bits, nm);
+  std::vector<Node> coefficients_a = bvToUnsigned(num_bits, nm, -1);
+  for (unsigned i = 0; i < num_bits; i++)
   {
-    coefficients.push_back(c);
+    variables.push_back(rem[i]);
+    variables.push_back(a[0][i]);
+    coefficients.push_back(coefficients_rem[i]);
+    coefficients.push_back(coefficients_a[i]);
   }
 
-  for (const T& v : a[0]) variables.push_back(v);
-  for (const T& c : bvToUnsigned(num_bits, nm, -1))
-  {
-    coefficients.push_back(c);
-  }
-
-  // sum(2^i*t) + sum(2^i*rem) - sum(2^i*a) = 0
+  // NUM(b*quot) + NUM(rem) - NUM(a) = 0
   constraints.insert(
       mkConstraintNode(Kind::EQUAL, variables, coefficients, pbb->d_ZERO, nm));
-
-  // rem < b -> sum(2^i*b) - sum(2^i*rem) >= 1
-  std::vector<Node> ult_variables;
-  std::vector<Node> ult_coefficients;
-  for (const T& v : b[0]) ult_variables.push_back(v);
-  for (const T& v : rem) ult_variables.push_back(v);
-  for (const T& c : bvToUnsigned(num_bits, nm))
-  {
-    ult_coefficients.push_back(c);
-  }
-  for (const T& c : bvToUnsigned(num_bits, nm, -1))
-  {
-    ult_coefficients.push_back(c);
-  }
-
-  constraints.insert(mkConstraintNode(
-      Kind::GEQ, ult_variables, ult_coefficients, pbb->d_ONE, nm));
 
   // bitwise OR reduction of b
   T cond = pbb->newVariable(1);
@@ -1320,7 +1281,30 @@ T DefaultUdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
   constraints.insert(
       mkConstraintNode(Kind::GEQ, disjunction_vars, disjunction_coef, 0, nm));
 
-  // result_vars <-> cond ? quo : 11..11
+  // rem < b <-> NUM(b) - NUM(rem) - 2^N * cond >= 1 - 2^N
+  std::vector<Node> ult_variables;
+  std::vector<Node> ult_coefficients;
+  std::vector<Node> aux_coefficients_b = bvToUnsigned(num_bits, nm);
+  std::vector<Node> aux_coefficients_rem = bvToUnsigned(num_bits, nm, -1);
+  for (unsigned i = 0; i < num_bits; i++)
+  {
+    ult_variables.push_back(b[0][i]);
+    ult_variables.push_back(rem[i]);
+    ult_coefficients.push_back(aux_coefficients_b[i]);
+    ult_coefficients.push_back(aux_coefficients_rem[i]);
+  }
+
+  ult_variables.push_back(cond[0]);
+  ult_coefficients.push_back(
+      nm->mkConstInt(Rational(Integer(-1).multiplyByPow2(num_bits))));
+
+  T rhs_value = nm->mkConstInt(
+      Rational(Integer(1) - Integer(1).multiplyByPow2(num_bits)));
+
+  constraints.insert(mkConstraintNode(
+      Kind::GEQ, ult_variables, ult_coefficients, rhs_value, nm));
+
+  // result_vars <-> cond ? quot : 11..11
   for (unsigned i = 0; i < num_bits; i++)
   {
     // -cond + quot - r >= -1
@@ -1359,14 +1343,15 @@ T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
 
   NodeManager* nm = pbb->getNodeManager();
   unsigned num_bits = utils::getSize(term);
-  T result_vars = pbb->newVariable(num_bits);
-  Trace("bv-pb") << " with bits " << result_vars << "\n";
+  T rem = pbb->newVariable(num_bits);
+  Trace("bv-pb") << " with bits " << rem << "\n";
 
   T a = pbb->blastTerm(term[0]);
   T b = pbb->blastTerm(term[1]);
 
+  Assert(a[0].getNumChildren() == num_bits);
+  Assert(a[0].getNumChildren() == b[0].getNumChildren());
   T quot = pbb->newVariable(num_bits);
-  T rem = pbb->newVariable(num_bits);
   std::unordered_set<Node> constraints;
   // a = b*quot + rem
   T tableau = pbb->newVariable(num_bits * num_bits);
@@ -1396,38 +1381,19 @@ T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
     }
   }
 
-  for (const T& v : rem) variables.push_back(v);
-  for (const T& c : bvToUnsigned(num_bits, nm))
+  std::vector<Node> coefficients_rem = bvToUnsigned(num_bits, nm);
+  std::vector<Node> coefficients_a = bvToUnsigned(num_bits, nm, -1);
+  for (unsigned i = 0; i < num_bits; i++)
   {
-    coefficients.push_back(c);
+    variables.push_back(rem[i]);
+    variables.push_back(a[0][i]);
+    coefficients.push_back(coefficients_rem[i]);
+    coefficients.push_back(coefficients_a[i]);
   }
 
-  for (const T& v : a[0]) variables.push_back(v);
-  for (const T& c : bvToUnsigned(num_bits, nm, -1))
-  {
-    coefficients.push_back(c);
-  }
-
-  // sum(2^i*t) + sum(2^i*rem) - sum(2^i*a) = 0
+  // NUM(b*quot) + NUM(rem) - NUM(a) = 0
   constraints.insert(
       mkConstraintNode(Kind::EQUAL, variables, coefficients, pbb->d_ZERO, nm));
-
-  // rem < b -> sum(2^i*b) - sum(2^i*rem) >= 1
-  std::vector<Node> ult_variables;
-  std::vector<Node> ult_coefficients;
-  for (const T& v : b[0]) ult_variables.push_back(v);
-  for (const T& v : rem) ult_variables.push_back(v);
-  for (const T& c : bvToUnsigned(num_bits, nm))
-  {
-    ult_coefficients.push_back(c);
-  }
-  for (const T& c : bvToUnsigned(num_bits, nm, -1))
-  {
-    ult_coefficients.push_back(c);
-  }
-
-  constraints.insert(mkConstraintNode(
-      Kind::GEQ, ult_variables, ult_coefficients, pbb->d_ONE, nm));
 
   // bitwise OR reduction of b
   T cond = pbb->newVariable(1);
@@ -1450,51 +1416,46 @@ T DefaultUremPb(T term, TPseudoBooleanBlaster<T>* pbb)
   constraints.insert(
       mkConstraintNode(Kind::GEQ, disjunction_vars, disjunction_coef, 0, nm));
 
-  // result_vars <-> cond ? rem : a
+  // rem < b <-> NUM(b) - NUM(rem) - 2^N * cond >= 1 - 2^N
+  std::vector<Node> ult_variables;
+  std::vector<Node> ult_coefficients;
+  std::vector<Node> aux_coefficients_b = bvToUnsigned(num_bits, nm);
+  std::vector<Node> aux_coefficients_rem = bvToUnsigned(num_bits, nm, -1);
   for (unsigned i = 0; i < num_bits; i++)
   {
-    // -cond + rem - r >= -1
-    constraints.insert(
-        mkConstraintNode(Kind::GEQ,
-                         std::vector<Node>{cond[0], rem[i], result_vars[i]},
-                         {-1, 1, -1},
-                         -1,
-                         nm));
-    // -cond - rem + r >= -1
-    constraints.insert(
-        mkConstraintNode(Kind::GEQ,
-                         std::vector<Node>{cond[0], rem[i], result_vars[i]},
-                         {-1, -1, 1},
-                         -1,
-                         nm));
-    // cond + a - r >= 0
-    constraints.insert(
-        mkConstraintNode(Kind::GEQ,
-                         std::vector<Node>{cond[0], a[0][i], result_vars[i]},
-                         {1, 1, -1},
-                         0,
-                         nm));
-    // cond - a + r >= 0
-    constraints.insert(
-        mkConstraintNode(Kind::GEQ,
-                         std::vector<Node>{cond[0], a[0][i], result_vars[i]},
-                         {1, -1, 1},
-                         0,
-                         nm));
+    ult_variables.push_back(b[0][i]);
+    ult_variables.push_back(rem[i]);
+    ult_coefficients.push_back(aux_coefficients_b[i]);
+    ult_coefficients.push_back(aux_coefficients_rem[i]);
   }
+
+  ult_variables.push_back(cond[0]);
+  ult_coefficients.push_back(
+      nm->mkConstInt(Rational(Integer(-1).multiplyByPow2(num_bits))));
+
+  T rhs_value = nm->mkConstInt(
+      Rational(Integer(1) - Integer(1).multiplyByPow2(num_bits)));
+
+  constraints.insert(mkConstraintNode(
+      Kind::GEQ, ult_variables, ult_coefficients, rhs_value, nm));
 
   for (const T& c : a[1]) constraints.insert(c);
   for (const T& c : b[1]) constraints.insert(c);
 
-  T blasted_term = mkTermNode(result_vars, constraints, nm);
+  T blasted_term = mkTermNode(rem, constraints, nm);
   Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
   Trace("bv-pb") << "theory::bv::pb::DefaultUremPb done\n";
   return blasted_term;
 }
 
 template <class T>
-T DefaultSdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
+T DefaultSdivPb(T term, CVC5_UNUSED TPseudoBooleanBlaster<T>* pbb)
 {
+  Trace("bv-pb") << "Undefined PB-blasting strategy for term of kind: "
+                 << term.getKind() << "\n";
+  Unreachable();
+
+  /*
   Trace("bv-pb") << "theory::bv::pb::DefaultSdivPb blasting " << term;
   Assert(term.getKind() == Kind::BITVECTOR_SDIV);
 
@@ -1652,6 +1613,7 @@ T DefaultSdivPb(T term, TPseudoBooleanBlaster<T>* pbb)
   Assert(blasted_term[0].getNumChildren() == utils::getSize(term));
   Trace("bv-pb") << "theory::bv::pb::DefaultSdivPb done\n";
   return blasted_term;
+  */
 }
 
 template <class T>
@@ -1675,7 +1637,8 @@ T DefaultItePb(T term, TPseudoBooleanBlaster<T>* pbb)
   std::unordered_set<Node> constraints;
   for (unsigned i = 0; i < num_bits; i++)
   {
-    for (const T& c : mkPbIte(cond[0][0], thenpart[0][i], elsepart[0][i], result_vars[i], nm))
+    for (const T& c : mkPbIte(
+             cond[0][0], thenpart[0][i], elsepart[0][i], result_vars[i], nm))
       constraints.emplace(c);
   }
 
@@ -1705,7 +1668,7 @@ T DefaultCompPb(T term, TPseudoBooleanBlaster<T>* pbb)
 
   unsigned blasted_size = a[0].getNumChildren();
   Assert(a[0].getNumChildren() == b[0].getNumChildren());
-  std::unordered_set<T> constraints;
+  std::unordered_set<Node> constraints;
   T a_xor_b = pbb->newVariable(blasted_size);
   for (unsigned i = 0; i < blasted_size; i++)
   {
@@ -1753,7 +1716,7 @@ T DefaultSignExtendPb(T term, TPseudoBooleanBlaster<T>* pbb)
   T result_vars = pbb->newVariable(num_bits);
   Trace("bv-pb") << " with bits " << result_vars << "\n";
 
-  std::unordered_set<T> constraints;
+  std::unordered_set<Node> constraints;
 
   T blasted = pbb->blastTerm(term[0]);
   for (const T& c : blasted[1]) constraints.insert(c);
@@ -1798,7 +1761,7 @@ T DefaultUltbvPb(T term, TPseudoBooleanBlaster<T>* pbb)
   unsigned blasted_size = a[0].getNumChildren();
   Assert(a[0].getNumChildren() == b[0].getNumChildren());
   T subtraction_vars = pbb->newVariable(blasted_size);
-  std::unordered_set<T> constraints;
+  std::unordered_set<Node> constraints;
 
   // NUM(a) - NUM(b) - NUM(subtraction_vars concat result_var) = 0
   std::vector<Node> variables;
@@ -1848,7 +1811,7 @@ T DefaultSltbvPb(T term, TPseudoBooleanBlaster<T>* pbb)
   unsigned blasted_size = a[0].getNumChildren();
   Assert(a[0].getNumChildren() == b[0].getNumChildren());
   T subtraction_vars = pbb->newVariable(blasted_size);
-  std::unordered_set<T> constraints;
+  std::unordered_set<Node> constraints;
 
   // NUM(a) - NUM(b) - NUM(subtraction_vars concat result_var) = 0
   std::vector<Node> variables;
