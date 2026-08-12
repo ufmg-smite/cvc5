@@ -392,7 +392,7 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
   for (size_t i = 0; i < sum.size(); i += 2)
   {
     Node coefficient_node = nm->mkConstInt(Rational(Integer(sum[i])));
-    Node variable_node = nm->mkBoundVar(sum[i + 1], nm->booleanType());
+    Node variable_node = nm->mkBoundVar(sum[i + 1], nm->integerType());
     sum_nodes.push_back(
         nm->mkNode(Kind::MULT, coefficient_node, variable_node));
   }
@@ -513,14 +513,14 @@ Node PbProofRules::polishConstraint(Node node)
   // case 2: literal axiom
   if (content[0] == 'x')
   {
-    Node variable = nm->mkBoundVar(content, nm->booleanType());
+    Node variable = nm->mkBoundVar(content, nm->integerType());
     Node lhs = nm->mkNode(Kind::MULT, nm->mkConstInt(Rational(1)), variable);
     Node rhs = nm->mkConstInt(Rational(0));
     return nm->mkNode(Kind::GEQ, lhs, rhs);
   }
   if (content[0] == '~')
   {
-    Node variable = nm->mkBoundVar(content.substr(1), nm->booleanType());
+    Node variable = nm->mkBoundVar(content.substr(1), nm->integerType());
     Node lhs = nm->mkNode(Kind::MULT, nm->mkConstInt(Rational(-1)), variable);
     Node rhs = nm->mkConstInt(Rational(-1));
     return nm->mkNode(Kind::GEQ, lhs, rhs);

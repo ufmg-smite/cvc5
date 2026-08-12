@@ -81,7 +81,7 @@ Node PseudoBooleanBlaster::newVariable(unsigned numBits)
   for (unsigned i = 0; i < numBits; i++)
   {
     bits.push_back(nm->mkBoundVar("x" + std::to_string(d_varCounter++),
-                                  nm->booleanType()));
+                                  nm->integerType()));
   }
   return nm->mkNode(Kind::SEXPR, bits);
 }
