@@ -477,19 +477,45 @@ children = 1
 typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
 comment  = "VeriPB 'conclusion <NONE|UNSAT [: id]|SAT [: assignment]|BOUNDS ...>': declares what the proof established; child 0 is an SEXPR of the trailing tokens as string-typed bound vars (':' separators are skipped during parsing)"
 
-[[kinds]]
-type     = "operator"
-name     = "PB_TERM"
-children = 2
-typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
-comment  = "A pseudo-Boolean term (coef * literal). Coef is int, literal is a string-named bound var. Bypasses arith MULT rewrites that fail on Boolean literals."
+### cutting-planes derivation expressions -------------------------------------
+# Nodes of the tree parsed from a VeriPB 'pol' step. Operands denote PB
+# constraints, either directly or as a constraint id resolved by
+# PbProofTranslator.
 
 [[kinds]]
 type     = "operator"
-name     = "PB_SUM"
-children = "1:"
+name     = "PB_PROOF_POL_ADD"
+children = 2
 typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
-comment  = "Variadic sum of PB_TERMs. Bypasses arith ADD rewrites."
+comment  = "VeriPB 'pol' operation '+': elementwise sum of the two operand constraints. Both children are derivation expressions."
+
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_POL_MUL"
+children = 2
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
+comment  = "VeriPB 'pol' operation '*': scale every coefficient and the degree of child 0 by the positive integer constant in child 1."
+
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_POL_DIV"
+children = 2
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
+comment  = "VeriPB 'pol' operation 'd': divide every coefficient and the degree of child 0 by the positive integer constant in child 1, rounding up."
+
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_POL_SAT"
+children = 1
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
+comment  = "VeriPB 'pol' operation 's': cap every coefficient of child 0 at its degree. Only defined on normalized (non-negative coefficient) form."
+
+[[kinds]]
+type     = "operator"
+name     = "PB_PROOF_POL_WEAKEN"
+children = 2
+typerule = "::cvc5::internal::theory::bv::PbProofTypeRule"
+comment  = "VeriPB 'pol' operation 'w': weaken child 0 by dropping the term on the variable in child 1 (an integer-typed PB variable) and lowering the degree by its coefficient."
 
 [[kinds]]
 type     = "operator"

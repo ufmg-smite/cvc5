@@ -57,8 +57,9 @@ void PbProofManager::convertProof(
   // Input PB constraints take VeriPB ids 1..N. For each, emit a coarse
   // MACRO_PB_BLAST_STEP tying the PB constraint back to the BV fact it was
   // blasted from; the postprocessor doesn't try to eliminate this rule via
-  // rewriting (unlike TRUST_THEORY_LEMMA), which would otherwise hit the
-  // arith rewriter on (EQUAL PB_SUM IntConst) shapes.
+  // rewriting (unlike TRUST_THEORY_LEMMA), which would put the constraint in
+  // arithmetic normal form and break the structural match with the derivation
+  // steps that consume it.
   for (size_t i = 0; i < inputConstraints.size(); ++i)
   {
     const Node& pbc = inputConstraints[i].first;

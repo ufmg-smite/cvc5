@@ -71,8 +71,9 @@ inline int ceilLog2(T a);
 template <class T>
 inline unsigned long long triangularIndex(T a, T b);
 
-// Shape: (PB_GEQ|PB_EQ (PB_SUM (PB_TERM c v) ...) k). PB-specific kinds avoid
-// arith rewriter rules tripping on integer-coef * boolean-literal shapes.
+// Shape: (GEQ|EQUAL (ADD (MULT c v) ...) k), i.e. plain integer arithmetic over
+// the pseudo-Boolean variables, which are integer-typed and constrained to
+// {0, 1} by the PB back-ends.
 template <class T>
 inline T mkConstraintNode(Kind k,
                           std::vector<T> variables,
@@ -84,8 +85,8 @@ inline T mkConstraintNode(Kind k,
   unsigned size = variables.size();
   std::vector<T> terms;
   for (unsigned i = 0; i < size; i++)
-    terms.push_back(nm->mkNode(Kind::PB_TERM, coefficients[i], variables[i]));
-  T linear_form = size == 1 ? terms[0] : nm->mkNode(Kind::PB_SUM, terms);
+    terms.push_back(nm->mkNode(Kind::MULT, coefficients[i], variables[i]));
+  T linear_form = size == 1 ? terms[0] : nm->mkNode(Kind::ADD, terms);
   T result = nm->mkNode(k, linear_form, value);
   return result;
 }

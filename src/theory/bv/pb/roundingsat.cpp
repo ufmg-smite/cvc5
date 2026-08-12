@@ -80,11 +80,11 @@ Kind RoundingSatSolver::parseConstraint(
     terms.emplace_back(coeff.getNumerator(), toRsVar(term[1]));
   };
 
-  if (linear_form.getKind() == Kind::PB_TERM)
+  if (linear_form.getKind() == Kind::MULT)
   {
     pushTerm(linear_form);
   }
-  else if (linear_form.getKind() == Kind::PB_SUM)
+  else if (linear_form.getKind() == Kind::ADD)
   {
     for (const Node& term : linear_form)
     {

@@ -43,7 +43,11 @@ class PseudoBooleanBlaster : public TPseudoBooleanBlaster<Node>,
    */
   Node blastTerm(Node term) override;
 
-  /** Create a new variable not yet used in the solver. */
+  /**
+   * Create a new variable not yet used in the solver. Pseudo-Boolean variables
+   * are integer-typed so that constraints are plain integer arithmetic; their
+   * restriction to {0, 1} is enforced by the PB back-ends.
+   */
   Node newVariable(unsigned numBits = 1) override;
 
  private:

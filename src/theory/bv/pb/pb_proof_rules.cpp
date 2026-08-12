@@ -25,6 +25,25 @@ namespace theory {
 namespace bv {
 namespace pb {
 
+namespace {
+
+/** True if `s` is a possibly-signed, non-empty run of decimal digits. */
+bool isIntegerToken(const std::string& s)
+{
+  size_t start = (!s.empty() && (s[0] == '+' || s[0] == '-')) ? 1 : 0;
+  if (start == s.size()) return false;
+  return s.find_first_not_of("0123456789", start) == std::string::npos;
+}
+
+/** Parse `s` as an Integer. GMP's mpz_set_str rejects an explicit '+' sign. */
+Integer toInteger(const std::string& s)
+{
+  Assert(isIntegerToken(s)) << "not an integer token: " << s;
+  return Integer(s[0] == '+' ? s.substr(1) : s);
+}
+
+}  // namespace
+
 PbProofRules::PbProofRules(Env& env, CDProof* cdp) : EnvObj(env), d_cdp(cdp)
 {
   initializeRules();
@@ -406,9 +425,9 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
     const std::string& tok = sum[i];
     std::string digits = (!tok.empty() && tok[0] == '+') ? tok.substr(1) : tok;
     Node coefficient_node = nm->mkConstInt(Rational(Integer(digits)));
-    Node variable_node = nm->mkBoundVar(sum[i + 1], nm->booleanType());
+    Node variable_node = mkVariable(sum[i + 1]);
     sum_nodes.push_back(
-        nm->mkNode(Kind::PB_TERM, coefficient_node, variable_node));
+        nm->mkNode(Kind::MULT, coefficient_node, variable_node));
   }
 
   /* TODO(alanctprado)
@@ -431,7 +450,7 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
   else if (sum_nodes.size() == 1)
     lhs_node = sum_nodes[0];
   else
-    lhs_node = nm->mkNode(Kind::PB_SUM, sum_nodes);
+    lhs_node = nm->mkNode(Kind::ADD, sum_nodes);
 
   Node rhs_node = nm->mkConstInt(Rational(Integer(rhs)));
 
@@ -488,7 +507,7 @@ Node PbProofRules::polishAddition(std::pair<Node, Node> operands)
   auto [lhs, rhs] = operands;
   Node lhs_constraint = polishConstraint(lhs);
   Node rhs_constraint = polishConstraint(rhs);
-  return nm->mkNode(Kind::ADD, lhs_constraint, rhs_constraint);
+  return nm->mkNode(Kind::PB_PROOF_POL_ADD, lhs_constraint, rhs_constraint);
 }
 
 Node PbProofRules::polishDivision(std::pair<Node, Node> operands)
@@ -496,10 +515,8 @@ Node PbProofRules::polishDivision(std::pair<Node, Node> operands)
   NodeManager* nm = nodeManager();
   auto [lhs, rhs] = operands;
   Node constraint = polishConstraint(lhs);
-  if (rhs.getKind() != Kind::CONST_STRING) Unreachable();
-  Node factor =
-      nm->mkConstInt(Rational(Integer(rhs.getConst<String>().toString())));
-  return nm->mkNode(Kind::DIVISION, constraint, factor);
+  Node divisor = polishConstant(rhs, "Division");
+  return nm->mkNode(Kind::PB_PROOF_POL_DIV, constraint, divisor);
 }
 
 Node PbProofRules::polishMultiplication(std::pair<Node, Node> operands)
@@ -507,17 +524,36 @@ Node PbProofRules::polishMultiplication(std::pair<Node, Node> operands)
   NodeManager* nm = nodeManager();
   auto [lhs, rhs] = operands;
   Node constraint = polishConstraint(lhs);
-  if (rhs.getKind() != Kind::CONST_STRING) Unreachable();
-  Node factor =
-      nm->mkConstInt(Rational(Integer(rhs.getConst<String>().toString())));
-  return nm->mkNode(Kind::MULT, constraint, factor);
+  Node factor = polishConstant(rhs, "Multiplication");
+  return nm->mkNode(Kind::PB_PROOF_POL_MUL, constraint, factor);
 }
 
-Node PbProofRules::polishSaturation(Node operand) { return operand; }
+Node PbProofRules::polishSaturation(Node operand)
+{
+  NodeManager* nm = nodeManager();
+  Node constraint = polishConstraint(operand); 
+  return nm->mkNode(Kind::PB_PROOF_POL_SAT, constraint);
+}
 
 Node PbProofRules::polishWeakening(std::pair<Node, Node> operands)
 {
-  return operands.second;
+  NodeManager* nm = nodeManager(); 
+  auto [lhs, rhs] = operands;
+  Node constraint = polishConstraint(lhs);
+  // 'w' weakens away a variable, not a literal, so no leading '~'.
+  if (rhs.getKind() != Kind::CONST_STRING)
+  {
+    Unreachable() << "\nPbProofRules::polishWeakening: expected a variable "
+                  << "operand, got " << rhs << "\n";
+  }
+  std::string name = rhs.getConst<String>().toString();
+  if (name.empty() || name[0] != 'x')
+  {
+    Unreachable() << "\nPbProofRules::polishWeakening: expected a variable "
+                  << "operand, got '" << name << "'\n";
+  }
+  Node variable = mkVariable(name);
+  return nm->mkNode(Kind::PB_PROOF_POL_WEAKEN, constraint, variable);
 }
 
 Node PbProofRules::polishConstraint(Node node)
@@ -529,21 +565,59 @@ Node PbProofRules::polishConstraint(Node node)
   // case 2: literal axiom
   if (content[0] == 'x')
   {
-    Node variable = nm->mkBoundVar(content, nm->booleanType());
-    Node lhs = nm->mkNode(Kind::PB_TERM, nm->mkConstInt(Rational(1)), variable);
+    Node variable = mkVariable(content);
+    Node lhs = nm->mkNode(Kind::MULT, nm->mkConstInt(Rational(1)), variable);
     Node rhs = nm->mkConstInt(Rational(0));
     return nm->mkNode(Kind::GEQ, lhs, rhs);
   }
   if (content[0] == '~')
   {
-    Node variable = nm->mkBoundVar(content.substr(1), nm->booleanType());
+    Node variable = mkVariable(content.substr(1));
     Node lhs =
-        nm->mkNode(Kind::PB_TERM, nm->mkConstInt(Rational(-1)), variable);
+        nm->mkNode(Kind::MULT, nm->mkConstInt(Rational(-1)), variable);
     Node rhs = nm->mkConstInt(Rational(-1));
     return nm->mkNode(Kind::GEQ, lhs, rhs);
   }
   // case 3: constraint id
-  return nm->mkConstInt(Rational(Integer(content)));
+  if (!isIntegerToken(content))
+  {
+    Unreachable() << "\nPbProofRules::polishConstraint: expected a constraint "
+                  << "id, a literal or a subexpression, got '" << content
+                  << "'\n";
+  }
+  return nm->mkConstInt(Rational(toInteger(content)));
+}
+
+Node PbProofRules::polishConstant(Node node, const char* op)
+{
+  if (node.getKind() != Kind::CONST_STRING)
+  {
+    Unreachable() << "\nPbProofRules::polish" << op << ": expected an integer "
+                  << "constant operand, got " << node << "\n";
+  }
+  std::string content = node.getConst<String>().toString();
+  if (!isIntegerToken(content))
+  {
+    Unreachable() << "\nPbProofRules::polish" << op << ": expected an integer "
+                  << "constant operand, got '" << content << "'\n";
+  }
+  Integer value = toInteger(content);
+  if (value.sgn() <= 0)
+  {
+    Unreachable() << "\nPbProofRules::polish" << op << ": expected a positive "
+                  << "constant, got " << value << "\n";
+  }
+  return nodeManager()->mkConstInt(Rational(value));
+}
+
+Node PbProofRules::mkVariable(const std::string& name)
+{
+  auto it = d_variables.find(name);
+  if (it != d_variables.end()) return it->second;
+  NodeManager* nm = nodeManager();
+  Node variable = nm->mkBoundVar(name, nm->integerType());
+  d_variables.emplace(name, variable);
+  return variable;
 }
 
 }  // namespace pb

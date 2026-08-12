@@ -65,6 +65,12 @@ class PbProofRules : protected EnvObj
   void initializeRules();
   Node parseOpbFormat(std::istringstream&);
 
+  /**
+   * Parse a VeriPB 'pol' step into a derivation expression: a tree of
+   * PB_PROOF_POL_* operations whose leaves are constraint ids or literal
+   * axioms. Leaves are left unresolved; only PbProofTranslator holds the
+   * core/derived databases needed to turn an id into a constraint.
+   */
   Node parsePolishNotation(std::istringstream&);
   Node polishAddition(std::pair<Node, Node>);
   Node polishDivision(std::pair<Node, Node>);
@@ -72,9 +78,20 @@ class PbProofRules : protected EnvObj
   Node polishSaturation(Node);
   Node polishWeakening(std::pair<Node, Node>);
   Node polishConstraint(Node);
+  /** `op` names the caller for diagnostics. */
+  Node polishConstant(Node, const char* op);
+
+  /**
+   * The Node for PB variable `name`, an integer-typed variable ranging over
+   * {0, 1}. NodeManager::mkBoundVar mints a fresh node per call, so interning
+   * here is what makes two occurrences of the same variable compare equal.
+   */
+  Node mkVariable(const std::string& name);
 
   std::unordered_map<std::string, std::function<Node(std::istringstream&)>>
       rules;
+
+  std::unordered_map<std::string, Node> d_variables;
 };
 
 }  // namespace pb

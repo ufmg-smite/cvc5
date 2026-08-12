@@ -201,8 +201,7 @@ Node PbProofTranslator::translatePolExpr(Node expr)
     return expr;
   }
 
-  // Internal: polishAddition produced (ADD lhs rhs).
-  if (k == Kind::ADD && expr.getNumChildren() == 2)
+  if (k == Kind::PB_PROOF_POL_ADD)
   {
     Node lhs = translatePolExpr(expr[0]);
     Node rhs = translatePolExpr(expr[1]);
@@ -219,8 +218,7 @@ Node PbProofTranslator::translatePolExpr(Node expr)
     return conclusion;
   }
 
-  // Internal: polishMultiplication produced (MULT operand factor).
-  if (k == Kind::MULT && expr.getNumChildren() == 2)
+  if (k == Kind::PB_PROOF_POL_MUL)
   {
     Node operand = translatePolExpr(expr[0]);
     Node factor = expr[1];
@@ -235,8 +233,7 @@ Node PbProofTranslator::translatePolExpr(Node expr)
     return conclusion;
   }
 
-  // Internal: polishDivision produced (DIVISION operand divisor).
-  if (k == Kind::DIVISION && expr.getNumChildren() == 2)
+  if (k == Kind::PB_PROOF_POL_DIV)
   {
     Node operand = translatePolExpr(expr[0]);
     Node divisor = expr[1];
@@ -251,10 +248,29 @@ Node PbProofTranslator::translatePolExpr(Node expr)
     return conclusion;
   }
 
-  // TODO: the RPN parser currently drops saturation and
-  // weakening (PbProofRules::polishSaturation and polishWeakening return
-  // their operand unchanged). When the parser is fixed to mark them, emit
-  // CUTTING_PLANES_SATURATION and a yet-to-be-defined weakening step here.
+  if (k == Kind::PB_PROOF_POL_SAT)
+  {
+    Node operand = translatePolExpr(expr[0]);
+    // TODO: compute the saturated conclusion.
+    Node conclusion = expr;
+    std::vector<Node> children{operand};
+    std::vector<Node> args{conclusion};
+    d_cdp->addStep(conclusion,
+                   ProofRule::CUTTING_PLANES_SATURATION,
+                   children,
+                   args);
+    return conclusion;
+  }
+
+  // TODO: expand into AXIOM/MULTIPLICATION/ADDITION once the operand's
+  // constraint is available: weakening away v adds the axiom on ~v, scaled by
+  // v's coefficient (on v instead, if that coefficient is negative).
+  if (k == Kind::PB_PROOF_POL_WEAKEN)
+  {
+    translatePolExpr(expr[0]);
+    return expr;
+  }
+
   Trace("bv-pb-proof-translate")
       << "PbProofTranslator::translatePolExpr: unhandled expression kind "
       << k << "\n";
