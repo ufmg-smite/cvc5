@@ -8454,6 +8454,45 @@ Term Solver::getInterpolantNext() const
   CVC5_API_TRY_CATCH_END;
 }
 
+std::vector<Term> Solver::getInterpolants(
+    const std::vector<std::vector<Term>>& partitions) const
+{
+  CVC5_API_TRY_CATCH_BEGIN;
+  CVC5_API_CHECK(d_slv->getOptions().smt.produceInterpolants)
+      << "cannot get interpolants unless interpolants are enabled (try --"
+      << internal::options::smt::longName::produceInterpolants << ")";
+  CVC5_API_RECOVERABLE_CHECK(d_slv->getSmtMode() == internal::SmtMode::UNSAT)
+      << "cannot get interpolants unless in unsat mode.";
+  CVC5_API_CHECK(!partitions.empty())
+      << "get-interpolants requires at least one term list";
+  for (const std::vector<Term>& part : partitions)
+  {
+    CVC5_API_CHECK(!part.empty())
+        << "each A-partition must contain at least one term";
+    CVC5_API_SOLVER_CHECK_TERMS(part);
+  }
+  //////// all checks before this line
+
+  std::vector<std::vector<internal::Node>> aParts;
+  aParts.reserve(partitions.size());
+
+  for (const std::vector<Term>& part : partitions)
+  {
+    aParts.push_back(Term::termVectorToNodes(part));
+  }
+
+  std::vector<internal::Node> res = d_slv->getInterpolants(aParts);
+  std::vector<Term> out;
+  out.reserve(res.size());
+  for (const internal::Node& n : res)
+  {
+    out.push_back(Term(d_tm.d_nm, n));
+  }
+  return out;
+  ////////
+  CVC5_API_TRY_CATCH_END;
+}
+
 Term Solver::getAbduct(const Term& conj) const
 {
   CVC5_API_TRY_CATCH_BEGIN;

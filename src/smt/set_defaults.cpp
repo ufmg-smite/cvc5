@@ -1037,8 +1037,10 @@ bool SetDefaults::isSygus(const Options& opts) const
   }
   if (!d_isInternalSubsolver)
   {
-    if (opts.smt.produceAbducts || opts.smt.produceInterpolants
-        || opts.quantifiers.sygusInference != options::SygusInferenceMode::OFF)
+    //TEMPORARIO MUDAR
+    if (opts.smt.produceAbducts
+    || (opts.smt.produceInterpolants && !opts.smt.produceProofs)
+    || opts.quantifiers.sygusInference != options::SygusInferenceMode::OFF)
     {
       // since we are trying to recast as sygus, we assume the input is sygus
       return true;

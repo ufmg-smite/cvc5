@@ -84,6 +84,45 @@ static Node shared(Node clause,
   return nm->mkOr(sharedVar);
 }
 
+void partition(const std::vector<Node>& aTerms,
+               const std::vector<Node>& assertions,
+               std::unordered_set<Node>& aAssertions,
+               std::unordered_set<Node>& bAssertions,
+               std::unordered_set<Node>& aSymbols,
+               std::unordered_set<Node>& bSymbols)
+{
+
+  std::unordered_set<Node> aSet(aTerms.begin(), aTerms.end());
+
+  //divide assertions between A and B
+  for (const Node& n : assertions)
+  {
+    bool inA = aSet.find(n) != aSet.end();
+  
+    std::unordered_set<Node>& target = inA ? aAssertions : bAssertions;
+
+    target.insert(n);
+
+    if (n.getKind() == Kind::AND)
+    {
+      for (const Node& child : n)
+      {
+        target.insert(child);
+      }
+    }
+  }
+
+  for (const Node& a : aAssertions)
+  {
+    expr::getSymbols(a, aSymbols);
+  }
+  for (const Node& b : bAssertions)
+  {
+    expr::getSymbols(b, bSymbols);
+  }
+}
+
+
 Node getItp(std::shared_ptr<ProofNode> p,
             std::unordered_set<Node>& aAssertions,
             std::unordered_set<Node>& bAssertions,

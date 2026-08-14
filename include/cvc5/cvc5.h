@@ -6517,6 +6517,11 @@ class CVC5_EXPORT Solver
    */
   Term getInterpolantNext() const;
 
+
+  std::vector<Term> getInterpolants(
+      const std::vector<std::vector<Term>>& partitions) const;
+
+  
   /**
    * Get an abduct.
    *

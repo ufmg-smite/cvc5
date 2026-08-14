@@ -77,6 +77,7 @@ Smt2CmdParser::Smt2CmdParser(Smt2Lexer& lex,
     d_table["get-difficulty"] = Token::GET_DIFFICULTY_TOK;
     d_table["get-interpolant-next"] = Token::GET_INTERPOL_NEXT_TOK;
     d_table["get-interpolant"] = Token::GET_INTERPOL_TOK;
+    d_table["get-interpolants"] = Token::GET_INTERPOLANTS_TOK;
     d_table["get-learned-literals"] = Token::GET_LEARNED_LITERALS_TOK;
     d_table["get-qe-disjunct"] = Token::GET_QE_DISJUNCT_TOK;
     d_table["get-qe"] = Token::GET_QE_TOK;
@@ -630,6 +631,19 @@ std::unique_ptr<Cmd> Smt2CmdParser::parseNextCommand()
     {
       d_state.checkThatLogicIsSet();
       cmd.reset(new GetInterpolantNextCommand);
+    }
+    break;
+    // (get-interpolants (t+)+ )
+    case Token::GET_INTERPOLANTS_TOK:
+    {
+      d_state.checkThatLogicIsSet();
+      std::vector<std::vector<Term>> partitions;
+      
+      while (d_lex.peekToken() == Token::LPAREN_TOK)
+      {
+        partitions.push_back(d_tparser.parseTermList());
+      }
+      cmd.reset(new GetInterpolantsCommand(partitions));
     }
     break;
     // (get-learned-literals <keyword>?)

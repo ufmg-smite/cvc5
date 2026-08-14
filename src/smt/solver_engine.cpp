@@ -87,6 +87,8 @@
 #include "util/statistics_registry.h"
 #include "util/string.h"
 
+#include "proof/proof_node_algorithm.h"
+
 // required for hacks related to old proofs for unsat cores
 #include "base/configuration.h"
 #include "base/configuration_private.h"
@@ -1951,83 +1953,58 @@ std::vector<std::shared_ptr<ProofNode>> SolverEngine::getProof(
     }
   }
 
-  std::unordered_set<Node> assertionsA;
-  std::unordered_set<Node> assertionsB;
-  const auto assertions = getAssertionsInternal();
-  int aux = 4;
+  return ps;
+}
 
-  // Separa entre A e B
-  for (const Node& n : assertions)
+std::vector<Node> SolverEngine::getInterpolants(
+    const std::vector<std::vector<Node>>& partitions)
+{
+  SolverEngine* ssolver = d_state->getStatusSolver();
+  if (ssolver != nullptr)
   {
-    if (aux > 0)
-    {
-      assertionsA.insert(n);
-
-      if (n.getKind() == Kind::AND)
-      {
-        for (const Node& child : n)
-        {
-          assertionsA.insert(child);
-        }
-      }
-
-      aux--;
-    }
-    else
-    {
-      assertionsB.insert(n);
-    }
+    return ssolver->getInterpolants(partitions);
   }
-  // Reordering, CHAIN_M_RESOLUTION, factoring
-  // generaizar pra get symbols
 
-  std::shared_ptr<ProofNode> proof = pe->getProof();
-  Trace("test") << "Endereço da prova: " << proof << std::endl;
+  if (d_state->getMode() != SmtMode::UNSAT)
+  {
+    throw RecoverableModalException(
+        "Cannot get-interpolants unless immediately preceded by UNSAT "
+        "response.");
+  }
+  if (!d_env->isSatProofProducing())
+  {
+    throw ModalException(
+        "Cannot get-interpolants unless the SAT solver is proof producing.");
+  }
 
-  // std::cout << "-------- ARVORE DE PROVAS --------" << std::endl;
+  std::shared_ptr<ProofNode> proof = getAvailableSatProof();
 
-  // printProofTree(proof);
-
-  // std::cout << "----- FIM DA ARVORE DE PROVAS -----" << std::endl;
-
+  const std::vector<Node> assertions = getAssertionsInternal();
   NodeManager* nm = d_env->getNodeManager();
 
-  std::cout << "ASSERTIONS A:" << std::endl;
-  for (const Node& a : assertionsA)
+  std::vector<Node> result;
+  std::vector<Node> accA;     
+
+  // ----- TEMPORÁRIO -----
+{
+  std::cout << "== getAssertionsInternal ==\n";
+  for (const Node& a : assertions) std::cout << "  assert: " << a << "\n";
+}
+// ---------------------------------
+
+  for (const std::vector<Node>& increment : partitions)
   {
-    std::cout << a << std::endl;
+    accA.insert(accA.end(), increment.begin(), increment.end());
+
+    std::unordered_set<Node> aAssertions, bAssertions, aSymbols, bSymbols;
+    partition(accA, assertions, aAssertions, bAssertions, aSymbols, bSymbols);
+
+    std::unordered_map<ProofNode*, Node> cache;  // cache NOVO por partição
+    Node itp = getItp(proof, aAssertions, bAssertions,
+                      aSymbols, bSymbols, nm, cache);
+    result.push_back(d_env->getRewriter()->rewrite(itp));
   }
-
-  std::cout << "ASSERTIONS B:" << std::endl;
-  for (const Node& b : assertionsB)
-  {
-    std::cout << b << std::endl;
-  }
-
-  std::cout << "----------------" << std::endl;
-
-  std::unordered_set<Node> symbolsA;
-  std::unordered_set<Node> symbolsB;
-
-  for (const Node& a : assertionsA)
-  {
-    expr::getSymbols(a, symbolsA);
-  }
-
-  for (const Node& b : assertionsB)
-  {
-    expr::getSymbols(b, symbolsB);
-  }
-
-  std::unordered_map<ProofNode*, Node> cache;
-  Node itp =
-      getItp(proof, assertionsA, assertionsB, symbolsA, symbolsB, nm, cache);
-  std::cout << "----------------" << std::endl;
-  std::cout << "itp: " << itp << std::endl;
-  itp = d_env->getRewriter()->rewrite(itp);
-  Trace("test") << "itp reescrita: " << itp << std::endl;
-
-  return ps;
+  return result;
 }
 
 void SolverEngine::proofToString(std::ostream& out,

@@ -1930,6 +1930,54 @@ void GetInterpolantNextCommand::toStream(std::ostream& out) const
 }
 
 /* -------------------------------------------------------------------------- */
+/* class GetInterpolantsCommand                                               */
+/* -------------------------------------------------------------------------- */
+
+void GetInterpolantsCommand::invoke(Solver* solver, SymManager* sm)
+{
+  try {
+    d_result = solver->getInterpolants(d_partitions);
+    d_commandStatus = CommandSuccess::instance();
+  } catch (exception& e) {
+    d_commandStatus = new CommandFailure(e.what());
+  }
+}
+
+void GetInterpolantsCommand::printResult(cvc5::Solver* solver,
+                                         std::ostream& out) const
+{
+  out << "(" ;
+  for (const Term& i : d_result) out << " " << i;
+  out << " )" << std::endl;
+}
+
+GetInterpolantsCommand::GetInterpolantsCommand(
+    const std::vector<std::vector<Term>>& partitions)
+    : d_partitions(partitions)
+{
+}
+
+std::string GetInterpolantsCommand::getCommandName() const
+{
+  return "get-interpolants";
+}
+
+void GetInterpolantsCommand::toStream(std::ostream& out) const
+{
+  out << "(get-interpolants";
+  for (const std::vector<Term>& part : d_partitions)
+  {
+    out << " (";
+    for (size_t i = 0; i < part.size(); ++i)
+    {
+      out << (i == 0 ? "" : " ") << part[i];
+    }
+    out << ")";
+  }
+  out << ")" << std::endl;
+}
+
+/* -------------------------------------------------------------------------- */
 /* class GetAbductCommand                                                     */
 /* -------------------------------------------------------------------------- */
 

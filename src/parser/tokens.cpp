@@ -68,6 +68,7 @@ std::ostream& operator<<(std::ostream& o, Token t)
     case Token::GET_INFO_TOK: o << "GET_INFO_TOK"; break;
     case Token::GET_INTERPOL_NEXT_TOK: o << "GET_INTERPOL_NEXT_TOK"; break;
     case Token::GET_INTERPOL_TOK: o << "GET_INTERPOL_TOK"; break;
+    case Token::GET_INTERPOLANTS_TOK: o << "GET_INTERPOLANTS_TOK"; break;
     case Token::GET_LEARNED_LITERALS_TOK:
       o << "GET_LEARNED_LITERALS_TOK";
       break;

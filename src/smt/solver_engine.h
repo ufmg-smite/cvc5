@@ -729,6 +729,9 @@ class CVC5_EXPORT SolverEngine
   std::vector<std::shared_ptr<ProofNode>> getProof(
       modes::ProofComponent c = modes::ProofComponent::FULL);
 
+  std::vector<Node> getInterpolants(
+      const std::vector<std::vector<Node>>& partitions);
+
   // TODO: this goes away after proof printing went into ProofNode
   void proofToString(std::ostream& out, std::shared_ptr<ProofNode> fp);
 

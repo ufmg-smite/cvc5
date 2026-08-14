@@ -18,12 +18,23 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "expr/node.h"
 #include "proof/proof_node.h"
 
 namespace cvc5::internal {
 namespace smt {
+
+void partition(const std::vector<Node>& aTerms,
+               const std::vector<Node>& assertions,
+               std::unordered_set<Node>& aAssertions,
+               std::unordered_set<Node>& bAssertions,
+               std::unordered_set<Node>& aSymbols,
+               std::unordered_set<Node>& bSymbols);
 
 Node getItp(std::shared_ptr<ProofNode> p,
             std::unordered_set<Node>& aAssertions,
@@ -35,5 +46,7 @@ Node getItp(std::shared_ptr<ProofNode> p,
 
 }  // namespace smt
 }  // namespace cvc5::internal
+
+
 
 #endif /* CVC5__SMT__PROOF_INTERPOLATION_H */

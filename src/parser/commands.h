@@ -877,6 +877,20 @@ class CVC5_EXPORT GetInterpolantCommand : public Cmd
   cvc5::Term d_result;
 }; /* class GetInterpolCommand */
 
+class CVC5_EXPORT GetInterpolantsCommand : public Cmd
+{
+ public:
+  GetInterpolantsCommand(const std::vector<std::vector<Term>>& partitions);
+  void invoke(Solver* solver, SymManager* sm) override;
+  void printResult(cvc5::Solver* solver, std::ostream& out) const override;
+  std::string getCommandName() const override;
+  void toStream(std::ostream& out) const override;
+
+ private:
+  std::vector<std::vector<Term>> d_partitions;
+  std::vector<Term> d_result;  // ⟨I1, ..., In⟩
+};
+
 /** The command (get-interpolant-next) */
 class CVC5_EXPORT GetInterpolantNextCommand : public Cmd
 {
