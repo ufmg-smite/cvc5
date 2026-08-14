@@ -190,7 +190,6 @@ void BVSolverPseudoBoolean::computeRelevantTerms(
   // {
   //   d_bitblaster->computeRelevantTerms(termSet);
   // }
-  Unimplemented();
 }
 
 bool BVSolverPseudoBoolean::collectModelValues(TheoryModel* m,
@@ -200,8 +199,8 @@ bool BVSolverPseudoBoolean::collectModelValues(TheoryModel* m,
   {
     if (!d_pbBlaster->hasTerm(term)) continue;
 
-    Node variables = d_pbBlaster->getTerm(term);
-    Node const_value;  // = d_pbSolver->modelValue(variables);
+    Node const_value = getValue(term, true);
+
     Assert(const_value.isNull() || const_value.isConst());
     if (!const_value.isNull())
     {
@@ -227,26 +226,20 @@ Node BVSolverPseudoBoolean::getValue(TNode node, bool initialize)
                       : Node();
   }
 
-  // std::vector<Node> bits;
-  // d_bitblaster->getBBTerm(node, bits);
-  // Integer value(0), one(1), zero(0), bit;
-  // for (size_t i = 0, size = bits.size(), j = size - 1; i < size; ++i, --j)
-  // {
-  //   if (d_cnfStream->hasLiteral(bits[j]))
-  //   {
-  //     prop::SatLiteral lit = d_cnfStream->getLiteral(bits[j]);
-  //     prop::SatValue val = d_satSolver->modelValue(lit);
-  //     bit = val == prop::SatValue::SAT_VALUE_TRUE ? one : zero;
-  //   }
-  //   else
-  //   {
-  //     if (!initialize) return Node();
-  //     bit = zero;
-  //   }
-  //   value = value * 2 + bit;
-  // }
-  // return utils::mkConst(bits.size(), value);
-  Unimplemented();
+  TNode variables = d_pbBlaster->getTerm(node)[0];
+
+  Integer value(0), one(1), zero(0), bit;
+
+  for (int i = variables.getNumChildren() - 1; i >= 0; --i)
+  {
+    VariableId variable_id = variables[i].toString();
+    PbValue val = d_pbSolver->modelValue(variable_id);
+
+    bit = (val == PB_TRUE) ? one : zero;
+    value = value * 2 + bit;
+  }
+
+  return utils::mkConst(nodeManager(), variables.getNumChildren(), value);
 }
 
 void BVSolverPseudoBoolean::initPbSolver()

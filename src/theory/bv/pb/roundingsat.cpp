@@ -235,7 +235,10 @@ std::vector<Node> RoundingSatSolver::getUnsatCore()
 PbValue RoundingSatSolver::modelValue(const VariableId variable)
 {
   auto it = d_nameToVar.find(variable);
-  Assert(it != d_nameToVar.end());
+  if (it == d_nameToVar.end())
+  {
+    return PB_FALSE;
+  }
   return d_solver->modelValue(it->second) ? PB_TRUE : PB_FALSE;
 }
 
