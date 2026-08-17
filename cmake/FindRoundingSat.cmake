@@ -43,7 +43,7 @@ set(RoundingSat_VERSION "1.0.0")
 # toolchain variants; we must match cvc5's C++ standard library, because the
 # archive embeds std:: symbols (libc++ uses the std::__1 inline namespace,
 # libstdc++ uses std::__cxx11) and mixing them is an ABI mismatch.
-set(RoundingSat_TAG "v0.1.5")
+set(RoundingSat_TAG "v0.1.7")
 
 # Detect the standard library in effect (honouring the user's CXXFLAGS, e.g.
 # -stdlib=libc++). libc++ defines _LIBCPP_VERSION; libstdc++ does not.
@@ -59,11 +59,11 @@ check_cxx_source_compiles("
 if(RoundingSat_STDLIB_IS_LIBCXX)
   set(RoundingSat_VARIANT "clang-libcxx")
   set(RoundingSat_CHECKSUM
-      "77421a04443f88134554d02702a612c7ec0f6b51c689d27f9a0c8f92da455fd3")
+      "da1ac3c7056a693a8e4a742ad908cd5902d8f3e6fb47a6a98391fb6bc9a43c72")
 else()
   set(RoundingSat_VARIANT "gcc-libstdcxx")
   set(RoundingSat_CHECKSUM
-      "97c1cd6136c07f0a3695e99098c055ec871ce635f13e5c027964d55fe4e36a78")
+      "489e54709b30ffe579ce2a41266fe7147d54001e870b577643dca4bc8b7e91f7")
 endif()
 
 set(RoundingSat_ARCHIVE "roundingsat-lib-${RoundingSat_VARIANT}-${RoundingSat_TAG}.tar.gz")
