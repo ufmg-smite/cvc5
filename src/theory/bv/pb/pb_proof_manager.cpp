@@ -97,7 +97,7 @@ void PbProofManager::addPbProof(
     return;
   }
   d_cdp->addStep(nodeManager()->mkConst(false),
-                 ProofRule::CUTTING_PLANES_REFUTATION,
+                 ProofRule::VERIPB_PROOF,
                  {},
                  proofSteps);
 }

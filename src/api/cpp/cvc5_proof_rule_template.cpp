@@ -43,9 +43,8 @@ const char* toString(ProofRule rule)
     case ProofRule::SAT_REFUTATION: return "SAT_REFUTATION";
     case ProofRule::DRAT_REFUTATION: return "DRAT_REFUTATION";
     case ProofRule::SAT_EXTERNAL_PROVE: return "SAT_EXTERNAL_PROVE";
+    case ProofRule::VERIPB_PROOF: return "VERIPB_PROOF";
     //================================================= Cutting-plane rules
-    case ProofRule::CUTTING_PLANES_REFUTATION:
-      return "CUTTING_PLANE_REFUTATION";
     case ProofRule::CUTTING_PLANES_AXIOM: return "CUTTING_PLANES_AXIOM";
     case ProofRule::CUTTING_PLANES_ADDITION: return "CUTTING_PLANES_ADDITION";
     case ProofRule::CUTTING_PLANES_MULTIPLICATION:

@@ -13,12 +13,26 @@
 #include "theory/bv/pb/pb_proof_translator.h"
 
 #include "expr/node_manager.h"
+#include "proof/proof_checker.h"
+#include "proof/proof_node_manager.h"
+#include "proof/proof_step_buffer.h"
+#include "theory/arith/arith_proof_utilities.h"
 #include "util/rational.h"
 
 namespace cvc5::internal {
 namespace theory {
 namespace bv {
 namespace pb {
+
+namespace {
+/** The (MULT c v) summands of a PB constraint's left-hand side. */
+std::vector<Node> linearTerms(Node lhs)
+{
+  if (lhs.getKind() == Kind::MULT) return {lhs};
+  if (lhs.getKind() == Kind::ADD) return {lhs.begin(), lhs.end()};
+  return {};
+}
+}  // namespace
 
 PbProofTranslator::PbProofTranslator(Env& env, CDProof* cdp)
     : EnvObj(env), d_cdp(cdp)
@@ -148,8 +162,6 @@ Node PbProofTranslator::translateConclusion(Node conclNode,
 {
   Trace("bv-pb-proof-translate")
       << "PbProofTranslator::translateConclusion " << conclNode << "\n";
-  // RoundingSat is decision-mode only; conclusionSection emits the parsed
-  // `UNSAT : <id>` as a single CONST_INTEGER child carrying <id>.
   Assert(conclNode.getNumChildren() == 1
          && conclNode[0].getKind() == Kind::CONST_INTEGER);
   Node unsatConstraint = lookup(conclNode[0]);
@@ -159,37 +171,88 @@ Node PbProofTranslator::translateConclusion(Node conclNode,
         << "  unsat constraint id " << conclNode[0] << " unknown; skipping\n";
     return Node::null();
   }
-
-  // Wire `unsatConstraint` as the child so the printer descends from `false`
-  // into the per-step DAG built by earlier translateStep calls. The DAG
-  // bottoms out at input PB constraints; PbProofManager::convertProof has
-  // already registered a TRUST_THEORY_LEMMA bridge for each (PB-constraint
-  // ← BV-fact), so the chain closes against the BV facts that the
-  // surrounding SCOPE discharges.
-  NodeManager* nm = nodeManager();
-  d_cdp->addStep(nm->mkConst(false),
-                 ProofRule::CUTTING_PLANES_REFUTATION,
-                 /*children=*/{unsatConstraint},
-                 /*args=*/{unsatConstraint});
+  refuteContradicting(unsatConstraint);
   return Node::null();
+}
+
+Node PbProofTranslator::mkDomainBound(Node variable, bool upper)
+{
+  // Shaped like the literal axioms PbProofRules emits for the tokens `~x` and
+  // `x`: (>= (* -1 x) -1) and (>= (* 1 x) 0).
+  NodeManager* nm = nodeManager();
+  Node coefficient = nm->mkConstInt(Rational(upper ? -1 : 1));
+  Node lhs = nm->mkNode(Kind::MULT, coefficient, variable);
+  Node rhs = nm->mkConstInt(Rational(upper ? -1 : 0));
+  return nm->mkNode(Kind::GEQ, lhs, rhs);
+}
+
+void PbProofTranslator::refuteContradicting(Node constraint)
+{
+  NodeManager* nm = nodeManager();
+  if (constraint.getKind() != Kind::GEQ)
+  {
+    Trace("bv-pb-proof-translate")
+        << "  unsat constraint " << constraint << " is not a GEQ; skipping\n";
+    return;
+  }
+  std::vector<Node> children{constraint};
+  std::vector<Node> coefficients{nm->mkConstInt(Rational(-1))};
+  for (const Node& term : linearTerms(constraint[0]))
+  {
+    if (term.getKind() != Kind::MULT || !term[0].isConst())
+    {
+      Trace("bv-pb-proof-translate")
+          << "  unexpected summand " << term << " in " << constraint
+          << "; skipping\n";
+      return;
+    }
+    Rational coefficient = term[0].getConst<Rational>();
+    if (coefficient.sgn() == 0) continue;
+    bool positive = coefficient.sgn() > 0;
+    Node bound = mkDomainBound(term[1], positive);
+    children.push_back(bound);
+    coefficients.push_back(
+        nm->mkConstInt(positive ? -coefficient : coefficient));
+  }
+
+  ProofStepBuffer steps(d_cdp->getManager()->getChecker());
+  Node ground = constraint;
+  if (children.size() > 1)
+  {
+    std::vector<Node> coefficientsUse =
+        arith::getMacroSumUbCoeff(nm, children, coefficients);
+    ground = steps.tryStep(
+        ProofRule::MACRO_ARITH_SCALE_SUM_UB, children, coefficientsUse);
+    if (ground.isNull())
+    {
+      Trace("bv-pb-proof-translate")
+          << "  could not cancel the variables of " << constraint
+          << " against their domain bounds; skipping\n";
+      return;
+    }
+  }
+  Node falseNode = nm->mkConst(false);
+  if (steps
+          .tryStep(ProofRule::MACRO_SR_PRED_TRANSFORM, {ground}, {falseNode})
+          .isNull())
+  {
+    Trace("bv-pb-proof-translate")
+        << "  " << ground << " does not rewrite to false; skipping\n";
+    return;
+  }
+  d_cdp->addSteps(steps);
 }
 
 Node PbProofTranslator::translatePolExpr(Node expr)
 {
   Kind k = expr.getKind();
-
-  // Leaf: a constraint id encoded as an integer constant by
-  // PbProofRules::polishConstraint. Resolve to the previously-registered
-  // conclusion; if missing, fall back to the id itself so the step shape stays
-  // well-formed.
+  // Leaf: a constraint id
   if (k == Kind::CONST_INTEGER)
   {
     Node looked = lookup(expr);
     return looked.isNull() ? expr : looked;
   }
-
-  // Leaf: a literal axiom (PbProofRules::polishConstraint emits a (GEQ
-  // (MULT c x) k) for tokens 'xV' / '~xV'). Emit CUTTING_PLANES_AXIOM.
+  // Leaf: a literal axiom
   if (k == Kind::GEQ)
   {
     // The literal arg is the variable token inside the LHS MULT. Best-effort
@@ -200,7 +263,6 @@ Node PbProofTranslator::translatePolExpr(Node expr)
     d_cdp->addStep(expr, ProofRule::CUTTING_PLANES_AXIOM, {}, args);
     return expr;
   }
-
   if (k == Kind::PB_PROOF_POL_ADD)
   {
     Node lhs = translatePolExpr(expr[0]);

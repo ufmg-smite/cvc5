@@ -183,7 +183,7 @@ bool EoPrinter::isHandled(const Options& opts, const ProofNode* pfn)
     case ProofRule::BV_POLY_NORM:
     case ProofRule::BV_POLY_NORM_EQ:
     case ProofRule::EXISTS_STRING_LENGTH:
-    case ProofRule::CUTTING_PLANES_REFUTATION:
+    case ProofRule::VERIPB_PROOF:
     case ProofRule::CUTTING_PLANES_AXIOM:
     case ProofRule::CUTTING_PLANES_ADDITION:
     case ProofRule::CUTTING_PLANES_MULTIPLICATION:

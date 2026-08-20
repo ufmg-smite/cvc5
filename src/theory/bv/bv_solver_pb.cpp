@@ -151,7 +151,7 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
     if (d_isProofProducing)
     {
       // Attach PbProofManager as the proof generator so the global proof DAG
-      // sees the CUTTING_PLANES_REFUTATION step instead of a TRUST_THEORY_LEMMA.
+      // sees the PB-blasting proof steps instead of a TRUST_THEORY_LEMMA.
       // Skip conflictExp() because the BV-PB backend has no proof equality
       // engine, which causes conflictExp to drop the PG silently.
       TrustNode tconf = TrustNode::mkTrustConflict(conflict, d_pbpm);

@@ -85,12 +85,21 @@ class PbProofTranslator : protected EnvObj
 
   /**
    * Translate a 'conclusion' footer. In decision mode RoundingSat always
-   * emits `conclusion UNSAT : <id>`; we look up <id>, find the unsatisfiable
-   * PB constraint it derived, and emit a top-level CUTTING_PLANES_REFUTATION
-   * step concluding `false` with that constraint as the single child (so the
-   * fine-grained per-step DAG below it is reachable from `false`).
+   * emits `conclusion UNSAT : <id>`; we look up <id> and refute the
+   * contradicting PB constraint it names, so that `false` sits on top of the
+   * fine-grained per-step DAG.
    */
   Node translateConclusion(Node conclNode, size_t veriPbId);
+
+  /**
+   * Derive `false` from a contradicting PB constraint by cancelling each of
+   * its variables against that variable's {0,1} domain bound, leaving a
+   * ground inequality that rewrites to false.
+   */
+  void refuteContradicting(Node constraint);
+
+  /** The upper (x <= 1) or lower (x >= 0) domain bound of a PB variable. */
+  Node mkDomainBound(Node variable, bool upper);
 
   /**
    * Translate a `del id <ids>` step (PB_PROOF_DELETE_BY_ID). Iterates the

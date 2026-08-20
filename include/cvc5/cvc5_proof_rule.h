@@ -498,37 +498,17 @@ enum ENUM(ProofRule)
   EVALUE(SAT_EXTERNAL_PROVE),
   /**
    * \verbatim embed:rst:leading-asterisk
-   * **Boolean -- Resolution**
+   * **VeriPB Refutation**
    *
    * .. math::
    *
-   *   \inferrule{C_1, C_2 \mid pol, L}{C}
+   *   \inferrule{- \mid s_1 \dots s_n}{\bot}
    *
-   * where
-   *
-   * - :math:`C_1` and :math:`C_2` are nodes viewed as clauses, i.e., either an
-   *   ``OR`` node with each children viewed as a literal or a node viewed as a
-   *   literal. Note that an ``OR`` node could also be a literal.
-   * - :math:`pol` is either true or false, representing the polarity of the
-   *   pivot on the first clause
-   * - :math:`L` is the pivot of the resolution, which occurs as is (resp. under
-   *   a ``NOT``) in :math:`C_1` and negatively (as is) in :math:`C_2` if
-   *   :math:`pol = \top` (:math:`pol = \bot`).
-   *
-   * :math:`C` is a clause resulting from collecting all the literals in
-   * :math:`C_1`, minus the first occurrence of the pivot or its negation, and
-   * :math:`C_2`, minus the first occurrence of the pivot or its negation,
-   * according to the policy above. If the resulting clause has a single
-   * literal, that literal itself is the result; if it has no literals, then the
-   * result is false; otherwise it's an ``OR`` node of the resulting literals.
-   *
-   * Note that it may be the case that the pivot does not occur in the
-   * clauses. In this case the rule is not unsound, but it does not correspond
-   * to resolution but rather to a weakening of the clause that did not have a
-   * literal eliminated.
+   * where :math:`s_1 \dots s_n` are the steps of a VeriPB proof, parsed into
+   * nodes, refuting the pseudo-Boolean formula obtained by PB-blasting.
    * \endverbatim
    */
-  EVALUE(CUTTING_PLANES_REFUTATION),
+  EVALUE(VERIPB_PROOF),
   /**
    * \verbatim embed:rst:leading-asterisk
    * **Pseudo-Boolean -- Cutting Planes Axiom**
@@ -614,6 +594,38 @@ enum ENUM(ProofRule)
    * \endverbatim
    */
   EVALUE(MACRO_CUTTING_PLANES_RESOLUTION),
+  /**
+   * \verbatim embed:rst:leading-asterisk
+   * **Boolean -- Resolution**
+   *
+   * .. math::
+   *
+   *   \inferrule{C_1, C_2 \mid pol, L}{C}
+   *
+   * where
+   *
+   * - :math:`C_1` and :math:`C_2` are nodes viewed as clauses, i.e., either an
+   *   ``OR`` node with each children viewed as a literal or a node viewed as a
+   *   literal. Note that an ``OR`` node could also be a literal.
+   * - :math:`pol` is either true or false, representing the polarity of the
+   *   pivot on the first clause
+   * - :math:`L` is the pivot of the resolution, which occurs as is (resp. under
+   *   a ``NOT``) in :math:`C_1` and negatively (as is) in :math:`C_2` if
+   *   :math:`pol = \top` (:math:`pol = \bot`).
+   *
+   * :math:`C` is a clause resulting from collecting all the literals in
+   * :math:`C_1`, minus the first occurrence of the pivot or its negation, and
+   * :math:`C_2`, minus the first occurrence of the pivot or its negation,
+   * according to the policy above. If the resulting clause has a single
+   * literal, that literal itself is the result; if it has no literals, then the
+   * result is false; otherwise it's an ``OR`` node of the resulting literals.
+   *
+   * Note that it may be the case that the pivot does not occur in the
+   * clauses. In this case the rule is not unsound, but it does not correspond
+   * to resolution but rather to a weakening of the clause that did not have a
+   * literal eliminated.
+   * \endverbatim
+   */
   EVALUE(RESOLUTION),
   /**
    * \verbatim embed:rst:leading-asterisk

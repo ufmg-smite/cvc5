@@ -26,7 +26,7 @@ PbProofRuleChecker::PbProofRuleChecker(NodeManager* nm) : ProofRuleChecker(nm)
 
 void PbProofRuleChecker::registerTo(ProofChecker* pc)
 {
-  pc->registerChecker(ProofRule::CUTTING_PLANES_REFUTATION, this);
+  pc->registerChecker(ProofRule::VERIPB_PROOF, this);
   pc->registerChecker(ProofRule::CUTTING_PLANES_AXIOM, this);
   pc->registerChecker(ProofRule::CUTTING_PLANES_ADDITION, this);
   pc->registerChecker(ProofRule::CUTTING_PLANES_MULTIPLICATION, this);
@@ -45,11 +45,9 @@ Node PbProofRuleChecker::checkInternal(ProofRule id,
   // and remaining arithmetic args. Full semantic checking is a follow-up.
   switch (id)
   {
-    case ProofRule::CUTTING_PLANES_REFUTATION:
-      // Two shapes:
-      //   coarse: children: (), args: parsed VeriPB step Nodes
-      //   fine:   children: (C), args: (C) where C is the unsat PB constraint
-      // Both conclude `false`.
+    case ProofRule::VERIPB_PROOF:
+      // children: (), args: the parsed VeriPB step Nodes. Concludes `false`.
+      Assert(children.empty());
       return nodeManager()->mkConst(false);
     case ProofRule::CUTTING_PLANES_AXIOM:
       // children: (), args: (conclusion, literal)

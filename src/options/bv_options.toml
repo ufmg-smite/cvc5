@@ -24,7 +24,7 @@ name   = "Bitvector Theory"
   help_mode  = "Granularity of the PB-blasting proof."
 [[option.mode.COARSE]]
   name = "coarse"
-  help = "emit a single CUTTING_PLANES_REFUTATION step with the parsed VeriPB proof as args"
+  help = "emit a single VERIPB_PROOF step with the parsed VeriPB proof as args"
 [[option.mode.FINE]]
   name = "fine"
   help = "decompose the VeriPB proof into per-rule CUTTING_PLANES_* steps via the translator"
