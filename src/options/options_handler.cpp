@@ -277,11 +277,6 @@ void OptionsHandler::setResourceWeight(CVC5_UNUSED const std::string& flag,
   d_options->write_base().resourceWeightHolder.emplace_back(optarg);
 }
 
-void OptionsHandler::checkBvPbSolver(CVC5_UNUSED const std::string& flag,
-                                     CVC5_UNUSED BvPbSolver m)
-{
-}
-
 void OptionsHandler::checkBvSatSolver(const std::string& flag,
                                       const BvSatSolverMode m) const
 {
@@ -322,6 +317,30 @@ void OptionsHandler::checkBvSatSolver(const std::string& flag,
     }
   }
 }
+
+void OptionsHandler::checkBvPbSolver(const std::string& flag,
+                                      const BvPbSolver m) const
+{
+  if (m == BvPbSolver::ROUNDINGSAT
+      && !Configuration::isBuiltWithRoundingSat())
+  {
+    std::stringstream ss;
+    ss << "option `" << flag
+       << "' requires a RoundingSat build of cvc5; this binary was not built "
+          "with RoundingSat support";
+    throw OptionException(ss.str());
+  }
+
+  if (m == BvPbSolver::EXACT && !Configuration::isBuiltWithExact())
+  {
+    std::stringstream ss;
+    ss << "option `" << flag
+       << "' requires an Exact build of cvc5; this binary was not built with "
+          "Exact support";
+    throw OptionException(ss.str());
+  }
+}
+
 
 namespace {
 void print_config(std::ostream& out, const char* str, const std::string& config)
