@@ -116,6 +116,18 @@ namespace cvc5::internal {
 #else /* CVC5_USE_COCOA */
 #define IS_COCOA_BUILD false
 #endif /* CVC5_USE_COCOA */
+  
+#if CVC5_USE_ROUNDINGSAT
+#define IS_ROUNDINGSAT_BUILD true
+#else /* CVC5_USE_ROUNDINGSAT */
+#define IS_ROUNDINGSAT_BUILD false
+#endif /* CVC5_USE_ROUNDINGSAT */
+  
+#if CVC5_USE_EXACT
+#define IS_EXACT_BUILD true
+#else /* CVC5_USE_EXACT */
+#define IS_EXACT_BUILD false
+#endif /* CVC5_USE_EXACT */
 
 #if HAVE_LIBEDITLINE
 #define IS_EDITLINE_BUILD true

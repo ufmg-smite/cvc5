@@ -213,6 +213,10 @@ bool Configuration::isBuiltWithPoly() { return IS_POLY_BUILD; }
 
 bool Configuration::isBuiltWithCoCoA() { return IS_COCOA_BUILD; }
 
+bool Configuration::isBuiltWithRoundingSat() { return IS_ROUNDINGSAT_BUILD; }
+
+bool Configuration::isBuiltWithExact() { return IS_EXACT_BUILD; }
+
 bool Configuration::isBuiltWithPortfolio() { return IS_PORTFOLIO_BUILD; }
 
 const std::vector<std::string>& Configuration::getTraceTags()
