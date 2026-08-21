@@ -126,7 +126,8 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
     if (d_isProofProducing)
     {
       std::vector<std::string> proof = d_pbSolver->getProof();
-      d_pbpm->addPbProof(proof, inputConstraints);
+      d_pbpm->addPbProof(
+          proof, inputConstraints, d_pbSolver->getProofVariables());
     }
     NodeManager* nm = nodeManager();
     std::vector<Node> conflictFacts;
@@ -286,6 +287,7 @@ void BVSolverPseudoBoolean::initPbSolver()
           d_env, statisticsRegistry(), "theory::bv::BVSolverPseudoBoolean::"));
       Trace("bv-pb") << "Initialization successful.\n";
 #endif
+      Unreachable() << "cvc5 was not Configured with Exact\n";
       break;
     case options::BvPbSolver::ROUNDINGSAT:
       Trace("bv-pb") << "Initializing RoundingSat PB Solver...\n";
@@ -297,6 +299,7 @@ void BVSolverPseudoBoolean::initPbSolver()
                                 d_isProofProducing));
       Trace("bv-pb") << "Initialization successful.\n";
 #endif
+      Unreachable() << "cvc5 was not Configured with RoundingSat\n";
       break;
     default: Unimplemented();
   }

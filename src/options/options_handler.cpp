@@ -382,6 +382,8 @@ void OptionsHandler::showConfiguration(CVC5_UNUSED const std::string& flag,
   print_config_cond(o, "poly", Configuration::isBuiltWithPoly());
   print_config_cond(o, "cocoa", Configuration::isBuiltWithCoCoA());
   print_config_cond(o, "editline", Configuration::isBuiltWithEditline());
+  print_config_cond(o, "roundingsat", Configuration::isBuiltWithRoundingSat());
+  print_config_cond(o, "exact", Configuration::isBuiltWithExact());
 }
 
 void OptionsHandler::showCopyright(CVC5_UNUSED const std::string& flag,
