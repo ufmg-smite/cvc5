@@ -170,9 +170,6 @@ void CDCAC::computeVariableOrdering()
   {
     lp_variable_order_push(vo, v.get_internal());
   }
-  d_isUniv = d_variableOrdering.size() == 1;
-  Trace("nl-is-univ") << "is univ: " << d_isUniv << " "
-                      << d_variableOrdering.size() << std::endl;
 }
 
 void CDCAC::retrieveInitialAssignment(NlModel& model, const Node& ran_variable)
@@ -206,6 +203,16 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   std::vector<CACInterval> res;
   LazardEvaluation le(statisticsRegistry(), nodeManager()->getPolyContext());
   prepareRootIsolation(le, cur_variable);
+
+  for (const auto& c: d_constraints.getConstraints())
+  {
+    if (!is_univariate(std::get<0>(c)))
+    {
+      d_isUniv = false;
+      break;
+    }
+  }
+
   for (const auto& c : d_constraints.getConstraints())
   {
     const poly::Polynomial& p = std::get<0>(c);

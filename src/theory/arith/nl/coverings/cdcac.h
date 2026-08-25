@@ -258,7 +258,8 @@ class CDCAC : protected EnvObj
 
   /** The next interval id */
   size_t d_nextIntervalId = 1;
-  bool d_isUniv;
+
+  bool d_isUniv = true;
 };
 
 }  // namespace coverings
