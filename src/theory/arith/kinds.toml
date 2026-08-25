@@ -352,6 +352,23 @@ children = 2
 comment  = "indexed root predicate; first parameter is a INDEXED_ROOT_PREDICATE_OP, second is a real variable compared to zero, third is a polynomial"
 typerule = "::cvc5::internal::theory::arith::IndexedRootPredicateTypeRule"
 
+# sign invariance of a polynomial in an open interval
+[[kinds]]
+type =  "operator"
+name = "SGN_INV"
+children = 3
+typerule = "::cvc5::internal::theory::arith::SgnInvTypeRule"
+
+[[kinds]]
+type = "nullaryoperator"
+name = "PLUS_INFINITY"
+typerule = "::cvc5::internal::theory::arith::RealNullaryOperatorTypeRule"
+
+[[kinds]]
+type = "nullaryoperator"
+name = "MINUS_INFINITY"
+typerule = "::cvc5::internal::theory::arith::RealNullaryOperatorTypeRule"
+
 [[kinds]]
 type     = "operator"
 name     = "IS_INTEGER"

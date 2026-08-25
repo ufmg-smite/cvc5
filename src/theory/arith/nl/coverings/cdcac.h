@@ -42,6 +42,24 @@ class NlModel;
 
 namespace coverings {
 
+struct UnivRootAtlas
+{
+  /* All distinct roots of all constraint polynomials, sorted ascending,
+   * with exactly one poly::Value per distinct real number. */
+  std::vector<poly::Value> d_roots;
+
+  // For each constraint polynomial, the indices into d_roots of its own roots, sorted ascending.
+  std::vector<std::pair<poly::Polynomial, std::vector<std::size_t>>> d_members;
+};
+
+/**
+ * Builds the canonical root atlas from the raw pairs collected by
+ * infeasibleRegions. */
+UnivRootAtlas buildUnivRootAtlas(
+    const std::vector<std::pair<poly::Polynomial, poly::Value>>& polyRoots);
+
+std::ostream& operator<<(std::ostream& os, const UnivRootAtlas& atlas);
+
 /**
  * This class implements Cylindrical Algebraic Coverings as presented in
  * https://arxiv.org/pdf/2003.05633.pdf

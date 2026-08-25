@@ -1220,6 +1220,12 @@ std::string Smt2Printer::smtKindString(Kind k)
     case Kind::DIVISIBLE: return "divisible";
     case Kind::REAL_ALGEBRAIC_NUMBER: return "@REAL_ALGEBRAIC_NUMBER";
     case Kind::REAL_ALGEBRAIC_NUMBER_OP: return "@REAL_ALGEBRAIC_NUMBER_OP";
+
+    // univariate coverings
+    case Kind::SGN_INV: return "@sgn_inv";
+    case Kind::MINUS_INFINITY: return "@cov_minus_inf";
+    case Kind::PLUS_INFINITY: return "@cov_plus_inf";
+
     // arrays theory
     case Kind::SELECT: return "select";
     case Kind::STORE: return "store";

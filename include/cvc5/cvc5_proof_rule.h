@@ -2477,6 +2477,20 @@ enum ENUM(ProofRule)
    */
   EVALUE(ARITH_TRANS_SINE_APPROX_BELOW_POS),
   /**
+   * Decomposes the real line, given a sorted list of points
+   */
+  EVALUE(DECOMP),
+  /**
+   * Proves that a polynomial is sign invariant in an interval, given that it does
+   * not have a root on it
+   */
+  EVALUE(SGN_INV_INTRO),
+  /**
+   * Given a variable `x`, a polynomial that is sign invariant in an interval and a
+   * point `s` in the interval, proves that p(x) has the same sign as p(s).
+   */
+  EVALUE(SGN_INV_ELIM),
+  /**
    * Proof rule for univariate coverings.
    */
   EVALUE(ARITH_COVERINGS_UNIV),

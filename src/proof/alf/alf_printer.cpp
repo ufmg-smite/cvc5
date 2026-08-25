@@ -154,7 +154,11 @@ bool AlfPrinter::isHandled(const Options& opts, const ProofNode* pfn)
     case ProofRule::ARITH_TRANS_SINE_BOUNDS:
     case ProofRule::ARITH_TRANS_SINE_SYMMETRY:
     case ProofRule::ARITH_TRANS_SINE_TANGENT_ZERO:
-    case ProofRule::ARITH_TRANS_SINE_TANGENT_PI: return true;
+    case ProofRule::ARITH_TRANS_SINE_TANGENT_PI:
+    case ProofRule::DECOMP:
+    case ProofRule::SGN_INV_INTRO:
+    case ProofRule::SGN_INV_ELIM:
+      return true;
     case ProofRule::ARITH_COVERINGS_UNIV:
     {
       // Kind k = pfn->getArguments()[2][1].getKind();

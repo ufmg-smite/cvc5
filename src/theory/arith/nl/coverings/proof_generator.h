@@ -96,6 +96,18 @@ class CoveringsProofGenerator : protected EnvObj
   void sortAndEraseDupsRoots();
   void addUnivRoots(const std::vector<poly::Value>& roots,
                     poly::Polynomial polys);
+  /**
+   * The raw (polynomial, root) pairs collected by addUnivRoots(), before any
+   * deduplication. Each pair (p, v) carries provenance: v was obtained by
+   * isolating the roots of exactly p. sortAndEraseDupsRoots() collapses this
+   * list by value and thereby loses the pairing, so callers that need it
+   * (e.g. buildUnivRootAtlas()) must run before that.
+   */
+  const std::vector<std::pair<poly::Polynomial, poly::Value>>& getPolysRoots()
+      const
+  {
+    return d_polysRoots;
+  }
   void closeUnivProof(std::vector<Node> constraints, VariableMapper &vm);
   /**
    * Add a direct interval conflict as generated in getUnsatIntervals().

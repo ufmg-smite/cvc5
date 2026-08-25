@@ -111,7 +111,7 @@ void CoveringsProofGenerator::startNewProof(bool isUniv)
     d_current = d_proofs.allocateProof();
     return;
   }
-  d_cdp = new CDProof(d_env, d_ctx); 
+  d_cdp = new CDProof(d_env, d_ctx);
 }
 void CoveringsProofGenerator::startRecursive() { d_current->openChild(); }
 void CoveringsProofGenerator::endRecursive(size_t intervalId)
