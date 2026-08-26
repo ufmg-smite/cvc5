@@ -330,19 +330,52 @@ TypeNode SgnInvTypeRule::computeType(NodeManager* nm,
       }
       return TypeNode::null();
     }
-    if (!n[1].getTypeOrNull().isRealOrInt() && n[1].getKind() != Kind::MINUS_INFINITY)
+    // The infinity markers are Real-sorted (RealNullaryOperatorTypeRule), so
+    // the sort check alone accepts them in either position; the marker on
+    // the wrong side must be rejected explicitly by kind.
+    if (n[1].getKind() == Kind::PLUS_INFINITY
+        || !n[1].getTypeOrNull().isRealOrInt())
     {
       if (errOut)
       {
-        (*errOut) << "SGN_INV expects a real or MINUS_INFINITY as the second argument.";
+        (*errOut) << "SGN_INV expects a real or MINUS_INFINITY as the second "
+                     "argument.";
       }
       return TypeNode::null();
     }
-    if (!n[2].getTypeOrNull().isRealOrInt() && n[1].getKind() != Kind::PLUS_INFINITY)
+    if (n[2].getKind() == Kind::MINUS_INFINITY
+        || !n[2].getTypeOrNull().isRealOrInt())
     {
       if (errOut)
       {
-        (*errOut) << "SGN_INV expects a real or PLUS_INFINITY as the third argument.";
+        (*errOut) << "SGN_INV expects a real or PLUS_INFINITY as the third "
+                     "argument.";
+      }
+      return TypeNode::null();
+    }
+  }
+  return nm->booleanType();
+}
+
+TypeNode VerifiedAtlasTypeRule::preComputeType(NodeManager* nm,
+                                               CVC5_UNUSED TNode n)
+{
+  return nm->booleanType();
+}
+
+TypeNode VerifiedAtlasTypeRule::computeType(NodeManager* nm,
+                                            TNode n,
+                                            bool check,
+                                            std::ostream* errOut)
+{
+  if (check)
+  {
+    if (n[0].getKind() != Kind::SEXPR)
+    {
+      if (errOut)
+      {
+        (*errOut) << "VERIFIED_ATLAS expects an SEXPR-encoded atlas as its "
+                     "argument.";
       }
       return TypeNode::null();
     }

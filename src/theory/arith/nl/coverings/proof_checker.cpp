@@ -37,6 +37,7 @@ void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
   pc->registerChecker(ProofRule::DECOMP, this);
   pc->registerChecker(ProofRule::SGN_INV_INTRO, this);
   pc->registerChecker(ProofRule::SGN_INV_ELIM, this);
+  pc->registerChecker(ProofRule::VALIDATE_ATLAS, this);
 }
 
 Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
@@ -45,13 +46,14 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
 {
   NodeManager* nm = nodeManager();
   // TODO: Actually check the proof.
-  if (id == ProofRule::ARITH_COVERINGS_UNIV
-   || id == ProofRule::DECOMP
-   || id == ProofRule::SGN_INV_INTRO
-   || id == ProofRule::SGN_INV_ELIM)
+  if (id == ProofRule::ARITH_COVERINGS_UNIV)
   {
     return nm->mkConst<bool>(false);
   }
+  // DECOMP, SGN_INV_INTRO, SGN_INV_ELIM and VALIDATE_ATLAS do not conclude
+  // false, so returning it here would be rejected as a conclusion mismatch
+  // as soon as such steps are emitted. TODO: compute their conclusions from
+  // the premises and arguments.
   return Node::null();
 }
 

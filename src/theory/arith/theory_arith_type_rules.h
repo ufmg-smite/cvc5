@@ -158,6 +158,20 @@ class SgnInvTypeRule
                                 std::ostream* errOut);
 };
 
+/**
+ * Type rule for the VERIFIED_ATLAS predicate. Checks that the single argument
+ * is an SEXPR (the encoded root atlas), always returns booleanType.
+ */
+class VerifiedAtlasTypeRule
+{
+  public:
+    static TypeNode preComputeType(NodeManager* nm, TNode n);
+    static TypeNode computeType(NodeManager* nodeManager,
+                                TNode n,
+                                bool check,
+                                std::ostream* errOut);
+};
+
 }  // namespace arith
 }  // namespace theory
 }  // namespace cvc5::internal

@@ -277,6 +277,42 @@ inline Node mkPi(NodeManager* nm)
 {
   return nm->mkNullaryOperator(nm->realType(), Kind::PI);
 }
+
+/**
+ * The -infinity marker used as a bound argument of SGN_INV in univariate
+ * coverings proofs. Note that nullary operators must be built via
+ * mkNullaryOperator, which attaches the type; mkNode cannot construct them.
+ */
+inline Node mkMinusInfinity(NodeManager* nm)
+{
+  return nm->mkNullaryOperator(nm->realType(), Kind::MINUS_INFINITY);
+}
+
+/** The +infinity marker used as a bound argument of SGN_INV. */
+inline Node mkPlusInfinity(NodeManager* nm)
+{
+  return nm->mkNullaryOperator(nm->realType(), Kind::PLUS_INFINITY);
+}
+
+/**
+ * The sign-invariance predicate of univariate coverings proofs:
+ * p has constant nonzero sign on the open interval (lo, hi). The bounds are
+ * real terms or the infinity markers (mkMinusInfinity / mkPlusInfinity for
+ * lo / hi respectively; the type rule rejects a marker on the wrong side).
+ */
+inline Node mkSgnInv(NodeManager* nm, Node p, Node lo, Node hi)
+{
+  return nm->mkNode(Kind::SGN_INV, p, lo, hi);
+}
+
+/**
+ * The conclusion predicate of the VALIDATE_ATLAS proof rule; atlasData is the
+ * SEXPR-encoded root atlas (canonical roots and per-polynomial membership).
+ */
+inline Node mkVerifiedAtlas(NodeManager* nm, Node atlasData)
+{
+  return nm->mkNode(Kind::VERIFIED_ATLAS, atlasData);
+}
 /** Join kinds, where k1 and k2 are arithmetic relations returns an
  * arithmetic relation ret such that
  * if (a <k1> b) and (a <k2> b), then (a <ret> b).

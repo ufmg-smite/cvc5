@@ -2477,6 +2477,11 @@ enum ENUM(ProofRule)
    */
   EVALUE(ARITH_TRANS_SINE_APPROX_BELOW_POS),
   /**
+   * Checks the root map in the atlas is complete. If it is, produces
+   * VERIFIED_ATLAS(A) with the input atlas.
+   */
+  EVALUE(VALIDATE_ATLAS),
+  /**
    * Decomposes the real line, given a sorted list of points
    */
   EVALUE(DECOMP),

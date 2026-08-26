@@ -1225,6 +1225,7 @@ std::string Smt2Printer::smtKindString(Kind k)
     case Kind::SGN_INV: return "@sgn_inv";
     case Kind::MINUS_INFINITY: return "@cov_minus_inf";
     case Kind::PLUS_INFINITY: return "@cov_plus_inf";
+    case Kind::VERIFIED_ATLAS: return "@verified_atlas";
 
     // arrays theory
     case Kind::SELECT: return "select";

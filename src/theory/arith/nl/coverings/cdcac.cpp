@@ -48,69 +48,6 @@ namespace arith {
 namespace nl {
 namespace coverings {
 
-UnivRootAtlas buildUnivRootAtlas(
-    const std::vector<std::pair<poly::Polynomial, poly::Value>>& polyRoots)
-{
-  UnivRootAtlas atlas;
-
-  for (const auto& pr : polyRoots)
-  {
-    atlas.d_roots.emplace_back(pr.second);
-  }
-  std::sort(atlas.d_roots.begin(), atlas.d_roots.end());
-  atlas.d_roots.erase(std::unique(atlas.d_roots.begin(), atlas.d_roots.end()),
-                      atlas.d_roots.end());
-
-  for (const auto& pr : polyRoots)
-  {
-    auto rit = std::lower_bound(
-        atlas.d_roots.begin(), atlas.d_roots.end(), pr.second);
-    Assert(rit != atlas.d_roots.end() && *rit == pr.second);
-    std::size_t id = std::distance(atlas.d_roots.begin(), rit);
-
-    auto mit = std::find_if(
-        atlas.d_members.begin(), atlas.d_members.end(), [&pr](const auto& m) {
-          return m.first == pr.first;
-        });
-    if (mit == atlas.d_members.end())
-    {
-      atlas.d_members.emplace_back(pr.first, std::vector<std::size_t>{id});
-    }
-    else if (std::find(mit->second.begin(), mit->second.end(), id)
-             == mit->second.end())
-    {
-      mit->second.push_back(id);
-    }
-  }
-  for (auto& m : atlas.d_members)
-  {
-    std::sort(m.second.begin(), m.second.end());
-  }
-
-  return atlas;
-}
-
-std::ostream& operator<<(std::ostream& os, const UnivRootAtlas& atlas)
-{
-  os << "UnivRootAtlas:" << std::endl;
-  os << "  roots (canonical, ascending):" << std::endl;
-  for (std::size_t i = 0; i < atlas.d_roots.size(); ++i)
-  {
-    os << "    [" << i << "] " << atlas.d_roots[i] << std::endl;
-  }
-  os << "  members:" << std::endl;
-  for (const auto& m : atlas.d_members)
-  {
-    os << "    " << m.first << " -> {";
-    for (std::size_t j = 0; j < m.second.size(); ++j)
-    {
-      os << (j == 0 ? "" : ", ") << m.second[j];
-    }
-    os << "}" << std::endl;
-  }
-  return os;
-}
-
 CDCAC::CDCAC(Env& env, const std::vector<poly::Variable>& ordering)
     : EnvObj(env),
       d_assignment(nodeManager()->getPolyContext()),
@@ -170,6 +107,35 @@ void CDCAC::computeVariableOrdering()
   {
     lp_variable_order_push(vo, v.get_internal());
   }
+
+  // The problem is univariate iff every constraint polynomial is univariate
+  // in the same variable. Note that checking is_univariate alone is not
+  // enough: a problem whose constraints are each univariate in different
+  // variables is still multivariate.
+  d_isUniv = true;
+  bool haveVar = false;
+  poly::Variable uvar;
+  for (const auto& c : d_constraints.getConstraints())
+  {
+    const poly::Polynomial& p = std::get<0>(c);
+    if (!is_univariate(p))
+    {
+      d_isUniv = false;
+      break;
+    }
+    poly::Variable v = main_variable(p);
+    if (!haveVar)
+    {
+      uvar = v;
+      haveVar = true;
+    }
+    else if (v != uvar)
+    {
+      d_isUniv = false;
+      break;
+    }
+  }
+  Trace("nl-is-univ") << "is univ: " << d_isUniv << std::endl;
 }
 
 void CDCAC::retrieveInitialAssignment(NlModel& model, const Node& ran_variable)
@@ -204,15 +170,6 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   LazardEvaluation le(statisticsRegistry(), nodeManager()->getPolyContext());
   prepareRootIsolation(le, cur_variable);
 
-  for (const auto& c: d_constraints.getConstraints())
-  {
-    if (!is_univariate(std::get<0>(c)))
-    {
-      d_isUniv = false;
-      break;
-    }
-  }
-
   for (const auto& c : d_constraints.getConstraints())
   {
     const poly::Polynomial& p = std::get<0>(c);
@@ -231,7 +188,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     {
       std::vector<poly::Value> roots;
       intervals = le.infeasibleRegions(p, sc, &roots);
-      if (isProofEnabled())
+      if (isProofEnabled() && d_isUniv)
       {
         d_proof->addUnivRoots(roots, p);
       }
@@ -270,6 +227,12 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   }
   if (isProofEnabled())
   {
+    if (d_isUniv)
+    {
+      // must run before sortAndEraseDupsRoots(), which collapses the pair
+      // list by value and loses the polynomial-to-root pairing
+      d_proof->initializeAtlas();
+    }
     d_proof->sortAndEraseDupsRoots();
   }
   pruneRedundantIntervals(res);

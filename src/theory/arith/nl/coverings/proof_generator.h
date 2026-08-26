@@ -22,6 +22,7 @@
 
 #include <poly/polyxx.h>
 
+#include <memory>
 #include <vector>
 
 #include "expr/node.h"
@@ -43,6 +44,25 @@ namespace nl {
 struct VariableMapper;
 
 namespace coverings {
+
+struct UnivRootAtlas
+{
+  /* All distinct roots of all constraint polynomials, sorted ascending,
+   * with exactly one poly::Value per distinct real number. */
+  std::vector<poly::Value> d_roots;
+
+  // For each constraint polynomial, the indices into d_roots of its own roots, sorted ascending.
+  std::vector<std::pair<poly::Polynomial, std::vector<std::size_t>>> d_members;
+};
+
+/* Builds the canonical root atlas from the raw pairs collected by
+ * addUnivRoots(). */
+UnivRootAtlas buildUnivRootAtlas(
+    const std::vector<std::pair<poly::Polynomial, poly::Value>>& polyRoots);
+
+/** Streams the atlas: canonical roots with ids, then membership. */
+std::ostream& operator<<(std::ostream& os, const UnivRootAtlas& atlas);
+
 
 /**
  * This class manages the proof creation during a run of the coverings solver.
@@ -73,6 +93,8 @@ class CoveringsProofGenerator : protected EnvObj
   /** Return the current proof generator */
   ProofGenerator* getProofGenerator() const;
   CDProof* getUnivProofGenerator() const;
+
+  void initializeAtlas();
 
   /**
    * Calls LazyTreeProofGenerator::pruneChildren(f), but decorates the
@@ -159,11 +181,11 @@ class CoveringsProofGenerator : protected EnvObj
   /** Constant zero */
   Node d_zero;
 
-  CDProof* d_cdp;
+  std::unique_ptr<CDProof> d_cdp;
   context::Context *d_ctx;
   bool d_onlyUniv;
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
-
+  UnivRootAtlas d_atlas;
 };
 
 /**

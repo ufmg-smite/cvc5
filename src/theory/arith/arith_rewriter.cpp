@@ -495,7 +495,13 @@ RewriteResponse ArithRewriter::preRewriteTerm(TNode t){
       case Kind::TO_INTEGER:
       case Kind::TO_REAL:
       case Kind::POW:
-      case Kind::PI: return RewriteResponse(REWRITE_DONE, t);
+      case Kind::PI:
+      // proof-only kinds of the univariate coverings calculus; canonical as
+      // constructed, so rewriting is the identity
+      case Kind::SGN_INV:
+      case Kind::PLUS_INFINITY:
+      case Kind::MINUS_INFINITY:
+      case Kind::VERIFIED_ATLAS: return RewriteResponse(REWRITE_DONE, t);
       default: Unhandled() << k;
     }
   }
@@ -529,6 +535,12 @@ RewriteResponse ArithRewriter::postRewriteTerm(TNode t){
       case Kind::TO_REAL: return rewriteToReal(t);
       case Kind::TO_INTEGER: return rewriteExtIntegerOp(t);
       case Kind::PI: return RewriteResponse(REWRITE_DONE, t);
+      // proof-only kinds of the univariate coverings calculus; canonical as
+      // constructed, so rewriting is the identity
+      case Kind::SGN_INV:
+      case Kind::PLUS_INFINITY:
+      case Kind::MINUS_INFINITY:
+      case Kind::VERIFIED_ATLAS: return RewriteResponse(REWRITE_DONE, t);
       case Kind::POW2: return postRewritePow2(t);
       case Kind::PIAND: return postRewritePIAnd(t);
       // expert cases

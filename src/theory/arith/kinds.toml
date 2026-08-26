@@ -371,6 +371,13 @@ typerule = "::cvc5::internal::theory::arith::RealNullaryOperatorTypeRule"
 
 [[kinds]]
 type     = "operator"
+name     = "VERIFIED_ATLAS"
+children = 1
+comment  = "conclusion predicate of the VALIDATE_ATLAS proof rule; the argument is the SEXPR-encoded root atlas (canonical roots and per-polynomial membership)"
+typerule = "::cvc5::internal::theory::arith::VerifiedAtlasTypeRule"
+
+[[kinds]]
+type     = "operator"
 name     = "IS_INTEGER"
 children = 1
 comment  = "term-is-integer predicate (parameter is a real-sorted term)"
