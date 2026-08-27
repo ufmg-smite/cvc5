@@ -253,8 +253,9 @@ void BVSolverPseudoBoolean::initPbSolver()
       d_pbSolver.reset(new ExactSolver(
           d_env, statisticsRegistry(), "theory::bv::BVSolverPseudoBoolean::"));
       Trace("bv-pb") << "Initialization successful.\n";
-#endif
+#else
       Unreachable() << "cvc5 was not Configured with Exact\n";
+#endif
       break;
     case options::BvPbSolver::ROUNDINGSAT:
       Trace("bv-pb") << "Initializing RoundingSat PB Solver...\n";
@@ -265,8 +266,9 @@ void BVSolverPseudoBoolean::initPbSolver()
                                 "theory::bv::BVSolverPseudoBoolean::",
                                 d_isProofProducing));
       Trace("bv-pb") << "Initialization successful.\n";
-#endif
+#else
       Unreachable() << "cvc5 was not Configured with RoundingSat\n";
+#endif
       break;
     default: Unimplemented();
   }
