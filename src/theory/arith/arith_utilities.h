@@ -306,12 +306,13 @@ inline Node mkSgnInv(NodeManager* nm, Node p, Node lo, Node hi)
 }
 
 /**
- * The conclusion predicate of the VALIDATE_ATLAS proof rule; atlasData is the
- * SEXPR-encoded root atlas (canonical roots and per-polynomial membership).
+ * The no-roots predicate of univariate coverings proofs: p has no root on
+ * the open interval (lo, hi). Same signature as SGN_INV, including the
+ * infinity markers for unbounded sides.
  */
-inline Node mkVerifiedAtlas(NodeManager* nm, Node atlasData)
+inline Node mkNoRoots(NodeManager* nm, Node p, Node lo, Node hi)
 {
-  return nm->mkNode(Kind::VERIFIED_ATLAS, atlasData);
+  return nm->mkNode(Kind::NO_ROOTS, p, lo, hi);
 }
 /** Join kinds, where k1 and k2 are arithmetic relations returns an
  * arithmetic relation ret such that

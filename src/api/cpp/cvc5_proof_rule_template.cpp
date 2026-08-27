@@ -203,14 +203,16 @@ const char* toString(ProofRule rule)
       return "ARITH_TRANS_SINE_APPROX_BELOW_NEG";
     case ProofRule::ARITH_TRANS_SINE_APPROX_BELOW_POS:
       return "ARITH_TRANS_SINE_APPROX_BELOW_POS";
-    case ProofRule::VALIDATE_ATLAS:
-      return "VALIDATE_ATLAS";
+    case ProofRule::VALIDATE_POLY_MAP:
+      return "VALIDATE_POLY_MAP";
     case ProofRule::DECOMP:
       return "DECOMP";
     case ProofRule::SGN_INV_INTRO:
       return "SGN_INV_INTRO";
     case ProofRule::SGN_INV_ELIM:
       return "SGN_INV_ELIM";
+    case ProofRule::RAN_EVAL:
+      return "RAN_EVAL";
     case ProofRule::ARITH_COVERINGS_UNIV:
       return "ARITH_COVERINGS_UNIV";
     //================================================= External rules

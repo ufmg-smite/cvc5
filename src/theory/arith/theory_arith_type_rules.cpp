@@ -326,7 +326,8 @@ TypeNode SgnInvTypeRule::computeType(NodeManager* nm,
     {
       if (errOut)
       {
-        (*errOut) << "SGN_INV expects a polynomial as the first argument.";
+        (*errOut) << n.getKind()
+                  << " expects a polynomial as the first argument.";
       }
       return TypeNode::null();
     }
@@ -338,7 +339,8 @@ TypeNode SgnInvTypeRule::computeType(NodeManager* nm,
     {
       if (errOut)
       {
-        (*errOut) << "SGN_INV expects a real or MINUS_INFINITY as the second "
+        (*errOut) << n.getKind()
+                  << " expects a real or MINUS_INFINITY as the second "
                      "argument.";
       }
       return TypeNode::null();
@@ -348,33 +350,8 @@ TypeNode SgnInvTypeRule::computeType(NodeManager* nm,
     {
       if (errOut)
       {
-        (*errOut) << "SGN_INV expects a real or PLUS_INFINITY as the third "
-                     "argument.";
-      }
-      return TypeNode::null();
-    }
-  }
-  return nm->booleanType();
-}
-
-TypeNode VerifiedAtlasTypeRule::preComputeType(NodeManager* nm,
-                                               CVC5_UNUSED TNode n)
-{
-  return nm->booleanType();
-}
-
-TypeNode VerifiedAtlasTypeRule::computeType(NodeManager* nm,
-                                            TNode n,
-                                            bool check,
-                                            std::ostream* errOut)
-{
-  if (check)
-  {
-    if (n[0].getKind() != Kind::SEXPR)
-    {
-      if (errOut)
-      {
-        (*errOut) << "VERIFIED_ATLAS expects an SEXPR-encoded atlas as its "
+        (*errOut) << n.getKind()
+                  << " expects a real or PLUS_INFINITY as the third "
                      "argument.";
       }
       return TypeNode::null();

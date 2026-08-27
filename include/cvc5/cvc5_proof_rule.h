@@ -2477,24 +2477,35 @@ enum ENUM(ProofRule)
    */
   EVALUE(ARITH_TRANS_SINE_APPROX_BELOW_POS),
   /**
-   * Checks the root map in the atlas is complete. If it is, produces
-   * VERIFIED_ATLAS(A) with the input atlas.
+   * Checks the polynomial-to-roots map (given as an argument) is complete. If
+   * it is, concludes a subset of the following facts: no_roots(p_i, l_i, r_i),
+   * where the `p_i`s range over all polynomials in the map and the `l_i`s and
+   * `r_i`s range over all the roots of the map
    */
-  EVALUE(VALIDATE_ATLAS),
+  EVALUE(VALIDATE_POLY_MAP),
   /**
-   * Decomposes the real line, given a sorted list of points
+   * Generates a clause of the form `x < a_1 \or x = a_1 \or (x > a_1 \and x < a_2) \or ...
+   * Given a variable `x` and an ascending list of reals `[a_1, a_2, ...]`
    */
   EVALUE(DECOMP),
   /**
-   * Proves that a polynomial is sign invariant in an interval, given that it does
-   * not have a root on it
+   * Derives sgn_inv(p, l, r) from no_roots(p, l, r)
    */
   EVALUE(SGN_INV_INTRO),
   /**
    * Given a variable `x`, a polynomial that is sign invariant in an interval and a
-   * point `s` in the interval, proves that p(x) has the same sign as p(s).
+   * point `s` in the interval, assuming p(s) <> 0, concludes p(x) <> 0.
    */
   EVALUE(SGN_INV_ELIM),
+  /**
+   * Point-cell evaluation of a univariate polynomial at a real algebraic
+   * number. Takes as arguments a polynomial `p`, a variable `x`, a real
+   * number `r` and the Sturm sequence of `p` (shipped to facilitate checking
+   * the sign of `p(r)` via Sturm-Tarski). Concludes
+   * `(not (x = r)) or (p(x) <> 0)`, where `<>` is `<`, `>` or `=` depending
+   * on the sign of `p(r)`.
+   */
+  EVALUE(RAN_EVAL),
   /**
    * Proof rule for univariate coverings.
    */

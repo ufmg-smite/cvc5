@@ -359,6 +359,13 @@ name = "SGN_INV"
 children = 3
 typerule = "::cvc5::internal::theory::arith::SgnInvTypeRule"
 
+# absence of roots of a polynomial in an open interval; same signature as SGN_INV
+[[kinds]]
+type =  "operator"
+name = "NO_ROOTS"
+children = 3
+typerule = "::cvc5::internal::theory::arith::SgnInvTypeRule"
+
 [[kinds]]
 type = "nullaryoperator"
 name = "PLUS_INFINITY"
@@ -368,13 +375,6 @@ typerule = "::cvc5::internal::theory::arith::RealNullaryOperatorTypeRule"
 type = "nullaryoperator"
 name = "MINUS_INFINITY"
 typerule = "::cvc5::internal::theory::arith::RealNullaryOperatorTypeRule"
-
-[[kinds]]
-type     = "operator"
-name     = "VERIFIED_ATLAS"
-children = 1
-comment  = "conclusion predicate of the VALIDATE_ATLAS proof rule; the argument is the SEXPR-encoded root atlas (canonical roots and per-polynomial membership)"
-typerule = "::cvc5::internal::theory::arith::VerifiedAtlasTypeRule"
 
 [[kinds]]
 type     = "operator"
