@@ -18,6 +18,13 @@
 
 include(deps-helper)
 
+# Allow POLY_SRC_DIR to be given relative to the source tree (configure.sh runs
+# cmake from the build directory).
+if(POLY_SRC_DIR)
+  get_filename_component(POLY_SRC_DIR "${POLY_SRC_DIR}" ABSOLUTE
+                         BASE_DIR "${CMAKE_SOURCE_DIR}")
+endif()
+
 find_path(Poly_INCLUDE_DIR NAMES poly/poly.h)
 if(BUILD_SHARED_LIBS)
   find_library(Poly_LIBRARIES NAMES poly)
@@ -31,6 +38,7 @@ set(Poly_FOUND_SYSTEM FALSE)
 if(Poly_INCLUDE_DIR
    AND Poly_LIBRARIES
    AND PolyXX_LIBRARIES
+   AND NOT POLY_SRC_DIR
 )
   set(Poly_FOUND_SYSTEM TRUE)
 
@@ -43,9 +51,16 @@ if(Poly_INCLUDE_DIR
 endif()
 
 if(NOT Poly_FOUND_SYSTEM)
-  check_ep_downloaded("Poly-EP")
-  if(NOT Poly-EP_DOWNLOADED)
-    check_auto_download("Poly" "--no-poly")
+  if(POLY_SRC_DIR)
+    if(NOT EXISTS "${POLY_SRC_DIR}/CMakeLists.txt")
+      message(FATAL_ERROR "POLY_SRC_DIR is set to \"${POLY_SRC_DIR}\", but that \
+is not a LibPoly source directory (no CMakeLists.txt found).")
+    endif()
+  else()
+    check_ep_downloaded("Poly-EP")
+    if(NOT Poly-EP_DOWNLOADED)
+      check_auto_download("Poly" "--no-poly")
+    endif()
   endif()
 
   include(ExternalProject)
@@ -179,11 +194,32 @@ if(NOT Poly_FOUND_SYSTEM)
   # able to find the correct version of GMP if we built it locally. This is
   # primarily important for cross-compiling cvc5, because LibPoly's search
   # paths make it impossible to find the locally built GMP library otherwise.
+  if(POLY_SRC_DIR)
+    # Build the local checkout in place, so that edits to it are picked up by
+    # a plain rebuild of cvc5 without going through git.
+    set(POLY_SOURCE_ARGS
+      SOURCE_DIR ${POLY_SRC_DIR}
+      DOWNLOAD_COMMAND ""
+      UPDATE_COMMAND ""
+      BUILD_ALWAYS ON
+    )
+    if(POLY_PATCH_CMD)
+      message(WARNING "cvc5 patches the LibPoly sources for this \
+configuration, so the checkout at \"${POLY_SRC_DIR}\" will be modified in \
+place.")
+    endif()
+  else()
+    set(POLY_SOURCE_ARGS
+      GIT_REPOSITORY https://github.com/ufmg-smite/libpoly.git
+      GIT_TAG roots
+      GIT_SHALLOW ON
+    )
+  endif()
+
   ExternalProject_Add(
     Poly-EP
     ${COMMON_EP_CONFIG}
-    URL https://github.com/SRI-CSL/libpoly/archive/refs/tags/v${Poly_VERSION}.tar.gz
-    URL_HASH SHA256=f9920afc876f998633348b9cbfcf180757ada48cc872040256c60ad0707b5a0f
+    ${POLY_SOURCE_ARGS}
     ${POLY_PATCH_CMD}
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release
                -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
@@ -242,7 +278,12 @@ mark_as_advanced(PolyXX_LIBRARIES)
 if(Poly_FOUND_SYSTEM)
   message(STATUS "Found Poly ${Poly_VERSION}: ${Poly_LIBRARIES}, ${PolyXX_LIBRARIES}")
 else()
-  message(STATUS "Building Poly ${Poly_VERSION}: ${Poly_LIBRARIES}, ${PolyXX_LIBRARIES}")
+  if(POLY_SRC_DIR)
+    message(STATUS "Building Poly ${Poly_VERSION} from ${POLY_SRC_DIR}: \
+${Poly_LIBRARIES}, ${PolyXX_LIBRARIES}")
+  else()
+    message(STATUS "Building Poly ${Poly_VERSION}: ${Poly_LIBRARIES}, ${PolyXX_LIBRARIES}")
+  endif()
   add_dependencies(Poly Poly-EP)
   add_dependencies(Polyxx Poly-EP)
 

@@ -142,6 +142,8 @@ option(USE_POLY          "Use LibPoly for polynomial arithmetic")
 # check the intalled system version. If the user provides a directory we
 # immediately fail if the dependency was not found at the specified location.
 set(GLPK_DIR          "" CACHE STRING "Set GLPK install directory")
+set(POLY_SRC_DIR      "" CACHE STRING "Set path to a local LibPoly source \
+checkout to build instead of fetching it")
 set(PYTHONIC_PATH     "" CACHE STRING "Set Pythonic API repository path")
 
 # Prepend binaries with prefix on make install

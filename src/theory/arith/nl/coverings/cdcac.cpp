@@ -571,6 +571,8 @@ CACInterval CDCAC::intervalFromCharacterization(
 std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
                                                   bool returnFirstInterval)
 {
+  int x = poly::test_test();
+  std::cout << "x = " << x << "\n";
   d_env.getResourceManager()->spendResource(Resource::ArithNlCoveringStep);
   Trace("cdcac") << "Looking for unsat cover for "
                  << get_stream_variable(d_variableOrdering[curVariable])

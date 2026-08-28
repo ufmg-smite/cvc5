@@ -74,6 +74,8 @@ The following flags enable optional packages (disable with --no-<option name>).
 
 Optional Path to Optional Packages:
   --glpk-dir=PATH          path to top level of GLPK installation
+  --poly-src-dir=PATH      path to a local LibPoly source checkout to build
+                           instead of fetching it
   --dep-path=PATH          path to a dependency installation dir
   --pythonic-path=PATH     path to the Pythonic API's repository
 
@@ -166,6 +168,7 @@ werror=default
 ipo=default
 
 glpk_dir=default
+poly_src_dir=default
 
 wasm=default
 wasm_flags=""
@@ -327,6 +330,9 @@ do
 
     --glpk-dir) die "missing argument to $1 (try -h)" ;;
     --glpk-dir=*) glpk_dir=${1##*=} ;;
+
+    --poly-src-dir) die "missing argument to $1 (try -h)" ;;
+    --poly-src-dir=*) poly_src_dir=${1##*=} ;;
 
     --dep-path) die "missing argument to $1 (try -h)" ;;
     --dep-path=*) dep_path="${dep_path};${1##*=}" ;;
@@ -492,6 +498,8 @@ fi
   && cmake_opts="$cmake_opts -DUSE_COCOA=$cocoa"
 [ "$glpk_dir" != default ] \
   && cmake_opts="$cmake_opts -DGLPK_DIR=$glpk_dir"
+[ "$poly_src_dir" != default ] \
+  && cmake_opts="$cmake_opts -DPOLY_SRC_DIR=$poly_src_dir"
 [ "$dep_path" != default ] \
   && cmake_opts="$cmake_opts -DCMAKE_PREFIX_PATH=$dep_path"
 [ "$pythonic_path" != default ] \
