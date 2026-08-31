@@ -50,7 +50,8 @@ if(NOT Poly_FOUND_SYSTEM)
 
   include(ExternalProject)
 
-  set(Poly_VERSION "0.2.1")
+  set(Poly_VERSION "0.2.2")
+  set(Poly_ARCHIVE_TAG "v0.2.2_roots")
 
   set(POLY_PATCH_KWD PATCH_COMMAND)
   if (NO_GLOBAL_POLY_CTX)
@@ -182,8 +183,8 @@ if(NOT Poly_FOUND_SYSTEM)
   ExternalProject_Add(
     Poly-EP
     ${COMMON_EP_CONFIG}
-    URL https://github.com/SRI-CSL/libpoly/archive/refs/tags/v${Poly_VERSION}.tar.gz
-    URL_HASH SHA256=f9920afc876f998633348b9cbfcf180757ada48cc872040256c60ad0707b5a0f
+    URL https://github.com/ufmg-smite/libpoly/archive/refs/tags/${Poly_ARCHIVE_TAG}.tar.gz
+    URL_HASH SHA256=f7758a7e54c855044334fa0a948fe07e3f70ecb4fa6dde8cb150778d82098c03
     ${POLY_PATCH_CMD}
     CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release
                -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
