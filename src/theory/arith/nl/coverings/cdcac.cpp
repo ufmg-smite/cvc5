@@ -157,12 +157,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     std::vector<poly::Interval> intervals;
     if (options().arith.nlCovLifting == options::nlCovLiftingMode::LAZARD)
     {
-      std::vector<poly::Value> roots;
-      intervals = le.infeasibleRegions(p, sc, &roots);
-      if (isProofEnabled())
-      {
-        d_proof->addUnivRoots(roots, p);
-      }
+      intervals = le.infeasibleRegions(p, sc);
       if (TraceIsOn("cdcac"))
       {
         auto reference = poly::infeasible_regions(p, d_assignment, sc);
@@ -172,7 +167,12 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     }
     else
     {
-      intervals = poly::infeasible_regions(p, d_assignment, sc);
+      std::vector<poly::Value> roots;
+      intervals = poly::infeasible_regions(p, d_assignment, sc, roots);
+      if (isProofEnabled() && d_isUniv)
+      {
+        d_proof->addUnivRoots(roots, p);
+      }
     }
     for (const auto& i : intervals)
     {
@@ -571,8 +571,6 @@ CACInterval CDCAC::intervalFromCharacterization(
 std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
                                                   bool returnFirstInterval)
 {
-  int x = poly::test_test();
-  std::cout << "x = " << x << "\n";
   d_env.getResourceManager()->spendResource(Resource::ArithNlCoveringStep);
   Trace("cdcac") << "Looking for unsat cover for "
                  << get_stream_variable(d_variableOrdering[curVariable])
