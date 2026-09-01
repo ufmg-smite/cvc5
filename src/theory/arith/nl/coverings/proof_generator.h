@@ -22,7 +22,6 @@
 
 #include <poly/polyxx.h>
 
-#include <memory>
 #include <vector>
 
 #include "expr/node.h"
@@ -181,7 +180,7 @@ class CoveringsProofGenerator : protected EnvObj
   /** Constant zero */
   Node d_zero;
 
-  std::unique_ptr<CDProof> d_cdp;
+  CDProof* d_cdp;
   context::Context *d_ctx;
   bool d_onlyUniv;
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
