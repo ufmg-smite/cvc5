@@ -128,6 +128,16 @@ void CoveringsSolver::checkFull()
     Trace("nl-cov") << "Collected MIS: " << mis << std::endl;
     Assert(!mis.empty()) << "Infeasible subset can not be empty";
     Trace("nl-cov") << "UNSAT with MIS: " << mis << std::endl;
+    if (d_CAC.isUniv() && !options().arith.nlCovUnivDump.empty())
+    {
+      // Dump the minimal infeasible subset of a univariate problem as an
+      // unsat univariate instance. This must happen before
+      // postprocessConflict, which may reintroduce eliminated multivariate
+      // constraints.
+      Node var =
+          d_CAC.getConstraints().varMapper()(d_CAC.getVariableOrdering()[0]);
+      d_CAC.dumpUnivInstance(var, mis);
+    }
     d_eqsubs.postprocessConflict(mis);
     Trace("nl-cov") << "After postprocessing: " << mis << std::endl;
 //        CDProof cdp(d_env);

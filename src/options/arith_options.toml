@@ -534,6 +534,14 @@ name   = "Arithmetic Theory"
   help       = "whether to eliminate variables using equalities before going into the cylindrical algebraic coverings solver. It can not be used when producing proofs right now."
 
 [[option]]
+  name       = "nlCovUnivDump"
+  category   = "expert"
+  long       = "nl-cov-univ-dump=DIR"
+  type       = "std::string"
+  default    = '""'
+  help       = "dump unsat univariate instances harvested from coverings subproblems as SMT-LIB files into the given directory"
+
+[[option]]
   name       = "nlCovPrune"
   category   = "expert"
   long       = "nl-cov-prune"

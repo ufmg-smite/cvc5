@@ -21,6 +21,9 @@
 #ifdef CVC5_POLY_IMP
 
 #include <algorithm>
+#include <fstream>
+#include <sstream>
+#include <unordered_set>
 
 #include "options/arith_options.h"
 #include "theory/arith/nl/coverings/lazard_evaluation.h"
@@ -28,6 +31,7 @@
 #include "theory/arith/nl/coverings/variable_ordering.h"
 #include "theory/arith/nl/nl_model.h"
 #include "theory/rewriter.h"
+#include "util/poly_util.h"
 #include "util/resource_manager.h"
 
 using namespace cvc5::internal::kind;
@@ -705,6 +709,17 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
     pruneRedundantIntervals(intervals);
   }
 
+  if (!d_isUniv && curVariable == d_variableOrdering.size() - 1
+      && !options().arith.nlCovUnivDump.empty())
+  {
+    // The covering at the deepest level consists purely of direct constraint
+    // intervals (plus integrality cells), so the constraints of this level
+    // under the current assignment form an unsat univariate instance. The
+    // univariate input case is instead dumped from checkFull, where the
+    // minimal infeasible subset is available.
+    dumpUnivSubproblem(curVariable);
+  }
+
   if (TraceIsOn("cdcac"))
   {
     Trace("cdcac") << "Returning intervals for "
@@ -716,6 +731,106 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
     }
   }
   return intervals;
+}
+
+void CDCAC::dumpUnivSubproblem(std::size_t curVariable)
+{
+  // Only the deepest level yields a pure sign-condition subproblem: coverings
+  // at other levels contain characterization intervals, whose justification
+  // involves projection polynomials rather than the constraints themselves.
+  Assert(curVariable == d_variableOrdering.size() - 1);
+  NodeManager* nm = nodeManager();
+  // Build the substitution for the lower variables. Skip the dump if some
+  // assigned value is not rational, as it can not be expressed as an SMT-LIB
+  // constant.
+  std::vector<Node> vars;
+  std::vector<Node> subs;
+  for (std::size_t i = 0; i < curVariable; ++i)
+  {
+    const poly::Value& val = d_assignment.get(d_variableOrdering[i]);
+    Rational r;
+    if (is_integer(val))
+    {
+      r = poly_utils::toRational(as_integer(val));
+    }
+    else if (is_dyadic_rational(val))
+    {
+      r = poly_utils::toRational(as_dyadic_rational(val));
+    }
+    else if (is_rational(val))
+    {
+      r = poly_utils::toRational(as_rational(val));
+    }
+    else
+    {
+      return;
+    }
+    Node v = d_constraints.varMapper()(d_variableOrdering[i]);
+    vars.emplace_back(v);
+    subs.emplace_back(v.getType().isInteger() ? nm->mkConstInt(r)
+                                              : nm->mkConstReal(r));
+  }
+  Node var = d_constraints.varMapper()(d_variableOrdering[curVariable]);
+  std::vector<Node> assertions;
+  for (const auto& c : d_constraints.getConstraints())
+  {
+    if (main_variable(std::get<0>(c)) != d_variableOrdering[curVariable])
+    {
+      // Constraint is in another variable, it did not contribute to the
+      // covering at this level.
+      continue;
+    }
+    Node a = rewrite(std::get<2>(c).substitute(
+        vars.begin(), vars.end(), subs.begin(), subs.end()));
+    if (a.isConst() && a.getConst<bool>())
+    {
+      // The coefficient of the main variable vanished under the assignment
+      // and the constraint became trivially true; it contributed no
+      // infeasible interval, so it can be dropped.
+      continue;
+    }
+    assertions.emplace_back(a);
+  }
+  dumpUnivInstance(var, assertions);
+}
+
+void CDCAC::dumpUnivInstance(const Node& var,
+                             const std::vector<Node>& assertions) const
+{
+  const std::string& dir = options().arith.nlCovUnivDump;
+  if (dir.empty() || assertions.empty())
+  {
+    return;
+  }
+  std::stringstream ss;
+  ss << "(set-info :status unsat)" << std::endl;
+  ss << "(set-logic " << (var.getType().isInteger() ? "QF_NIA" : "QF_NRA")
+     << ")" << std::endl;
+  ss << "(declare-fun " << var << " () " << var.getType() << ")" << std::endl;
+  for (const Node& a : assertions)
+  {
+    ss << "(assert " << a << ")" << std::endl;
+  }
+  ss << "(check-sat)" << std::endl;
+  std::string content = ss.str();
+  // Deduplicate by content hash. The hash is also used as the file name, so
+  // repeated instances across separate runs map to the same file.
+  static thread_local std::unordered_set<size_t> s_dumped;
+  size_t h = std::hash<std::string>{}(content);
+  if (!s_dumped.insert(h).second)
+  {
+    return;
+  }
+  std::stringstream fname;
+  fname << dir << "/univ-" << std::hex << h << ".smt2";
+  std::ofstream out(fname.str());
+  if (!out)
+  {
+    warning() << "Could not open " << fname.str() << " for --nl-cov-univ-dump"
+              << std::endl;
+    return;
+  }
+  out << content;
 }
 
 std::vector<CACInterval> CDCAC::getUnsatCover(bool returnFirstInterval)

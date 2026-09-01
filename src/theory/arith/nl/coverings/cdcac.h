@@ -75,6 +75,22 @@ class CDCAC : protected EnvObj
   const Constraints& getConstraints() const;
 
   /**
+   * Whether the current problem is univariate, i.e. all constraint
+   * polynomials are univariate in the same variable. Only meaningful after
+   * computeVariableOrdering() has been called.
+   */
+  bool isUniv() const { return d_isUniv; }
+
+  /**
+   * Dump an unsat univariate instance (a set of assertions over the single
+   * variable var) as an SMT-LIB file into the directory given by
+   * --nl-cov-univ-dump. Instances are deduplicated by content hash; does
+   * nothing if the option is unset.
+   */
+  void dumpUnivInstance(const Node& var,
+                        const std::vector<Node>& assertions) const;
+
+  /**
    * Returns the current assignment. This is a satisfying model if
    * get_unsat_cover() returned an empty vector.
    */
@@ -242,6 +258,16 @@ class CDCAC : protected EnvObj
   size_t d_nextIntervalId = 1;
 
   bool d_isUniv = true;
+
+  /**
+   * Dump the univariate subproblem refuted at the deepest level: the
+   * constraints whose main variable is the last variable, under the current
+   * assignment of the lower variables. Only called when the covering at the
+   * deepest level is complete, so the substituted instance is unsat. Does
+   * nothing if some assigned value is not rational (not expressible as an
+   * SMT-LIB constant).
+   */
+  void dumpUnivSubproblem(std::size_t curVariable);
 };
 
 }  // namespace coverings
