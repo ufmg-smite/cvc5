@@ -44,7 +44,7 @@ struct VariableMapper;
 
 namespace coverings {
 
-struct UnivRootAtlas
+struct RootMap
 {
   /* All distinct roots of all constraint polynomials, sorted ascending,
    * with exactly one poly::Value per distinct real number. */
@@ -54,13 +54,13 @@ struct UnivRootAtlas
   std::vector<std::pair<poly::Polynomial, std::vector<std::size_t>>> d_members;
 };
 
-/* Builds the canonical root atlas from the raw pairs collected by
+/* Builds the canonical root map from the raw pairs collected by
  * addUnivRoots(). */
-UnivRootAtlas buildUnivRootAtlas(
+RootMap buildRootMap(
     const std::vector<std::pair<poly::Polynomial, poly::Value>>& polyRoots);
 
-/** Streams the atlas: canonical roots with ids, then membership. */
-std::ostream& operator<<(std::ostream& os, const UnivRootAtlas& atlas);
+/** Streams the map: canonical roots with ids, then membership. */
+std::ostream& operator<<(std::ostream& os, const RootMap& rootMap);
 
 
 /**
@@ -93,7 +93,7 @@ class CoveringsProofGenerator : protected EnvObj
   ProofGenerator* getProofGenerator() const;
   CDProof* getUnivProofGenerator() const;
 
-  void initializeAtlas();
+  void initializeRootMap();
 
   /**
    * Calls LazyTreeProofGenerator::pruneChildren(f), but decorates the
@@ -113,23 +113,10 @@ class CoveringsProofGenerator : protected EnvObj
       return f(tpn.d_objectId);
     });
   }
-  void setupOnlyUniv();
   void sortAndEraseDupsRoots();
   void addUnivRoots(const std::vector<poly::Value>& roots,
                     poly::Polynomial polys);
   void addIntervals(const std::vector<CACInterval>& intervals);
-  /**
-   * The raw (polynomial, root) pairs collected by addUnivRoots(), before any
-   * deduplication. Each pair (p, v) carries provenance: v was obtained by
-   * isolating the roots of exactly p. sortAndEraseDupsRoots() collapses this
-   * list by value and thereby loses the pairing, so callers that need it
-   * (e.g. buildUnivRootAtlas()) must run before that.
-   */
-  const std::vector<std::pair<poly::Polynomial, poly::Value>>& getPolysRoots()
-      const
-  {
-    return d_polysRoots;
-  }
   void closeUnivProof(std::vector<Node> constraints, VariableMapper &vm);
   /**
    * Add a direct interval conflict as generated in getUnsatIntervals().
@@ -183,10 +170,9 @@ class CoveringsProofGenerator : protected EnvObj
 
   CDProof* d_cdp;
   context::Context *d_ctx;
-  bool d_onlyUniv;
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
   std::vector<poly::Interval> d_intervals;
-  UnivRootAtlas d_atlas;
+  RootMap d_rootMap;
 };
 
 /**

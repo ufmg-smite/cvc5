@@ -30,33 +30,33 @@ namespace arith {
 namespace nl {
 namespace coverings {
 
-UnivRootAtlas buildUnivRootAtlas(
+RootMap buildRootMap(
     const std::vector<std::pair<poly::Polynomial, poly::Value>>& polyRoots)
 {
-  UnivRootAtlas atlas;
+  RootMap rootMap;
 
   for (const auto& pr : polyRoots)
   {
-    atlas.d_roots.push_back(pr.second);
+    rootMap.d_roots.push_back(pr.second);
   }
-  std::sort(atlas.d_roots.begin(), atlas.d_roots.end());
-  atlas.d_roots.erase(std::unique(atlas.d_roots.begin(), atlas.d_roots.end()),
-                      atlas.d_roots.end());
+  std::sort(rootMap.d_roots.begin(), rootMap.d_roots.end());
+  rootMap.d_roots.erase(std::unique(rootMap.d_roots.begin(), rootMap.d_roots.end()),
+                      rootMap.d_roots.end());
 
   for (const auto& pr : polyRoots)
   {
     auto rit = std::lower_bound(
-        atlas.d_roots.begin(), atlas.d_roots.end(), pr.second);
-    Assert(rit != atlas.d_roots.end() && *rit == pr.second);
-    std::size_t id = std::distance(atlas.d_roots.begin(), rit);
+        rootMap.d_roots.begin(), rootMap.d_roots.end(), pr.second);
+    Assert(rit != map.d_roots.end() && *rit == pr.second);
+    std::size_t id = std::distance(rootMap.d_roots.begin(), rit);
 
     auto mit = std::find_if(
-        atlas.d_members.begin(), atlas.d_members.end(), [&pr](const auto& m) {
+        rootMap.d_members.begin(), rootMap.d_members.end(), [&pr](const auto& m) {
           return m.first == pr.first;
         });
-    if (mit == atlas.d_members.end())
+    if (mit == rootMap.d_members.end())
     {
-      atlas.d_members.emplace_back(pr.first, std::vector<std::size_t>{id});
+      rootMap.d_members.emplace_back(pr.first, std::vector<std::size_t>{id});
     }
     else if (std::find(mit->second.begin(), mit->second.end(), id)
              == mit->second.end())
@@ -64,24 +64,24 @@ UnivRootAtlas buildUnivRootAtlas(
       mit->second.push_back(id);
     }
   }
-  for (auto& m : atlas.d_members)
+  for (auto& m : rootMap.d_members)
   {
     std::sort(m.second.begin(), m.second.end());
   }
 
-  return atlas;
+  return rootMap;
 }
 
-std::ostream& operator<<(std::ostream& os, const UnivRootAtlas& atlas)
+std::ostream& operator<<(std::ostream& os, const RootMap& map)
 {
-  os << "UnivRootAtlas:" << std::endl;
+  os << "RootMap:" << std::endl;
   os << "  roots (canonical, ascending):" << std::endl;
-  for (std::size_t i = 0; i < atlas.d_roots.size(); ++i)
+  for (std::size_t i = 0; i < map.d_roots.size(); ++i)
   {
-    os << "    [" << i << "] " << atlas.d_roots[i] << std::endl;
+    os << "    [" << i << "] " << map.d_roots[i] << std::endl;
   }
   os << "  members:" << std::endl;
-  for (const auto& m : atlas.d_members)
+  for (const auto& m : map.d_members)
   {
     os << "    " << m.first << " -> {";
     for (std::size_t j = 0; j < m.second.size(); ++j)
@@ -173,7 +173,7 @@ void CoveringsProofGenerator::startNewProof(bool isUniv)
   // roots collected for a previous check must not leak into this proof
   d_polysRoots.clear();
   d_intervals.clear();
-  d_atlas = UnivRootAtlas();
+  d_rootMap = RootMap();
   if (!isUniv)
   {
     d_current = d_proofs.allocateProof();
@@ -209,9 +209,9 @@ CDProof* CoveringsProofGenerator::getUnivProofGenerator() const
   return d_cdp;
 }
 
-void CoveringsProofGenerator::initializeAtlas()
+void CoveringsProofGenerator::initializeRootMap()
 {
-  d_atlas = buildUnivRootAtlas(d_polysRoots);
+  d_rootMap = buildRootMap(d_polysRoots);
 }
 
 void CoveringsProofGenerator::addUnivRoots(
@@ -219,7 +219,7 @@ void CoveringsProofGenerator::addUnivRoots(
 {
   for (const auto& root: roots)
   {
-    d_atlas.d_roots.emplace_back(poly, root);
+    d_polysRoots.emplace_back(poly, root);
   }
 }
 

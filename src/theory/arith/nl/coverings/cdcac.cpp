@@ -201,7 +201,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   pruneRedundantIntervals(res);
   if (isProofEnabled() && d_isUniv)
   {
-    d_proof->initializeAtlas();
+    d_proof->initializeRootMap();
     d_proof->addIntervals(res);
   }
   return res;
