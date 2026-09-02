@@ -108,34 +108,7 @@ void CDCAC::computeVariableOrdering()
     lp_variable_order_push(vo, v.get_internal());
   }
 
-  // The problem is univariate iff every constraint polynomial is univariate
-  // in the same variable. Note that checking is_univariate alone is not
-  // enough: a problem whose constraints are each univariate in different
-  // variables is still multivariate.
-  d_isUniv = true;
-  bool haveVar = false;
-  poly::Variable uvar;
-  for (const auto& c : d_constraints.getConstraints())
-  {
-    const poly::Polynomial& p = std::get<0>(c);
-    if (!is_univariate(p))
-    {
-      d_isUniv = false;
-      break;
-    }
-    poly::Variable v = main_variable(p);
-    if (!haveVar)
-    {
-      uvar = v;
-      haveVar = true;
-    }
-    else if (v != uvar)
-    {
-      d_isUniv = false;
-      break;
-    }
-  }
-  Trace("nl-is-univ") << "is univ: " << d_isUniv << std::endl;
+  d_isUniv = d_variableOrdering.size() == 1;
 }
 
 void CDCAC::retrieveInitialAssignment(NlModel& model, const Node& ran_variable)
@@ -225,17 +198,12 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
       }
     }
   }
-  if (isProofEnabled())
-  {
-    if (d_isUniv)
-    {
-      // must run before sortAndEraseDupsRoots(), which collapses the pair
-      // list by value and loses the polynomial-to-root pairing
-      d_proof->initializeAtlas();
-    }
-    d_proof->sortAndEraseDupsRoots();
-  }
   pruneRedundantIntervals(res);
+  if (isProofEnabled() && d_isUniv)
+  {
+    d_proof->initializeAtlas();
+    d_proof->addIntervals(res);
+  }
   return res;
 }
 
@@ -808,7 +776,7 @@ bool CDCAC::hasRootBelow(const poly::Polynomial& p,
 void CDCAC::pruneRedundantIntervals(std::vector<CACInterval>& intervals)
 {
   cleanIntervals(intervals);
-  if (options().arith.nlCovPrune)
+  if (options().arith.nlCovPrune || (d_isUniv && isProofEnabled()))
   {
     if (TraceIsOn("cdcac"))
     {

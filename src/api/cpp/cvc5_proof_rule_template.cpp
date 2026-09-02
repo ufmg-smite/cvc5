@@ -205,8 +205,8 @@ const char* toString(ProofRule rule)
       return "ARITH_TRANS_SINE_APPROX_BELOW_POS";
     case ProofRule::VALIDATE_POLY_MAP:
       return "VALIDATE_POLY_MAP";
-    case ProofRule::DECOMP:
-      return "DECOMP";
+    case ProofRule::COVER:
+      return "COVER";
     case ProofRule::SGN_INV_INTRO:
       return "SGN_INV_INTRO";
     case ProofRule::SGN_INV_ELIM:

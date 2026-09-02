@@ -108,7 +108,8 @@ Node ran_to_node(const poly::AlgebraicNumber& an, const Node& ran_variable);
 
 /**
  * Transforms a poly::Value to a node.
- * The resulting node can be either a constant or a witness term.
+ * The resulting node can be either a constant, a witness term or plus or minus
+ * infinity.
  */
 Node value_to_node(const poly::Value& v, const Node& ran_variable);
 

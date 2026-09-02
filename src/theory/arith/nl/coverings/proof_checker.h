@@ -48,6 +48,9 @@ class CoveringsProofRuleChecker : public ProofRuleChecker
   Node checkInternal(ProofRule id,
                      const std::vector<Node>& children,
                      const std::vector<Node>& args) override;
+
+ private:
+   Node checkCover(const std::vector<Node>& args);
 };
 
 }  // namespace coverings

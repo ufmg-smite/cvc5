@@ -2484,10 +2484,11 @@ enum ENUM(ProofRule)
    */
   EVALUE(VALIDATE_POLY_MAP),
   /**
-   * Generates a clause of the form `x < a_1 \or x = a_1 \or (x > a_1 \and x < a_2) \or ...
-   * Given a variable `x` and an ascending list of reals `[a_1, a_2, ...]`
+   * Generates a clause of the form `(x > i1_l /\ x < i1_r) \/ (x > i2_l /\ x < i2_r) ..`
+   * Given a variable `x` and a list of intervals [i1, i2, ..]. Assumes that the intervals
+   * cover the whole real line.
    */
-  EVALUE(DECOMP),
+  EVALUE(COVER),
   /**
    * Derives sgn_inv(p, l, r) from no_roots(p, l, r)
    */

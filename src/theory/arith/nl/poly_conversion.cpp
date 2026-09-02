@@ -19,6 +19,7 @@
 
 #include "expr/node.h"
 #include "theory/arith/bound_inference.h"
+#include "theory/arith/arith_utilities.h"
 #include "util/poly_util.h"
 
 using namespace cvc5::internal::kind;
@@ -401,11 +402,17 @@ Node ran_to_node(const poly::AlgebraicNumber& an, const Node& ran_variable)
 
 Node value_to_node(const poly::Value& v, const Node& ran_variable)
 {
-  Assert(!is_minus_infinity(v)) << "Can not convert minus infinity.";
   Assert(!is_none(v)) << "Can not convert none.";
-  Assert(!is_plus_infinity(v)) << "Can not convert plus infinity.";
 
   auto* nm = ran_variable.getNodeManager();
+  if (is_minus_infinity(v))
+  {
+    return mkMinusInfinity(nm);
+  }
+  if (is_plus_infinity(v))
+  {
+    return mkPlusInfinity(nm);
+  }
   if (is_algebraic_number(v))
   {
     auto ran = as_algebraic_number(v);

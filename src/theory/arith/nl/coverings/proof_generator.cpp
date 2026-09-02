@@ -37,7 +37,7 @@ UnivRootAtlas buildUnivRootAtlas(
 
   for (const auto& pr : polyRoots)
   {
-    atlas.d_roots.emplace_back(pr.second);
+    atlas.d_roots.push_back(pr.second);
   }
   std::sort(atlas.d_roots.begin(), atlas.d_roots.end());
   atlas.d_roots.erase(std::unique(atlas.d_roots.begin(), atlas.d_roots.end()),
@@ -172,6 +172,7 @@ void CoveringsProofGenerator::startNewProof(bool isUniv)
 {
   // roots collected for a previous check must not leak into this proof
   d_polysRoots.clear();
+  d_intervals.clear();
   d_atlas = UnivRootAtlas();
   if (!isUniv)
   {
@@ -213,21 +214,20 @@ void CoveringsProofGenerator::initializeAtlas()
   d_atlas = buildUnivRootAtlas(d_polysRoots);
 }
 
-void CoveringsProofGenerator::sortAndEraseDupsRoots()
-{
-  std::sort(d_polysRoots.begin(), d_polysRoots.end(),
-      [] (auto& a, auto& b) { return a.second < b.second; });
-  auto last = std::unique(d_polysRoots.begin(), d_polysRoots.end(),
-      [] (auto& a, auto& b) { return a.second == b.second; });
-  d_polysRoots.erase(last, d_polysRoots.end());
-}
-
 void CoveringsProofGenerator::addUnivRoots(
     const std::vector<poly::Value>& roots, poly::Polynomial poly)
 {
-  for (auto val : roots)
+  for (const auto& root: roots)
   {
-    d_polysRoots.emplace_back(poly, val);
+    d_atlas.d_roots.emplace_back(poly, root);
+  }
+}
+
+void CoveringsProofGenerator::addIntervals(const std::vector<CACInterval>& intervals)
+{
+  for (const auto& interval: intervals)
+  {
+    d_intervals.push_back(interval.d_interval);
   }
 }
 
@@ -243,12 +243,57 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
     Node val = value_to_node(pr.second, var);
     args.push_back(nodeManager()->mkNode(Kind::SEXPR, poly, val));
   }
-  Assert(!constraints.empty());
-  Node mis = constraints[0];
-  if (constraints.size() > 1)
+  NodeManager* nm = nodeManager();
+  Node mis = nm->mkAnd(constraints);
+
+  std::vector<Node> intsData;
+  std::vector<Node> disjs;
+  bool hasFullInterval = false;
+  for (const auto& interval: d_intervals)
   {
-    mis = nodeManager()->mkAnd(constraints);
+    Node lower = value_to_node(get_lower(interval), var);
+    bool lowerOpen = get_lower_open(interval);
+    Node lowerOpenNode = nm->mkConst<bool>(lowerOpen);
+    Node upper = value_to_node(get_upper(interval), var);
+    bool upperOpen = get_upper_open(interval);
+    Node upperOpenNode = nm->mkConst<bool>(upperOpen);
+    intsData.push_back(nm->mkNode(Kind::SEXPR, {lower, lowerOpenNode, upper, upperOpenNode}));
+
+    if (lower == upper)
+    {
+      disjs.push_back(nm->mkNode(Kind::EQUAL, var, lower));
+    }
+    else
+    {
+      std::vector<Node> conjs;
+      if (lower.getKind() != Kind::MINUS_INFINITY)
+      {
+        Node conj =
+          lowerOpen ?
+            nm->mkNode(Kind::GT, var, lower) :
+            nm->mkNode(Kind::GEQ, var, lower);
+        conjs.push_back(conj);
+      }
+      if (upper.getKind() != Kind::PLUS_INFINITY)
+      {
+        Node conj =
+          upperOpen ?
+            nm->mkNode(Kind::LT, var, upper) :
+            nm->mkNode(Kind::LEQ, var, upper);
+        conjs.push_back(conj);
+      }
+      if (conjs.empty())
+      {
+        hasFullInterval = true;
+      }
+      disjs.push_back(nm->mkAnd(conjs));
+    }
   }
+  Node intsDataNode = nm->mkNode(Kind::SEXPR, intsData);
+  std::vector<Node> coverArgs{var, intsDataNode};
+  Node coverConc = hasFullInterval ? nm->mkConst<bool>(true) : nm->mkOr(disjs);
+  d_cdp->addStep(coverConc, ProofRule::COVER, {}, coverArgs);
+
   d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, constraints, args);
   d_cdp->addStep(mis.notNode(), ProofRule::SCOPE, {d_false}, constraints);
 }

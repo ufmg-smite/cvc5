@@ -117,6 +117,7 @@ class CoveringsProofGenerator : protected EnvObj
   void sortAndEraseDupsRoots();
   void addUnivRoots(const std::vector<poly::Value>& roots,
                     poly::Polynomial polys);
+  void addIntervals(const std::vector<CACInterval>& intervals);
   /**
    * The raw (polynomial, root) pairs collected by addUnivRoots(), before any
    * deduplication. Each pair (p, v) carries provenance: v was obtained by
@@ -184,6 +185,7 @@ class CoveringsProofGenerator : protected EnvObj
   context::Context *d_ctx;
   bool d_onlyUniv;
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
+  std::vector<poly::Interval> d_intervals;
   UnivRootAtlas d_atlas;
 };
 
