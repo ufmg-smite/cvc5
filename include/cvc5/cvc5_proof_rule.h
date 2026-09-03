@@ -2482,7 +2482,7 @@ enum ENUM(ProofRule)
    * where the `p_i`s range over all polynomials in the map and the `l_i`s and
    * `r_i`s range over all the roots of the map
    */
-  EVALUE(VALIDATE_POLY_MAP),
+  EVALUE(VALIDATE_ROOT_MAP),
   /**
    * Generates a clause of the form `(x > i1_l /\ x < i1_r) \/ (x > i2_l /\ x < i2_r) ..`
    * Given a variable `x` and a list of intervals [i1, i2, ..]. Assumes that the intervals

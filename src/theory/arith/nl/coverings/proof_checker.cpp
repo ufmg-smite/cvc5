@@ -38,7 +38,7 @@ void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
   pc->registerChecker(ProofRule::COVER, this);
   pc->registerChecker(ProofRule::SGN_INV_INTRO, this);
   pc->registerChecker(ProofRule::SGN_INV_ELIM, this);
-  pc->registerChecker(ProofRule::VALIDATE_POLY_MAP, this);
+  pc->registerChecker(ProofRule::VALIDATE_ROOT_MAP, this);
   pc->registerChecker(ProofRule::RAN_EVAL, this);
 }
 
@@ -58,12 +58,12 @@ Node CoveringsProofRuleChecker::checkCover(const std::vector<Node>& args)
   std::vector<Node> disjs;
   for (const Node& iv : args[1])
   {
-    if (iv.getKind() != Kind::SEXPR || iv.getNumChildren() != 4)
+    if (iv.getKind() != Kind::SEXPR || iv.getNumChildren() != 2)
     {
       return Node::null();
     }
 
-    if (iv[0] == iv[2])
+    if (iv[0] == iv[1])
     {
       disjs.push_back(nm->mkNode(Kind::EQUAL, var, iv[0]));
     }
@@ -72,25 +72,17 @@ Node CoveringsProofRuleChecker::checkCover(const std::vector<Node>& args)
       std::vector<Node> conjs;
       if (iv[0].getKind() != Kind::MINUS_INFINITY)
       {
-        bool lowerOpen = iv[1] == nm->mkConst<bool>(true);
-        Node conj =
-          lowerOpen ?
-            nm->mkNode(Kind::GT, var, iv[0]) :
-            nm->mkNode(Kind::GEQ, var, iv[0]);
+        Node conj = nm->mkNode(Kind::GT, var, iv[0]);
         conjs.push_back(conj);
       }
-      if (iv[2].getKind() != Kind::PLUS_INFINITY)
+      if (iv[1].getKind() != Kind::PLUS_INFINITY)
       {
-        bool upperOpen = iv[3] == nm->mkConst<bool>(true);
-        Node conj =
-          upperOpen ?
-            nm->mkNode(Kind::LT, var, iv[2]) :
-            nm->mkNode(Kind::LEQ, var, iv[2]);
+        Node conj = nm->mkNode(Kind::LT, var, iv[1]);
         conjs.push_back(conj);
       }
       if (conjs.empty())
       {
-        return nm->mkConst<bool>(true);
+        return nm->mkConst(true);
       }
       disjs.push_back(nm->mkAnd(conjs));
     }
@@ -111,10 +103,9 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
   }
   if (id == ProofRule::COVER)
   {
-    // return nm->mkConst<bool>(false);
     return checkCover(args);
   }
-  // SGN_INV_INTRO, SGN_INV_ELIM, RAN_EVAL and VALIDATE_POLY_MAP do not
+  // SGN_INV_INTRO, SGN_INV_ELIM, RAN_EVAL and VALIDATE_ROOT_MAP do not
   // conclude false, so returning it here would be rejected as a conclusion
   // mismatch as soon as such steps are emitted. TODO: compute their
   // conclusions from the premises and arguments.

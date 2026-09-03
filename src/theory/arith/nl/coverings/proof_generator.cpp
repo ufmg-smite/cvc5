@@ -223,11 +223,46 @@ void CoveringsProofGenerator::addUnivRoots(
   }
 }
 
-void CoveringsProofGenerator::addIntervals(const std::vector<CACInterval>& intervals)
+void CoveringsProofGenerator::addPointPiece(const poly::Value& v, const poly::Polynomial& p)
 {
-  for (const auto& interval: intervals)
+  for (const auto& [interval, polynomial]: d_intervals)
   {
-    d_intervals.push_back(interval.d_interval);
+    if (poly::is_point(interval) && poly::get_lower(interval) == v)
+    {
+      return;
+    }
+  }
+  d_intervals.emplace_back(poly::Interval(v), p);
+}
+
+void CoveringsProofGenerator::addIntervals(
+    const std::vector<CACInterval>& intervals,
+    const std::map<Node, poly::Polynomial>& constraintPolys)
+{
+  for (const auto& cac_interval: intervals)
+  {
+    const poly::Interval& interval = cac_interval.d_interval;
+    Assert(cac_interval.d_origins.size() == 1);
+    const Node& originalConstraint = cac_interval.d_origins[0];
+    const poly::Polynomial& polynomial = constraintPolys.at(originalConstraint);
+
+    if (poly::is_point(interval))
+    {
+      addPointPiece(poly::get_lower(interval), polynomial);
+      continue;
+    }
+    auto lower = poly::get_lower(interval);
+    auto upper = poly::get_upper(interval);
+    if (!poly::get_lower_open(interval))
+    {
+      addPointPiece(lower, polynomial);
+    }
+    auto open_interval = poly::Interval(lower, upper);
+    d_intervals.emplace_back(open_interval, polynomial);
+    if (!poly::get_upper_open(interval))
+    {
+      addPointPiece(upper, polynomial);
+    }
   }
 }
 
@@ -235,6 +270,7 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
                                              VariableMapper& vm)
 {
   Assert(vm.mVarCVCpoly.size() == 1 && vm.mVarpolyCVC.size() == 1);
+  Assert(!d_intervals.empty());
   Node var = vm.mVarCVCpoly.begin()->first;
   std::vector<Node> args{var};
   for (const auto& pr : d_polysRoots)
@@ -249,15 +285,11 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
   std::vector<Node> intsData;
   std::vector<Node> disjs;
   bool hasFullInterval = false;
-  for (const auto& interval: d_intervals)
+  for (const auto& [interval, polynomial]: d_intervals)
   {
     Node lower = value_to_node(get_lower(interval), var);
-    bool lowerOpen = get_lower_open(interval);
-    Node lowerOpenNode = nm->mkConst<bool>(lowerOpen);
     Node upper = value_to_node(get_upper(interval), var);
-    bool upperOpen = get_upper_open(interval);
-    Node upperOpenNode = nm->mkConst<bool>(upperOpen);
-    intsData.push_back(nm->mkNode(Kind::SEXPR, {lower, lowerOpenNode, upper, upperOpenNode}));
+    intsData.push_back(nm->mkNode(Kind::SEXPR, {lower, upper}));
 
     if (lower == upper)
     {
@@ -268,18 +300,12 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
       std::vector<Node> conjs;
       if (lower.getKind() != Kind::MINUS_INFINITY)
       {
-        Node conj =
-          lowerOpen ?
-            nm->mkNode(Kind::GT, var, lower) :
-            nm->mkNode(Kind::GEQ, var, lower);
+        Node conj = nm->mkNode(Kind::GT, var, lower);
         conjs.push_back(conj);
       }
       if (upper.getKind() != Kind::PLUS_INFINITY)
       {
-        Node conj =
-          upperOpen ?
-            nm->mkNode(Kind::LT, var, upper) :
-            nm->mkNode(Kind::LEQ, var, upper);
+        Node conj = nm->mkNode(Kind::LT, var, upper);
         conjs.push_back(conj);
       }
       if (conjs.empty())
@@ -289,10 +315,13 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
       disjs.push_back(nm->mkAnd(conjs));
     }
   }
-  Node intsDataNode = nm->mkNode(Kind::SEXPR, intsData);
-  std::vector<Node> coverArgs{var, intsDataNode};
-  Node coverConc = hasFullInterval ? nm->mkConst<bool>(true) : nm->mkOr(disjs);
-  d_cdp->addStep(coverConc, ProofRule::COVER, {}, coverArgs);
+  if (!hasFullInterval)
+  {
+    Node intsDataNode = nm->mkNode(Kind::SEXPR, intsData);
+    std::vector<Node> coverArgs{var, intsDataNode};
+    Node coverConc = nm->mkOr(disjs);
+    d_cdp->addStep(coverConc, ProofRule::COVER, {}, coverArgs);
+  }
 
   d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, constraints, args);
   d_cdp->addStep(mis.notNode(), ProofRule::SCOPE, {d_false}, constraints);

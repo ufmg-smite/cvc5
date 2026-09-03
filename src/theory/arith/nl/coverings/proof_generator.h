@@ -23,6 +23,7 @@
 #include <poly/polyxx.h>
 
 #include <vector>
+#include <map>
 
 #include "expr/node.h"
 #include "proof/lazy_tree_proof_generator.h"
@@ -116,7 +117,9 @@ class CoveringsProofGenerator : protected EnvObj
   void sortAndEraseDupsRoots();
   void addUnivRoots(const std::vector<poly::Value>& roots,
                     poly::Polynomial polys);
-  void addIntervals(const std::vector<CACInterval>& intervals);
+  void addPointPiece(const poly::Value& v, const poly::Polynomial& p);
+  void addIntervals(const std::vector<CACInterval>& intervals,
+                    const std::map<Node, poly::Polynomial>& constraintPolys);
   void closeUnivProof(std::vector<Node> constraints, VariableMapper &vm);
   /**
    * Add a direct interval conflict as generated in getUnsatIntervals().
@@ -171,7 +174,7 @@ class CoveringsProofGenerator : protected EnvObj
   CDProof* d_cdp;
   context::Context *d_ctx;
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
-  std::vector<poly::Interval> d_intervals;
+  std::vector<std::pair<poly::Interval, poly::Polynomial>> d_intervals;
   RootMap d_rootMap;
 };
 

@@ -155,7 +155,7 @@ bool AlfPrinter::isHandled(const Options& opts, const ProofNode* pfn)
     case ProofRule::ARITH_TRANS_SINE_SYMMETRY:
     case ProofRule::ARITH_TRANS_SINE_TANGENT_ZERO:
     case ProofRule::ARITH_TRANS_SINE_TANGENT_PI:
-    case ProofRule::VALIDATE_POLY_MAP:
+    case ProofRule::VALIDATE_ROOT_MAP:
     case ProofRule::COVER:
     case ProofRule::SGN_INV_INTRO:
     case ProofRule::SGN_INV_ELIM:
