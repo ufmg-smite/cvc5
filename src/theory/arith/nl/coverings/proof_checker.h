@@ -50,6 +50,7 @@ class CoveringsProofRuleChecker : public ProofRuleChecker
                      const std::vector<Node>& args) override;
 
  private:
+   Node checkValidateIntervals(const std::vector<Node>& args);
    Node checkCover(const std::vector<Node>& args);
 };
 

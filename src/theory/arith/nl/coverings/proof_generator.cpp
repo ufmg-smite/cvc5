@@ -81,7 +81,6 @@ std::vector<size_t> RootMap::polyRootIndices(const poly::Polynomial& p)
       return ids;
     }
   }
-  Assert(false);
   return {};
 }
 
@@ -297,7 +296,7 @@ void CoveringsProofGenerator::addIntervals(
         poly::Value pRoot = d_rootMap.d_roots[root_idx];
         poly::Interval open_interval = poly::Interval(lower, pRoot);
         d_intervals.emplace_back(open_interval, polynomial);
-        d_intervals.emplace_back(poly::Interval(pRoot), polynomial);
+        addPointPiece(pRoot, polynomial);
         lower_idx = root_idx;
         lower = d_rootMap.d_roots[root_idx];
       }
@@ -312,26 +311,13 @@ void CoveringsProofGenerator::addIntervals(
   }
 }
 
-void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
-                                             VariableMapper& vm)
+void CoveringsProofGenerator::addCoverStep(const Node& var, std::vector<Node>& prem)
 {
-  Assert(vm.mVarCVCpoly.size() == 1 && vm.mVarpolyCVC.size() == 1);
-  Assert(!d_intervals.empty());
-  Node var = vm.mVarCVCpoly.begin()->first;
-  std::vector<Node> args{var};
-  for (const auto& pr : d_polysRoots)
-  {
-    Node poly = as_cvc_polynomial(nodeManager(), pr.first, vm);
-    Node val = value_to_node(pr.second, var);
-    args.push_back(nodeManager()->mkNode(Kind::SEXPR, poly, val));
-  }
   NodeManager* nm = nodeManager();
-  Node mis = nm->mkAnd(constraints);
-
   std::vector<Node> intsData;
   std::vector<Node> disjs;
   bool hasFullInterval = false;
-  for (const auto& [interval, polynomial]: d_intervals)
+  for (const auto& [interval, _]: d_intervals)
   {
     Node lower = value_to_node(get_lower(interval), var);
     Node upper = value_to_node(get_upper(interval), var);
@@ -362,7 +348,6 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
     }
   }
 
-  std::vector<Node> prem;
   if (!hasFullInterval)
   {
     Node intsDataNode = nm->mkNode(Kind::SEXPR, intsData);
@@ -371,6 +356,77 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
     d_cdp->addStep(coverConc, ProofRule::COVER, {}, coverArgs);
     prem.push_back(coverConc);
   }
+}
+
+void CoveringsProofGenerator::addValidateIntervalsStep(
+    const Node& var,
+    VariableMapper& vm,
+    std::vector<Node>& prem)
+{
+  NodeManager* nm = nodeManager();
+  std::vector<Node> intervalsData;
+  std::vector<Node> concConjs;
+  for (const auto& [interval, p]: d_intervals)
+  {
+    if (is_point(interval))
+    {
+      continue;
+    }
+    Node cvc_p = nl::as_cvc_polynomial(nm, p, vm);
+    Node l = value_to_node(get_lower(interval), var);
+    Node r = value_to_node(get_upper(interval), var);
+
+    intervalsData.push_back(nm->mkNode(Kind::SEXPR, {cvc_p, l, r}));
+    concConjs.push_back(mkNoRoots(nm, cvc_p, l, r));
+  }
+
+  std::vector<Node> rootsData;
+  for (const poly::Value& r : d_rootMap.d_roots)
+  {
+    rootsData.push_back(value_to_node(r, var));
+  }
+
+  std::vector<Node> membersData;
+  for (const auto& [p, ids] : d_rootMap.d_members)
+  {
+    Node cvc_p = nl::as_cvc_polynomial(nm, p, vm);
+    std::vector<Node> idsData;
+    for (size_t id : ids)
+    {
+      idsData.push_back(nm->mkConstInt(Rational(id)));
+    }
+    membersData.push_back(
+        nm->mkNode(Kind::SEXPR, cvc_p, nm->mkNode(Kind::SEXPR, idsData)));
+  }
+
+  std::vector<Node> args{nm->mkNode(Kind::SEXPR, intervalsData),
+                         nm->mkNode(Kind::SEXPR, rootsData),
+                         nm->mkNode(Kind::SEXPR, membersData)};
+  Node conc = nm->mkAnd(concConjs);
+  prem.push_back(conc);
+  d_cdp->addStep(conc, ProofRule::VALIDATE_INTERVALS, {}, args);
+}
+
+void CoveringsProofGenerator::closeUnivProof(
+    std::vector<Node> constraints,
+    VariableMapper& vm)
+{
+  Assert(vm.mVarCVCpoly.size() == 1 && vm.mVarpolyCVC.size() == 1);
+  Assert(!d_intervals.empty());
+  Node var = vm.mVarCVCpoly.begin()->first;
+  std::vector<Node> args{var};
+  for (const auto& pr : d_polysRoots)
+  {
+    Node poly = as_cvc_polynomial(nodeManager(), pr.first, vm);
+    Node val = value_to_node(pr.second, var);
+    args.push_back(nodeManager()->mkNode(Kind::SEXPR, poly, val));
+  }
+  NodeManager* nm = nodeManager();
+  Node mis = nm->mkAnd(constraints);
+
+  std::vector<Node> prem;
+  addCoverStep(var, prem);
+  addValidateIntervalsStep(var, vm, prem);
 
   prem.insert(prem.end(), constraints.begin(), constraints.end());
   d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, prem, args);

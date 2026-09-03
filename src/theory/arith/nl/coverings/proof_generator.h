@@ -126,7 +126,16 @@ class CoveringsProofGenerator : protected EnvObj
   // whose corresponding polynomial contains a root in the middle of it.
   void addIntervals(const std::vector<CACInterval>& intervals,
                     const std::map<Node, poly::Polynomial>& constraintPolys);
-  void closeUnivProof(std::vector<Node> constraints, VariableMapper &vm);
+  void addCoverStep(const Node& var, std::vector<Node>& prem);
+
+  void addValidateIntervalsStep(
+      const Node& var,
+      VariableMapper& vm,
+      std::vector<Node>& prem);
+
+  void closeUnivProof(
+      std::vector<Node> constraints,
+      VariableMapper& vm);
   /**
    * Add a direct interval conflict as generated in getUnsatIntervals().
    * Its meaning is:

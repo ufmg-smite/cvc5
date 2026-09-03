@@ -2477,12 +2477,15 @@ enum ENUM(ProofRule)
    */
   EVALUE(ARITH_TRANS_SINE_APPROX_BELOW_POS),
   /**
-   * Checks the polynomial-to-roots map (given as an argument) is complete. If
-   * it is, concludes a subset of the following facts: no_roots(p_i, l_i, r_i),
-   * where the `p_i`s range over all polynomials in the map and the `l_i`s and
-   * `r_i`s range over all the roots of the map
+   * Receives a list of pairs (interval, polynomial), the list of all roots of all polynomials
+   * in the problem and a list of pairs (p, root_indices), where the indices point to the
+   * list of all roots, corresponding to the roots of that polynomial. Concludes
+   * NO_ROOT(p, l, r) for each pair in the first argument. Requires as a side condition
+   * that the list of roots is sorted in ascending order, the root list of each polynomial
+   * is exhaustive and each interval does not contain a root of the corresponding polynomial
+   * in its interior.
    */
-  EVALUE(VALIDATE_ROOT_MAP),
+  EVALUE(VALIDATE_INTERVALS),
   /**
    * Generates a clause of the form `(x > i1_l /\ x < i1_r) \/ (x > i2_l /\ x < i2_r) ..`
    * Given a variable `x` and a list of intervals [i1, i2, ..]. Assumes that the intervals

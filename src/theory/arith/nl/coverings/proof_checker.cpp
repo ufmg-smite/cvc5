@@ -16,6 +16,7 @@
 #include "theory/arith/nl/coverings/proof_checker.h"
 
 #include "expr/sequence.h"
+#include "theory/arith/arith_utilities.h"
 #include "util/rational.h"
 #include "util/real_algebraic_number.h"
 
@@ -38,8 +39,30 @@ void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
   pc->registerChecker(ProofRule::COVER, this);
   pc->registerChecker(ProofRule::SGN_INV_INTRO, this);
   pc->registerChecker(ProofRule::SGN_INV_ELIM, this);
-  pc->registerChecker(ProofRule::VALIDATE_ROOT_MAP, this);
+  pc->registerChecker(ProofRule::VALIDATE_INTERVALS, this);
   pc->registerChecker(ProofRule::RAN_EVAL, this);
+}
+
+Node CoveringsProofRuleChecker::checkValidateIntervals(const std::vector<Node>& args)
+{
+  NodeManager* nm = nodeManager();
+  if (args.size() != 3 || args[0].getKind() != Kind::SEXPR
+      || args[1].getKind() != Kind::SEXPR || args[2].getKind() != Kind::SEXPR)
+  {
+    return Node::null();
+  }
+  // TODO: check the side condition (root map complete, each (l, r) a gap
+  // between consecutive roots of p or an infinite side)
+  std::vector<Node> conj;
+  for (const Node& e : args[0])
+  {
+    if (e.getKind() != Kind::SEXPR || e.getNumChildren() != 3)
+    {
+      return Node::null();
+    }
+    conj.push_back(mkNoRoots(nm, e[0], e[1], e[2]));
+  }
+  return nm->mkAnd(conj);
 }
 
 // TODO: Check side condition
@@ -99,13 +122,17 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
   // TODO: Actually check the proof.
   if (id == ProofRule::ARITH_COVERINGS_UNIV)
   {
-    return nm->mkConst<bool>(false);
+    return nm->mkConst(false);
   }
   if (id == ProofRule::COVER)
   {
     return checkCover(args);
   }
-  // SGN_INV_INTRO, SGN_INV_ELIM, RAN_EVAL and VALIDATE_ROOT_MAP do not
+  if (id == ProofRule::VALIDATE_INTERVALS)
+  {
+    return checkValidateIntervals(args);
+  }
+  // SGN_INV_INTRO, SGN_INV_ELIM and RAN_EVAL do not
   // conclude false, so returning it here would be rejected as a conclusion
   // mismatch as soon as such steps are emitted. TODO: compute their
   // conclusions from the premises and arguments.

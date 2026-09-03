@@ -142,8 +142,8 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   std::vector<CACInterval> res;
   LazardEvaluation le(statisticsRegistry(), nodeManager()->getPolyContext());
   prepareRootIsolation(le, cur_variable);
-
   std::map<Node, poly::Polynomial> constraintPolys;
+
   for (const auto& c : d_constraints.getConstraints())
   {
     const poly::Polynomial& p = std::get<0>(c);
