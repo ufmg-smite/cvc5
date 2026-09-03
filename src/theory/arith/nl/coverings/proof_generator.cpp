@@ -72,6 +72,32 @@ RootMap buildRootMap(
   return rootMap;
 }
 
+std::vector<size_t> RootMap::polyRootIndices(const poly::Polynomial& p)
+{
+  for (const auto& [q, ids]: d_members)
+  {
+    if (q == p)
+    {
+      return ids;
+    }
+  }
+  Assert(false);
+  return {};
+}
+
+size_t RootMap::rootIndex(const poly::Value& r)
+{
+  for (size_t i = 0; i < d_roots.size(); ++i)
+  {
+    if (d_roots[i] == r)
+    {
+      return i;
+    }
+  }
+  Assert(false);
+  return 0;
+}
+
 std::ostream& operator<<(std::ostream& os, const RootMap& map)
 {
   os << "RootMap:" << std::endl;
@@ -251,14 +277,34 @@ void CoveringsProofGenerator::addIntervals(
       addPointPiece(poly::get_lower(interval), polynomial);
       continue;
     }
-    auto lower = poly::get_lower(interval);
-    auto upper = poly::get_upper(interval);
+    poly::Value lower = poly::get_lower(interval);
+    poly::Value upper = poly::get_upper(interval);
     if (!poly::get_lower_open(interval))
     {
       addPointPiece(lower, polynomial);
     }
+
+    int lower_idx = poly::is_minus_infinity(lower) ? -1 : d_rootMap.rootIndex(lower);
+    int upper_idx = poly::is_plus_infinity(upper) ? d_rootMap.d_roots.size() : d_rootMap.rootIndex(upper);
+    for (const auto& root_idx: d_rootMap.polyRootIndices(polynomial))
+    {
+      if (int(root_idx) >= upper_idx)
+      {
+        break;
+      }
+      if (int(root_idx) > lower_idx)
+      {
+        poly::Value pRoot = d_rootMap.d_roots[root_idx];
+        poly::Interval open_interval = poly::Interval(lower, pRoot);
+        d_intervals.emplace_back(open_interval, polynomial);
+        d_intervals.emplace_back(poly::Interval(pRoot), polynomial);
+        lower_idx = root_idx;
+        lower = d_rootMap.d_roots[root_idx];
+      }
+    }
     auto open_interval = poly::Interval(lower, upper);
     d_intervals.emplace_back(open_interval, polynomial);
+
     if (!poly::get_upper_open(interval))
     {
       addPointPiece(upper, polynomial);
@@ -315,15 +361,19 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
       disjs.push_back(nm->mkAnd(conjs));
     }
   }
+
+  std::vector<Node> prem;
   if (!hasFullInterval)
   {
     Node intsDataNode = nm->mkNode(Kind::SEXPR, intsData);
     std::vector<Node> coverArgs{var, intsDataNode};
     Node coverConc = nm->mkOr(disjs);
     d_cdp->addStep(coverConc, ProofRule::COVER, {}, coverArgs);
+    prem.push_back(coverConc);
   }
 
-  d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, constraints, args);
+  prem.insert(prem.end(), constraints.begin(), constraints.end());
+  d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, prem, args);
   d_cdp->addStep(mis.notNode(), ProofRule::SCOPE, {d_false}, constraints);
 }
 void CoveringsProofGenerator::addDirect(Node var,

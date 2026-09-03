@@ -52,7 +52,10 @@ struct RootMap
   std::vector<poly::Value> d_roots;
 
   // For each constraint polynomial, the indices into d_roots of its own roots, sorted ascending.
-  std::vector<std::pair<poly::Polynomial, std::vector<std::size_t>>> d_members;
+  std::vector<std::pair<poly::Polynomial, std::vector<size_t>>> d_members;
+
+  std::vector<size_t> polyRootIndices(const poly::Polynomial& p);
+  size_t rootIndex(const poly::Value& r);
 };
 
 /* Builds the canonical root map from the raw pairs collected by
@@ -118,6 +121,9 @@ class CoveringsProofGenerator : protected EnvObj
   void addUnivRoots(const std::vector<poly::Value>& roots,
                     poly::Polynomial polys);
   void addPointPiece(const poly::Value& v, const poly::Polynomial& p);
+
+  // Adds `intervals` to `d_intervals`, breaking closed intervals and intervals
+  // whose corresponding polynomial contains a root in the middle of it.
   void addIntervals(const std::vector<CACInterval>& intervals,
                     const std::map<Node, poly::Polynomial>& constraintPolys);
   void closeUnivProof(std::vector<Node> constraints, VariableMapper &vm);
