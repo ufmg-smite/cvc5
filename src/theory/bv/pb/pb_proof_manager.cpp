@@ -63,8 +63,8 @@ void PbProofManager::convertProof(
   {
     const Node& pbc = inputConstraints[i].first;
     const Node& fact = inputConstraints[i].second;
-    bool negated = i > 0 && inputConstraints[i] == inputConstraints[i - 1];
-    translator.registerInputConstraint(i + 1, pbc, fact, negated);
+    if(pbc.getKind() == Kind::EQUAL) translator.registerInputConstraint(i, pbc, fact, true);
+    translator.registerInputConstraint(i, pbc, fact, false);
   }
 
   // Derived steps start at N+1 and only id-advancing kinds consume an id.

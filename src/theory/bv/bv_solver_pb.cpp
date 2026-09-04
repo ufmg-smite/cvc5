@@ -75,25 +75,14 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
   d_pbSolver->reset();
   Trace("bv-postcheck") << "Post Check\n";
 
-  std::vector<Node> allFacts;
-  // Pair each input PB constraint with its BV fact, matching RoundingSat's
-  // id stream: dedup by Node (RoundingSat does), and push EQUAL twice (split
-  // into >= and <=).
   std::vector<std::pair<Node, Node>> inputConstraints;
-  std::unordered_set<Node> recordedConstraints;
-  auto recordInput = [&](const Node& c, const Node& fact) {
-    if (!recordedConstraints.insert(c).second) return;
-    inputConstraints.push_back({c, fact});
-    if (c.getKind() == Kind::EQUAL) inputConstraints.push_back({c, fact});
-  };
   for (const Node& fact : d_assumptions)
   {
     Trace("bv-postcheck") << fact << "\n";
-    allFacts.push_back(fact);
     for (const Node& constraint : d_pbBlaster->getAtom(fact))
     {
       d_pbSolver->addConstraint(constraint);
-      recordInput(constraint, fact);
+      inputConstraints.push_back({constraint, fact});
     }
   }
 
