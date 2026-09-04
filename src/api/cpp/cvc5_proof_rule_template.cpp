@@ -207,8 +207,6 @@ const char* toString(ProofRule rule)
       return "VALIDATE_INTERVALS";
     case ProofRule::COVER:
       return "COVER";
-    case ProofRule::SGN_INV_INTRO:
-      return "SGN_INV_INTRO";
     case ProofRule::SGN_INV_ELIM:
       return "SGN_INV_ELIM";
     case ProofRule::RAN_EVAL:

@@ -305,15 +305,6 @@ inline Node mkSgnInv(NodeManager* nm, Node p, Node lo, Node hi)
   return nm->mkNode(Kind::SGN_INV, p, lo, hi);
 }
 
-/**
- * The no-roots predicate of univariate coverings proofs: p has no root on
- * the open interval (lo, hi). Same signature as SGN_INV, including the
- * infinity markers for unbounded sides.
- */
-inline Node mkNoRoots(NodeManager* nm, Node p, Node lo, Node hi)
-{
-  return nm->mkNode(Kind::NO_ROOTS, p, lo, hi);
-}
 /** Join kinds, where k1 and k2 are arithmetic relations returns an
  * arithmetic relation ret such that
  * if (a <k1> b) and (a <k2> b), then (a <ret> b).

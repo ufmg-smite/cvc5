@@ -58,6 +58,23 @@ struct RootMap
   size_t rootIndex(const poly::Value& r);
 };
 
+struct ProofInterval
+{
+  poly::Interval d_interval;
+  poly::Polynomial d_poly;
+  Node d_origin; // the original constraint on d_poly
+  Node d_fact; // The expression stating that d_poly is SGN_INV in d_interval
+
+  ProofInterval(const poly::Interval& _d_interval,
+                const poly::Polynomial& _d_poly,
+                const Node& _d_origin,
+                const Node& _d_fact) :
+    d_interval(_d_interval),
+    d_poly(_d_poly),
+    d_origin(_d_origin),
+    d_fact(_d_fact) {}
+};
+
 /* Builds the canonical root map from the raw pairs collected by
  * addUnivRoots(). */
 RootMap buildRootMap(
@@ -120,18 +137,23 @@ class CoveringsProofGenerator : protected EnvObj
   void sortAndEraseDupsRoots();
   void addUnivRoots(const std::vector<poly::Value>& roots,
                     poly::Polynomial polys);
-  void addPointPiece(const poly::Value& v, const poly::Polynomial& p);
+  void addPointPiece(const poly::Value& v,
+                     const poly::Polynomial& p,
+                     const Node& origin);
 
   // Adds `intervals` to `d_intervals`, breaking closed intervals and intervals
   // whose corresponding polynomial contains a root in the middle of it.
   void addIntervals(const std::vector<CACInterval>& intervals,
                     const std::map<Node, poly::Polynomial>& constraintPolys);
-  void addCoverStep(const Node& var, std::vector<Node>& prem);
+  Node addCoverStep(const Node& var);
 
-  void addValidateIntervalsStep(
+  Node addValidateIntervalsStep(
       const Node& var,
-      VariableMapper& vm,
-      std::vector<Node>& prem);
+      VariableMapper& vm);
+
+  void addSgnInvElims(
+      const Node& var,
+      VariableMapper& vm);
 
   void closeUnivProof(
       std::vector<Node> constraints,
@@ -189,7 +211,7 @@ class CoveringsProofGenerator : protected EnvObj
   CDProof* d_cdp;
   context::Context *d_ctx;
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
-  std::vector<std::pair<poly::Interval, poly::Polynomial>> d_intervals;
+  std::vector<ProofInterval> d_intervals;
   RootMap d_rootMap;
 };
 

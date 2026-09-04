@@ -150,7 +150,7 @@ class IndexedRootPredicateTypeRule
 
 /**
  * Type rule for the interval predicates of the univariate coverings
- * calculus, SGN_INV and NO_ROOTS: (polynomial, lower bound, upper bound),
+ * calculus, SGN_INV: (polynomial, lower bound, upper bound),
  * where the bounds are real terms or the MINUS_INFINITY / PLUS_INFINITY
  * markers on the lower / upper side respectively.
  */

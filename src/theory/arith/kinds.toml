@@ -359,13 +359,6 @@ name = "SGN_INV"
 children = 3
 typerule = "::cvc5::internal::theory::arith::SgnInvTypeRule"
 
-# absence of roots of a polynomial in an open interval; same signature as SGN_INV
-[[kinds]]
-type =  "operator"
-name = "NO_ROOTS"
-children = 3
-typerule = "::cvc5::internal::theory::arith::SgnInvTypeRule"
-
 [[kinds]]
 type = "nullaryoperator"
 name = "PLUS_INFINITY"

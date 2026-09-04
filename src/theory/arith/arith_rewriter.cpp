@@ -499,7 +499,6 @@ RewriteResponse ArithRewriter::preRewriteTerm(TNode t){
       // proof-only kinds of the univariate coverings calculus; canonical as
       // constructed, so rewriting is the identity
       case Kind::SGN_INV:
-      case Kind::NO_ROOTS:
       case Kind::PLUS_INFINITY:
       case Kind::MINUS_INFINITY: return RewriteResponse(REWRITE_DONE, t);
       default: Unhandled() << k;
@@ -538,7 +537,6 @@ RewriteResponse ArithRewriter::postRewriteTerm(TNode t){
       // proof-only kinds of the univariate coverings calculus; canonical as
       // constructed, so rewriting is the identity
       case Kind::SGN_INV:
-      case Kind::NO_ROOTS:
       case Kind::PLUS_INFINITY:
       case Kind::MINUS_INFINITY: return RewriteResponse(REWRITE_DONE, t);
       case Kind::POW2: return postRewritePow2(t);

@@ -37,7 +37,6 @@ void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
 {
   pc->registerChecker(ProofRule::ARITH_COVERINGS_UNIV, this);
   pc->registerChecker(ProofRule::COVER, this);
-  pc->registerChecker(ProofRule::SGN_INV_INTRO, this);
   pc->registerChecker(ProofRule::SGN_INV_ELIM, this);
   pc->registerChecker(ProofRule::VALIDATE_INTERVALS, this);
   pc->registerChecker(ProofRule::RAN_EVAL, this);
@@ -60,7 +59,7 @@ Node CoveringsProofRuleChecker::checkValidateIntervals(const std::vector<Node>& 
     {
       return Node::null();
     }
-    conj.push_back(mkNoRoots(nm, e[0], e[1], e[2]));
+    conj.push_back(mkSgnInv(nm, e[0], e[1], e[2]));
   }
   return nm->mkAnd(conj);
 }
@@ -132,10 +131,9 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
   {
     return checkValidateIntervals(args);
   }
-  // SGN_INV_INTRO, SGN_INV_ELIM and RAN_EVAL do not
-  // conclude false, so returning it here would be rejected as a conclusion
-  // mismatch as soon as such steps are emitted. TODO: compute their
-  // conclusions from the premises and arguments.
+  // SGN_INV_ELIM and RAN_EVAL do not conclude false, so returning it here
+  // would be rejected as a conclusion mismatch as soon as such steps are
+  // emitted. TODO: compute their conclusions from the premises and arguments.
   return Node::null();
 }
 

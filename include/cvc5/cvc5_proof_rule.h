@@ -2480,7 +2480,7 @@ enum ENUM(ProofRule)
    * Receives a list of pairs (interval, polynomial), the list of all roots of all polynomials
    * in the problem and a list of pairs (p, root_indices), where the indices point to the
    * list of all roots, corresponding to the roots of that polynomial. Concludes
-   * NO_ROOT(p, l, r) for each pair in the first argument. Requires as a side condition
+   * SGN_INV(p, l, r) for each pair in the first argument. Requires as a side condition
    * that the list of roots is sorted in ascending order, the root list of each polynomial
    * is exhaustive and each interval does not contain a root of the corresponding polynomial
    * in its interior.
@@ -2489,16 +2489,16 @@ enum ENUM(ProofRule)
   /**
    * Generates a clause of the form `(x > i1_l /\ x < i1_r) \/ (x > i2_l /\ x < i2_r) ..`
    * Given a variable `x` and a list of intervals [i1, i2, ..]. Assumes that the intervals
-   * cover the whole real line.
+   * cover the whole real line. If an endpoint of an interval is not finite then the
+   * corresponding conjunct is omitted in the conclusion.
    */
   EVALUE(COVER),
   /**
-   * Derives sgn_inv(p, l, r) from no_roots(p, l, r)
-   */
-  EVALUE(SGN_INV_INTRO),
-  /**
-   * Given a variable `x`, a polynomial that is sign invariant in an interval and a
-   * point `s` in the interval, assuming p(s) <> 0, concludes p(x) <> 0.
+   * Given as parameters a variable `x`, a polynomial `p`, a rational `s` and two endpoints
+   * `l` and `r`, as premises `SGN_INV(p, l, r)` and `p(x) ~ 0` (where ~ is either <, <=, = or !=)
+   * and as side conditions `l < s < r` and `\not p(s) ~ 0`, concludes `\not (x > l \and x < r)
+   * \or \not (p(x) ~ 0)`. If `l` is `MINUS_INFINITY` then conditions that mention it are omited,
+   * and the same for `r` if it is `PLUS_INFINITY`.
    */
   EVALUE(SGN_INV_ELIM),
   /**
