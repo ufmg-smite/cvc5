@@ -11,8 +11,7 @@
  * ****************************************************************************
  *
  * Translator from VeriPB proof step Nodes (as produced by PbProofRules) into
- * cvc5 cutting-planes proof steps (CUTTING_PLANES_* and the macro
- * MACRO_CUTTING_PLANES_RESOLUTION).
+ * cvc5 cutting-planes proof steps (CUTTING_PLANES_*).
  *
  * First-cut scope: 'rup' and the 'pol' (reverse polish notation) operations
  * embedded in VeriPB. Other VeriPB step kinds are skipped with a trace.
@@ -22,11 +21,14 @@
 #ifndef CVC5__THEORY__BV__PB__PB_PROOF_TRANSLATOR_H
 #define CVC5__THEORY__BV__PB__PB_PROOF_TRANSLATOR_H
 
+#include <cstdint>
 #include <functional>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "proof/proof.h"
 #include "smt/env_obj.h"
+#include "util/integer.h"
 
 namespace cvc5::internal {
 namespace theory {
@@ -44,10 +46,23 @@ class PbProofTranslator : protected EnvObj
   ~PbProofTranslator() = default;
 
   /**
-   * Register an input-formula constraint with its 1-based VeriPB id.
-   * Subsequent rup/pol steps may reference this id.
+   * Register an input-formula constraint with its 1-based VeriPB id and the
+   * BV fact it was blasted from. The constraint is stored in canonical GEQ
+   * form, concluded from `fact` by a MACRO_PB_BLAST_STEP; an EQUAL constraint
+   * takes two consecutive ids, with `negated` selecting the flipped second
+   * direction. Each new variable's {0,1} domain bounds are also concluded
+   * from `fact`, so later steps can use them as premises directly.
    */
-  void registerInputConstraint(size_t veriPbId, Node constraint);
+  void registerInputConstraint(size_t veriPbId,
+                               Node constraint,
+                               Node fact,
+                               bool negated);
+
+  /**
+   * Bind each PB variable to its backend index, the canonical term order used
+   * by mkPbConstraint. Must be set before registering constraints.
+   */
+  void setVariableIndices(std::unordered_map<Node, uint64_t> indices);
 
   /**
    * Translate one VeriPB step Node into one or more cutting-planes proof
@@ -62,13 +77,16 @@ class PbProofTranslator : protected EnvObj
   void initializeTranslators();
 
   /**
-   * Translate a 'rup' step into a MACRO_CUTTING_PLANES_RESOLUTION proof
-   * step. The hint ids in child 1 are resolved to previously-recorded
-   * conclusions and supplied as children. The polarities and pivots
-   * s-expressions are emitted empty for now; computing them is a TODO that
-   * mirrors proof_tracer.cpp's mark_var scan, adapted to PB literals.
+   * Translate a 'rup' step into a CUTTING_PLANES_RUP proof step. The hint ids
+   * in child 1 resolve to previously-recorded conclusions, which become the
+   * premises together with the negated derived constraint; the hints are
+   * re-expressed as indices into that premise list and passed as an argument.
+   * RUP is a primitive of the calculus, so the step is emitted as-is rather
+   * than elaborated into cutting-planes derivations. Since the rule refutes
+   * its premises, a SCOPE discharging the negated constraint and a
+   * NOT_NOT_ELIM recover the derived constraint itself.
    *
-   * Returns the conclusion Node of the emitted step.
+   * Returns the derived constraint, the conclusion recorded for this id.
    */
   Node translateRup(Node rupNode, size_t veriPbId);
 
@@ -82,6 +100,23 @@ class PbProofTranslator : protected EnvObj
 
   /** Recursive RPN walker used by translatePol. */
   Node translatePolExpr(Node expr);
+
+  /** The backend index of `variable`; asserts it is bound. */
+  uint64_t variableIndex(const Node& variable) const;
+
+  /**
+   * The canonical Node for the PB constraint `sum(terms) >= rhs`: zero
+   * coefficients dropped, terms sorted by backend variable index, and the same
+   * MULT/ADD/GEQ shape parseOpbFormat produces.
+   */
+  Node mkPbConstraint(const std::unordered_map<Node, Integer>& terms,
+                      const Integer& rhs);
+
+  /**
+   * Expand a weakening on `variable` into AXIOM/MULTIPLICATION/ADDITION steps
+   * that cancel it from `constraint`. Returns the weakened conclusion.
+   */
+  Node weakenVariable(Node constraint, Node variable);
 
   /**
    * Translate a 'conclusion' footer. In decision mode RoundingSat always
@@ -150,6 +185,12 @@ class PbProofTranslator : protected EnvObj
    * success; returning a null Node signals "no conclusion recorded".
    */
   std::unordered_map<Kind, std::function<Node(Node, size_t)>> d_translators;
+
+  /** Backend index per PB variable; the canonical term order. */
+  std::unordered_map<Node, uint64_t> d_varIndex;
+
+  /** Variables whose domain bounds were proved during input registration. */
+  std::unordered_set<Node> d_boundedVars;
 };
 
 }  // namespace pb

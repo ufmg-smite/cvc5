@@ -29,10 +29,10 @@ namespace pb {
 
 /**
  * Proof rule checker for the cutting-planes calculus over pseudo-Boolean
- * constraints. Registers and checks the CUTTING_PLANES_* primitive rules and
- * the MACRO_CUTTING_PLANES_RESOLUTION macro used when translating VeriPB
- * proofs from the PB-blasting backend, plus the coarse-grained VERIPB_PROOF
- * rule that carries an untranslated VeriPB proof.
+ * constraints. Registers and checks the CUTTING_PLANES_* rules used when
+ * translating VeriPB proofs from the PB-blasting backend, plus the
+ * coarse-grained VERIPB_PROOF rule that carries an untranslated VeriPB
+ * proof.
  *
  * The current implementation registers the rules but trusts their stated
  * conclusion (passed as args[0]). Full semantic checking (recomputing the

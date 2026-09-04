@@ -511,20 +511,6 @@ enum ENUM(ProofRule)
   EVALUE(VERIPB_PROOF),
   /**
    * \verbatim embed:rst:leading-asterisk
-   * **Pseudo-Boolean -- Cutting Planes Axiom**
-   *
-   * .. math::
-   *
-   *   \inferrule{- \mid C, L}{C}
-   *
-   * where :math:`L` is a literal (a Boolean variable or its negation) and
-   * :math:`C` is the trivial PB constraint :math:`L \geq 0` (always-true
-   * single-literal inequality used as a leaf of polish-notation derivations).
-   * \endverbatim
-   */
-  EVALUE(CUTTING_PLANES_AXIOM),
-  /**
-   * \verbatim embed:rst:leading-asterisk
    * **Pseudo-Boolean -- Cutting Planes Addition**
    *
    * .. math::
@@ -579,21 +565,25 @@ enum ENUM(ProofRule)
   EVALUE(CUTTING_PLANES_SATURATION),
   /**
    * \verbatim embed:rst:leading-asterisk
-   * **Pseudo-Boolean -- Macro Cutting Planes Resolution (PB chain
-   * cancellation)**
+   * **Pseudo-Boolean -- Reverse Unit Propagation**
    *
    * .. math::
    *
-   *   \inferrule{C_1 \dots C_n \mid C, (pol_1 \dots pol_{n-1}),
-   *              (L_1 \dots L_{n-1})}{C}
+   *   \inferrule{C_1 \dots C_n, \neg C \mid C, (i_1, \dots, i_k)}{\bot}
    *
-   * PB analog of N-ary chain Boolean resolution: starting from :math:`C_1`,
-   * each :math:`C_{i+1}` is combined with the running constraint by
-   * eliminating literal :math:`L_i` according to polarity :math:`pol_i`.
-   * Used to encode VeriPB ``rup`` step hint chains.
+   * where :math:`C` and :math:`C_1 \dots C_n` are pseudo-Boolean constraints
+   * over variables ranging on :math:`\{0, 1\}`. Starting from the assignment
+   * that :math:`\neg C` forces, unit propagating :math:`C_1 \dots C_n` in the
+   * order named by the hints :math:`i_1, \dots, i_k` falsifies one of the
+   * premises, so they are jointly unsatisfiable. Each :math:`i_j` is a
+   * zero-based index into :math:`C_1 \dots C_n`, and may repeat, since
+   * propagation runs to a fixed point.
+   *
+   * Encodes a VeriPB ``rup`` step, where :math:`C` is the derived constraint
+   * and :math:`C_1 \dots C_n` are the constraints its hints name.
    * \endverbatim
    */
-  EVALUE(MACRO_CUTTING_PLANES_RESOLUTION),
+  EVALUE(CUTTING_PLANES_RUP),
   /**
    * \verbatim embed:rst:leading-asterisk
    * **Boolean -- Resolution**

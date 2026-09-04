@@ -12,6 +12,11 @@
 
 #include "theory/bv/pb/pb_proof_translator.h"
 
+#include <algorithm>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "expr/node_manager.h"
 #include "proof/proof_checker.h"
 #include "proof/proof_node_manager.h"
@@ -31,6 +36,49 @@ std::vector<Node> linearTerms(Node lhs)
   if (lhs.getKind() == Kind::MULT) return {lhs};
   if (lhs.getKind() == Kind::ADD) return {lhs.begin(), lhs.end()};
   return {};
+}
+
+/** Accumulate a GEQ/EQUAL constraint into coefficient-by-variable plus rhs. */
+void parseLinear(Node constraint,
+                 std::unordered_map<Node, Integer>& terms,
+                 Integer& rhs)
+{
+  Assert(constraint.getKind() == Kind::GEQ
+         || constraint.getKind() == Kind::EQUAL)
+      << "not a PB constraint: " << constraint;
+  for (const Node& term : linearTerms(constraint[0]))
+  {
+    Assert(term.getKind() == Kind::MULT && term[0].isConst()
+           && term.getNumChildren() == 2)
+        << "malformed PB summand: " << term;
+    terms[term[1]] =
+        terms[term[1]] + term[0].getConst<Rational>().getNumerator();
+  }
+  rhs = constraint[1].getConst<Rational>().getNumerator();
+}
+
+/** Degree of the literal-normalized form: rhs minus the negative coeffs. */
+Integer literalDegree(const std::unordered_map<Node, Integer>& terms,
+                      const Integer& rhs)
+{
+  Integer degree = rhs;
+  for (const auto& [variable, coefficient] : terms)
+  {
+    if (coefficient.sgn() < 0) degree = degree - coefficient;
+  }
+  return degree;
+}
+
+/** rhs of the signed form with literal-normalized degree `degree`. */
+Integer signedRhs(const std::unordered_map<Node, Integer>& terms,
+                  const Integer& degree)
+{
+  Integer rhs = degree;
+  for (const auto& [variable, coefficient] : terms)
+  {
+    if (coefficient.sgn() < 0) rhs = rhs + coefficient;
+  }
+  return rhs;
 }
 }  // namespace
 
@@ -54,10 +102,69 @@ void PbProofTranslator::initializeTranslators()
   };
 }
 
-void PbProofTranslator::registerInputConstraint(size_t veriPbId,
-                                                Node constraint)
+void PbProofTranslator::setVariableIndices(
+    std::unordered_map<Node, uint64_t> indices)
 {
-  d_coreById[veriPbId] = constraint;
+  d_varIndex = std::move(indices);
+}
+
+uint64_t PbProofTranslator::variableIndex(const Node& variable) const
+{
+  auto it = d_varIndex.find(variable);
+  if (it == d_varIndex.end())
+  {
+    Unreachable() << "PbProofTranslator: variable " << variable
+                  << " has no backend index";
+  }
+  return it->second;
+}
+
+Node PbProofTranslator::mkPbConstraint(
+    const std::unordered_map<Node, Integer>& terms, const Integer& rhs)
+{
+  std::vector<std::pair<uint64_t, Node>> order;
+  for (const auto& [variable, coefficient] : terms)
+  {
+    if (coefficient.sgn() == 0) continue;
+    order.emplace_back(variableIndex(variable), variable);
+  }
+  std::sort(order.begin(), order.end());
+  NodeManager* nm = nodeManager();
+  std::vector<Node> summands;
+  for (const auto& [index, variable] : order)
+  {
+    summands.push_back(nm->mkNode(
+        Kind::MULT, nm->mkConstInt(Rational(terms.at(variable))), variable));
+  }
+  Node lhs = summands.empty()      ? nm->mkConstInt(Rational(0))
+             : summands.size() == 1 ? summands[0]
+                                    : nm->mkNode(Kind::ADD, summands);
+  return nm->mkNode(Kind::GEQ, lhs, nm->mkConstInt(Rational(rhs)));
+}
+
+void PbProofTranslator::registerInputConstraint(size_t veriPbId,
+                                                Node constraint,
+                                                Node fact,
+                                                bool negated)
+{
+  Assert(!negated || constraint.getKind() == Kind::EQUAL);
+  std::unordered_map<Node, Integer> terms;
+  Integer rhs;
+  parseLinear(constraint, terms, rhs);
+  if (negated)
+  {
+    for (auto& entry : terms) entry.second = -entry.second;
+    rhs = -rhs;
+  }
+  // TODO: prove each new variable's domain bounds at the PB-blasting level.
+  for (const auto& [variable, coefficient] : terms)
+  {
+    d_boundedVars.insert(variable);
+  }
+  Node canonical = mkPbConstraint(terms, rhs);
+  d_cdp->addStep(
+      canonical, ProofRule::MACRO_PB_BLAST_STEP, {fact}, {canonical});
+  d_coreById[veriPbId] = canonical;
 }
 
 void PbProofTranslator::translateStep(Node veriPbStep, size_t veriPbId)
@@ -113,38 +220,46 @@ Node PbProofTranslator::translateRup(Node rupNode, size_t veriPbId)
   Trace("bv-pb-proof-translate")
       << "PbProofTranslator::translateRup id=" << veriPbId << "\n";
   Assert(rupNode.getNumChildren() == 2);
-  Node conclusion = rupNode[0];
-  Node hints = rupNode[1];
-
-  // Resolve each hint id to the previously-recorded conclusion. Hints whose
-  // ids are unknown are skipped silently; they may reference constraints not
-  // yet translated, in which case the resulting proof step will be sound but
-  // unfaithful to the hint chain. Real pivot computation will need every
-  // hint resolved.
-  std::vector<Node> children;
-  for (const Node& hintBoundVar : hints)
-  {
-    Node child = lookup(hintBoundVar);
-    if (!child.isNull()) children.push_back(child);
-  }
-
-  // Args: (conclusion, polarities-SEXPR, pivots-SEXPR). The polarity and
-  // pivot lists are emitted empty for now.
-  //
-  // TODO: compute pivots by walking the hint chain with a
-  // mark_var-style scan adapted to PB literals (cf. proof_tracer.cpp:225):
-  // for each consecutive (running, next-antecedent) pair, the pivot is the
-  // variable whose coefficient has opposite sign in the two constraints.
   NodeManager* nm = nodeManager();
-  std::vector<Node> empty;
-  Node polarities = nm->mkNode(Kind::SEXPR, empty);
-  Node pivots = nm->mkNode(Kind::SEXPR, empty);
-  std::vector<Node> args{conclusion, polarities, pivots};
+  Node conclusion = rupNode[0];
+  Node negated = conclusion.notNode();
+  std::vector<Node> premises;
+  std::unordered_map<Node, size_t> premiseIndex;
+  std::vector<Node> hintArgs;
+  for (const Node& hint : rupNode[1])
+  {
+    Assert(hint.getKind() == Kind::CONST_INTEGER);
+    Node premise = lookup(hint);
+    if (premise.isNull())
+    {
+      Trace("bv-pb-proof-translate")
+          << "  hint " << hint << " of rup step " << veriPbId
+          << " names no known constraint\n";
+      Unreachable();
+      continue;
+    }
+    auto [it, fresh] = premiseIndex.emplace(premise, premises.size());
+    if (fresh) premises.push_back(premise);
+    hintArgs.push_back(nm->mkConstInt(
+        Rational(Integer(static_cast<unsigned long>(it->second)))));
+  }
+  CDProof localcdp(d_env);
+  // Proofs link by ProofNode identity, so reuse d_cdp's premise nodes.
+  for (const Node& premise : premises)
+  {
+    localcdp.addProof(d_cdp->getProofFor(premise));
+  }
+  premises.push_back(negated);
 
-  d_cdp->addStep(conclusion,
-                 ProofRule::MACRO_CUTTING_PLANES_RESOLUTION,
-                 children,
-                 args);
+  Node falseNode = nm->mkConst(false);
+  localcdp.addStep(falseNode,
+                   ProofRule::CUTTING_PLANES_RUP,
+                   premises,
+                   {conclusion, nm->mkNode(Kind::SEXPR, hintArgs)});
+  Node doubleNegated = negated.notNode();
+  localcdp.addStep(doubleNegated, ProofRule::SCOPE, {falseNode}, {negated});
+  localcdp.addStep(conclusion, ProofRule::NOT_NOT_ELIM, {doubleNegated}, {});
+  localcdp.addProofTo(conclusion, d_cdp);
   return conclusion;
 }
 
@@ -184,6 +299,39 @@ Node PbProofTranslator::mkDomainBound(Node variable, bool upper)
   Node lhs = nm->mkNode(Kind::MULT, coefficient, variable);
   Node rhs = nm->mkConstInt(Rational(upper ? -1 : 0));
   return nm->mkNode(Kind::GEQ, lhs, rhs);
+}
+
+Node PbProofTranslator::weakenVariable(Node constraint, Node variable)
+{
+  std::unordered_map<Node, Integer> terms;
+  Integer rhs;
+  parseLinear(constraint, terms, rhs);
+  auto it = terms.find(variable);
+  if (it == terms.end() || it->second.sgn() == 0) return constraint;
+  Integer coefficient = it->second;
+  bool positive = coefficient.sgn() > 0;
+  // Cancel the variable against its domain bound, scaled to the coefficient:
+  // for a > 0 add a * (-v >= -1), for a < 0 add |a| * (v >= 0).
+  Node addend = mkDomainBound(variable, positive);
+  if (coefficient.abs() != Integer(1))
+  {
+    std::unordered_map<Node, Integer> scaled{{variable, -coefficient}};
+    Node scaledBound =
+        mkPbConstraint(scaled, positive ? -coefficient : Integer(0));
+    d_cdp->addStep(
+        scaledBound,
+        ProofRule::CUTTING_PLANES_MULTIPLICATION,
+        {addend},
+        {scaledBound, nodeManager()->mkConstInt(Rational(coefficient.abs()))});
+    addend = scaledBound;
+  }
+  terms[variable] = Integer(0);
+  Node conclusion = mkPbConstraint(terms, positive ? rhs - coefficient : rhs);
+  d_cdp->addStep(conclusion,
+                 ProofRule::CUTTING_PLANES_ADDITION,
+                 {constraint, addend},
+                 {conclusion});
+  return conclusion;
 }
 
 void PbProofTranslator::refuteContradicting(Node constraint)
@@ -250,93 +398,127 @@ Node PbProofTranslator::translatePolExpr(Node expr)
   if (k == Kind::CONST_INTEGER)
   {
     Node looked = lookup(expr);
-    return looked.isNull() ? expr : looked;
+    if (looked.isNull())
+    {
+      Unreachable() << "PbProofTranslator::translatePolExpr: id " << expr
+                    << " names no known constraint";
+    }
+    return looked;
   }
-  // Leaf: a literal axiom
+  // Leaf: the literal axiom of a `x`/`~x` token, i.e. a domain bound.
   if (k == Kind::GEQ)
   {
-    // The literal arg is the variable token inside the LHS MULT. Best-effort
-    // for now: pass the whole conclusion as both args[0] (conclusion) and
-    // args[1] (literal). The trusted-stub checker treats args[0] as the
-    // conclusion; full conclusion-vs-literal split is a follow-up.
-    std::vector<Node> args{expr, expr};
-    d_cdp->addStep(expr, ProofRule::CUTTING_PLANES_AXIOM, {}, args);
-    return expr;
+    Assert(expr[0].getKind() == Kind::MULT && expr[0][0].isConst());
+    return mkDomainBound(expr[0][1],
+                         expr[0][0].getConst<Rational>().sgn() < 0);
   }
   if (k == Kind::PB_PROOF_POL_ADD)
   {
     Node lhs = translatePolExpr(expr[0]);
     Node rhs = translatePolExpr(expr[1]);
-    // TODO: compute the true sum-of-constraints conclusion.
-    // Placeholder: pass the structural ADD node so the trusted-stub checker
-    // returns it from args[0].
-    Node conclusion = expr;
-    std::vector<Node> children{lhs, rhs};
-    std::vector<Node> args{conclusion};
+    std::unordered_map<Node, Integer> terms;
+    Integer lhsRhs, rhsRhs;
+    parseLinear(lhs, terms, lhsRhs);
+    parseLinear(rhs, terms, rhsRhs);
+    Node conclusion = mkPbConstraint(terms, lhsRhs + rhsRhs);
+    // Adding a trivial constraint changes nothing; a step from a constraint
+    // to itself would be cyclic.
+    if (conclusion == lhs || conclusion == rhs) return conclusion;
     d_cdp->addStep(conclusion,
                    ProofRule::CUTTING_PLANES_ADDITION,
-                   children,
-                   args);
+                   {lhs, rhs},
+                   {conclusion});
     return conclusion;
   }
 
   if (k == Kind::PB_PROOF_POL_MUL)
   {
     Node operand = translatePolExpr(expr[0]);
-    Node factor = expr[1];
-    // TODO: compute the scaled conclusion.
-    Node conclusion = expr;
-    std::vector<Node> children{operand};
-    std::vector<Node> args{conclusion, factor};
+    Integer factor = expr[1].getConst<Rational>().getNumerator();
+    std::unordered_map<Node, Integer> terms;
+    Integer rhs;
+    parseLinear(operand, terms, rhs);
+    for (auto& entry : terms) entry.second = entry.second * factor;
+    Node conclusion = mkPbConstraint(terms, rhs * factor);
+    if (conclusion == operand) return operand;
     d_cdp->addStep(conclusion,
                    ProofRule::CUTTING_PLANES_MULTIPLICATION,
-                   children,
-                   args);
+                   {operand},
+                   {conclusion, expr[1]});
     return conclusion;
   }
 
   if (k == Kind::PB_PROOF_POL_DIV)
   {
     Node operand = translatePolExpr(expr[0]);
-    Node divisor = expr[1];
-    // TODO: compute the ceiling-divided conclusion.
-    Node conclusion = expr;
-    std::vector<Node> children{operand};
-    std::vector<Node> args{conclusion, divisor};
+    Integer divisor = expr[1].getConst<Rational>().getNumerator();
+    std::unordered_map<Node, Integer> terms;
+    Integer rhs;
+    parseLinear(operand, terms, rhs);
+    // Ceiling division acts on the literal-normalized form: all coefficients
+    // positive over possibly-negated literals, degree = rhs shifted by the
+    // negative coefficients.
+    Integer degree = literalDegree(terms, rhs).ceilingDivideQuotient(divisor);
+    for (auto& entry : terms)
+    {
+      Integer& c = entry.second;
+      if (c.sgn() > 0)
+      {
+        c = c.ceilingDivideQuotient(divisor);
+      }
+      else if (c.sgn() < 0)
+      {
+        c = -((-c).ceilingDivideQuotient(divisor));
+      }
+    }
+    Node conclusion = mkPbConstraint(terms, signedRhs(terms, degree));
+    if (conclusion == operand) return operand;
     d_cdp->addStep(conclusion,
                    ProofRule::CUTTING_PLANES_DIVISION,
-                   children,
-                   args);
+                   {operand},
+                   {conclusion, expr[1]});
     return conclusion;
   }
 
   if (k == Kind::PB_PROOF_POL_SAT)
   {
     Node operand = translatePolExpr(expr[0]);
-    // TODO: compute the saturated conclusion.
-    Node conclusion = expr;
-    std::vector<Node> children{operand};
-    std::vector<Node> args{conclusion};
+    std::unordered_map<Node, Integer> terms;
+    Integer rhs;
+    parseLinear(operand, terms, rhs);
+    // Saturation caps each literal-form coefficient at the degree.
+    Integer degree = literalDegree(terms, rhs);
+    if (degree.sgn() < 0) degree = Integer(0);
+    for (auto& entry : terms)
+    {
+      Integer& c = entry.second;
+      if (c > degree)
+      {
+        c = degree;
+      }
+      else if (c < -degree)
+      {
+        c = -degree;
+      }
+    }
+    Node conclusion = mkPbConstraint(terms, signedRhs(terms, degree));
+    if (conclusion == operand) return operand;
     d_cdp->addStep(conclusion,
                    ProofRule::CUTTING_PLANES_SATURATION,
-                   children,
-                   args);
+                   {operand},
+                   {conclusion});
     return conclusion;
   }
 
-  // TODO: expand into AXIOM/MULTIPLICATION/ADDITION once the operand's
-  // constraint is available: weakening away v adds the axiom on ~v, scaled by
-  // v's coefficient (on v instead, if that coefficient is negative).
   if (k == Kind::PB_PROOF_POL_WEAKEN)
   {
-    translatePolExpr(expr[0]);
-    return expr;
+    Node operand = translatePolExpr(expr[0]);
+    return weakenVariable(operand, expr[1]);
   }
 
-  Trace("bv-pb-proof-translate")
+  Unreachable()
       << "PbProofTranslator::translatePolExpr: unhandled expression kind "
-      << k << "\n";
-  return expr;
+      << k;
 }
 
 Node PbProofTranslator::lookup(Node idNode) const

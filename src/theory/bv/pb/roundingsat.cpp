@@ -201,6 +201,20 @@ std::vector<std::string> RoundingSatSolver::getProof()
   return d_solver->getProof();
 }
 
+std::unordered_map<std::string, Node> RoundingSatSolver::getProofVariables()
+{
+  // RoundingSat spells variable v as "x<v>" in its proof output, where v is
+  // the id handed out by addVariable() -- unrelated to the name of the cvc5
+  // PB variable it stands for.
+  std::unordered_map<std::string, Node> variables;
+  variables.reserve(d_varToNode.size());
+  for (const auto& [v, node] : d_varToNode)
+  {
+    variables.emplace("x" + std::to_string(v), node);
+  }
+  return variables;
+}
+
 PbSolveState RoundingSatSolver::solve() { return solve(std::vector<Node>{}); }
 
 PbSolveState RoundingSatSolver::solve(const std::vector<Node>& assumptions)

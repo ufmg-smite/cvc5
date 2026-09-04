@@ -15,6 +15,8 @@
 
 #include "theory/bv/pb/pb_proof_manager.h"
 
+#include <utility>
+
 #include "options/bv_options.h"
 #include "proof/proof.h"
 #include "proof/proof_node.h"
@@ -44,8 +46,7 @@ static bool advancesVeriPbId(Kind k)
          || k == Kind::PB_PROOF_REVERSE_UNIT_PROPAGATION
          || k == Kind::PB_PROOF_REVERSE_POLISH_NOTATION
          || k == Kind::PB_PROOF_SYNTACTIC_IMPLIES_ADD
-         || k == Kind::PB_PROOF_REDUNDANCY
-         || k == Kind::PB_PROOF_LOAD_AXIOM;
+         || k == Kind::PB_PROOF_REDUNDANCY || k == Kind::PB_PROOF_LOAD_AXIOM;
 }
 
 void PbProofManager::convertProof(
@@ -53,19 +54,17 @@ void PbProofManager::convertProof(
     const std::vector<std::pair<Node, Node>>& inputConstraints)
 {
   PbProofTranslator translator(d_env, d_cdp);
+  translator.setVariableIndices(d_varIndex);
 
-  // Input PB constraints take VeriPB ids 1..N. For each, emit a coarse
-  // MACRO_PB_BLAST_STEP tying the PB constraint back to the BV fact it was
-  // blasted from; the postprocessor doesn't try to eliminate this rule via
-  // rewriting (unlike TRUST_THEORY_LEMMA), which would put the constraint in
-  // arithmetic normal form and break the structural match with the derivation
-  // steps that consume it.
+  // Input PB constraints take VeriPB ids 1..N, in RoundingSat's addition
+  // order: an EQUAL constraint appears twice consecutively, its second id
+  // carrying the sign-flipped direction.
   for (size_t i = 0; i < inputConstraints.size(); ++i)
   {
     const Node& pbc = inputConstraints[i].first;
     const Node& fact = inputConstraints[i].second;
-    translator.registerInputConstraint(i + 1, pbc);
-    d_cdp->addStep(pbc, ProofRule::MACRO_PB_BLAST_STEP, {fact}, {pbc});
+    bool negated = i > 0 && inputConstraints[i] == inputConstraints[i - 1];
+    translator.registerInputConstraint(i + 1, pbc, fact, negated);
   }
 
   // Derived steps start at N+1 and only id-advancing kinds consume an id.
@@ -81,8 +80,19 @@ void PbProofManager::convertProof(
 
 void PbProofManager::addPbProof(
     std::vector<std::string> proofLines,
-    const std::vector<std::pair<Node, Node>>& inputConstraints)
+    const std::vector<std::pair<Node, Node>>& inputConstraints,
+    std::unordered_map<std::string, Node> proofVariables)
 {
+  // A proof name "x<i>" denotes backend variable i; that index is the
+  // canonical term order of the translator's constraints.
+  d_varIndex.clear();
+  for (const auto& [name, variable] : proofVariables)
+  {
+    Assert(name.size() > 1 && name[0] == 'x')
+        << "unexpected proof variable name: " << name;
+    d_varIndex[variable] = std::stoull(name.substr(1));
+  }
+  d_pbpr->setProofVariables(std::move(proofVariables));
   if (proofLines[0] != "pseudo-Boolean proof version 1.0"
       && proofLines[0] != "pseudo-Boolean proof version 2.0")
   {
@@ -96,49 +106,31 @@ void PbProofManager::addPbProof(
     convertProof(proofSteps, inputConstraints);
     return;
   }
-  d_cdp->addStep(nodeManager()->mkConst(false),
-                 ProofRule::VERIPB_PROOF,
-                 {},
-                 proofSteps);
+  d_cdp->addStep(
+      nodeManager()->mkConst(false), ProofRule::VERIPB_PROOF, {}, proofSteps);
 }
 
 std::shared_ptr<ProofNode> PbProofManager::getProofFor(Node fact)
 {
-  Trace("bv-pb-proof") << "PbProofManager::getProofFor " << fact << "\n";
+  Trace("bv-pb-proof-sfact") << "PbProofManager::getProofFor " << fact << "\n";
   NodeManager* nm = nodeManager();
-  // Conflict proofs are requested as the negation of the conflict node
-  // (i.e. (not (and f1 ... fn))). Our CDProof holds a proof of `false` from
-  // the input facts as free assumptions; wrap that in a SCOPE binding those
-  // facts to discharge them and yield (not (and f1 ... fn)).
-  if (fact.getKind() == Kind::NOT)
+  Assert(fact.getKind() == Kind::NOT);
+  std::shared_ptr<ProofNode> pnFalse = d_cdp->getProof(nm->mkConst(false));
+  Assert(pnFalse);
+  std::vector<Node> assumptions;
+  Node inner = fact[0];
+  if (inner.getKind() == Kind::AND)
   {
-    std::shared_ptr<ProofNode> pnFalse = d_cdp->getProofFor(nm->mkConst(false));
-    Trace("bv-pb-proof") << "  pnFalse=" << (pnFalse ? "non-null" : "null")
-                         << "\n";
-    if (pnFalse != nullptr)
-    {
-      std::vector<Node> assumptions;
-      Node inner = fact[0];
-      if (inner.getKind() == Kind::AND)
-      {
-        for (const Node& a : inner) assumptions.push_back(a);
-      }
-      else
-      {
-        assumptions.push_back(inner);
-      }
-      std::shared_ptr<ProofNode> scoped = d_cdp->getManager()->mkScope(
-          pnFalse, assumptions, /*ensureClosed=*/false);
-      Trace("bv-pb-proof") << "  scope=" << (scoped ? "non-null" : "null")
-                           << " concludes "
-                           << (scoped ? scoped->getResult() : Node::null())
-                           << "\n";
-      return scoped;
-    }
+    for (const Node& a : inner) assumptions.push_back(a);
   }
-  std::shared_ptr<ProofNode> pn = d_cdp->getProofFor(fact);
-  Trace("bv-pb-proof") << "  -> " << (pn ? "non-null" : "null") << "\n";
-  return pn;
+  else
+  {
+    assumptions.push_back(inner);
+  }
+  std::shared_ptr<ProofNode> scoped =
+      d_cdp->getManager()->mkScope(pnFalse, assumptions, false);
+  Assert(scoped);
+  return scoped;
 }
 
 void debugPbProofLine(const std::string& line,
@@ -175,18 +167,17 @@ void debugPbProofLine(const std::string& line,
 
 // True if 'line' ends with the token "begin" (preceded by whitespace or
 // nothing). VeriPB uses this to open a subproof block (e.g. inside 'red').
-static bool opensSubproofBlock(const std::string& line)
+bool opensSubproofBlock(const std::string& line)
 {
   size_t e = line.find_last_not_of(" \t\r");
   if (e == std::string::npos || e + 1 < 5) return false;
   if (line.compare(e - 4, 5, "begin") != 0) return false;
-  return e == 4
-         || std::isspace(static_cast<unsigned char>(line[e - 5]));
+  return e == 4 || std::isspace(static_cast<unsigned char>(line[e - 5]));
 }
 
 // True if 'line' begins with the token "end" (so 'end', 'end -1', etc.).
 // Closes a subproof block opened by a prior 'begin'.
-static bool closesSubproofBlock(const std::string& line)
+bool closesSubproofBlock(const std::string& line)
 {
   std::istringstream iss(line);
   std::string tok;

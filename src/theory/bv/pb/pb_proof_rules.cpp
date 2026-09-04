@@ -16,6 +16,7 @@
 #include "theory/bv/pb/pb_proof_rules.h"
 
 #include <stack>
+#include <utility>
 
 #include "util/rational.h"
 #include "util/string.h"
@@ -417,15 +418,25 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
     if (rhs.back() == ';') rhs.pop_back();
   }
 
+  // A term `c ~x` stands for c(1 - x), so it contributes -c to x's coefficient
+  // and shifts the right-hand side down by c. Normalizing here keeps every
+  // parsed constraint a linear form over the plain variables, matching the
+  // shape of the input constraints and of the literal axioms that
+  // polishConstraint builds.
+  Integer rhs_value = toInteger(rhs);
   std::vector<Node> sum_nodes;
   for (size_t i = 0; i < sum.size(); i += 2)
   {
-    // GMP's mpz_set_str rejects an explicit '+' sign; VeriPB emits coefficients
-    // like "+1", "-1", so strip the leading '+' before parsing.
-    const std::string& tok = sum[i];
-    std::string digits = (!tok.empty() && tok[0] == '+') ? tok.substr(1) : tok;
-    Node coefficient_node = nm->mkConstInt(Rational(Integer(digits)));
-    Node variable_node = mkVariable(sum[i + 1]);
+    Integer coeff = toInteger(sum[i]);
+    const std::string& literal = sum[i + 1];
+    bool negated = !literal.empty() && literal[0] == '~';
+    if (negated)
+    {
+      rhs_value -= coeff;
+      coeff = -coeff;
+    }
+    Node coefficient_node = nm->mkConstInt(Rational(coeff));
+    Node variable_node = mkVariable(negated ? literal.substr(1) : literal);
     sum_nodes.push_back(
         nm->mkNode(Kind::MULT, coefficient_node, variable_node));
   }
@@ -452,7 +463,7 @@ Node PbProofRules::parseOpbFormat(std::istringstream& iss)
   else
     lhs_node = nm->mkNode(Kind::ADD, sum_nodes);
 
-  Node rhs_node = nm->mkConstInt(Rational(Integer(rhs)));
+  Node rhs_node = nm->mkConstInt(Rational(rhs_value));
 
   return nm->mkNode(relational_operator, lhs_node, rhs_node);
 }
@@ -610,10 +621,18 @@ Node PbProofRules::polishConstant(Node node, const char* op)
   return nodeManager()->mkConstInt(Rational(value));
 }
 
+void PbProofRules::setProofVariables(
+    std::unordered_map<std::string, Node> variables)
+{
+  d_variables = std::move(variables);
+}
+
 Node PbProofRules::mkVariable(const std::string& name)
 {
   auto it = d_variables.find(name);
   if (it != d_variables.end()) return it->second;
+  Trace("bv-pb-proof") << "PbProofRules::mkVariable: " << name
+                       << " is not a PB variable of the input formula\n";
   NodeManager* nm = nodeManager();
   Node variable = nm->mkBoundVar(name, nm->integerType());
   d_variables.emplace(name, variable);

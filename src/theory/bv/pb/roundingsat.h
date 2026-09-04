@@ -60,10 +60,13 @@ class RoundingSatSolver : public PseudoBooleanSolver<Node>, protected EnvObj
   PbSolveState solve() override;
   PbSolveState solve(const std::vector<Node>& assumptions) override;
   std::vector<Node> getUnsatCore() override;
-  bool supportsCores() const override { return true; }
+  // EXPERIMENT: false drops the selector encoding, which is what keeps
+  // RoundingSat from propagating at level 0 and emitting non-trivial rup.
+  bool supportsCores() const override { return false; }
   PbValue modelValue(const VariableId variable) override;
   void reset() override;
   std::vector<std::string> getProof() override;
+  std::unordered_map<std::string, Node> getProofVariables() override;
 
   // private:   TODO: should the constructor be private (factory)?
   /**

@@ -34,6 +34,15 @@ class PbProofRules : protected EnvObj
 
   Node parseLine(const std::string& line);
 
+  /**
+   * Bind the variable names the PB backend uses in its proof output to the PB
+   * variable Nodes they stand for (see
+   * PseudoBooleanSolver::getProofVariables). Must be called before parsing,
+   * otherwise every name parses to a fresh variable unrelated to the input
+   * constraints.
+   */
+  void setProofVariables(std::unordered_map<std::string, Node> variables);
+
  private:
   CVC5_UNUSED_FIELD CDProof* d_cdp;  // TODO(alanctprado): used once proofs land
 
@@ -83,14 +92,21 @@ class PbProofRules : protected EnvObj
 
   /**
    * The Node for PB variable `name`, an integer-typed variable ranging over
-   * {0, 1}. NodeManager::mkBoundVar mints a fresh node per call, so interning
-   * here is what makes two occurrences of the same variable compare equal.
+   * {0, 1}. Resolves against the backend's proof-variable binding, so that a
+   * constraint parsed out of the proof shares its variables with the input
+   * constraints. Names the backend did not report -- auxiliary variables it
+   * introduced on its own -- get a fresh interned variable.
    */
   Node mkVariable(const std::string& name);
 
   std::unordered_map<std::string, std::function<Node(std::istringstream&)>>
       rules;
 
+  /**
+   * Interned PB variables by proof name, seeded by setProofVariables().
+   * NodeManager::mkBoundVar mints a fresh node per call, so interning here is
+   * what makes two occurrences of the same variable compare equal.
+   */
   std::unordered_map<std::string, Node> d_variables;
 };
 

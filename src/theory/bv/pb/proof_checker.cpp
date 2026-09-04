@@ -27,12 +27,11 @@ PbProofRuleChecker::PbProofRuleChecker(NodeManager* nm) : ProofRuleChecker(nm)
 void PbProofRuleChecker::registerTo(ProofChecker* pc)
 {
   pc->registerChecker(ProofRule::VERIPB_PROOF, this);
-  pc->registerChecker(ProofRule::CUTTING_PLANES_AXIOM, this);
   pc->registerChecker(ProofRule::CUTTING_PLANES_ADDITION, this);
   pc->registerChecker(ProofRule::CUTTING_PLANES_MULTIPLICATION, this);
   pc->registerChecker(ProofRule::CUTTING_PLANES_DIVISION, this);
   pc->registerChecker(ProofRule::CUTTING_PLANES_SATURATION, this);
-  pc->registerChecker(ProofRule::MACRO_CUTTING_PLANES_RESOLUTION, this);
+  pc->registerChecker(ProofRule::CUTTING_PLANES_RUP, this);
   pc->registerChecker(ProofRule::MACRO_PB_BLAST_STEP, this);
 }
 
@@ -49,11 +48,6 @@ Node PbProofRuleChecker::checkInternal(ProofRule id,
       // children: (), args: the parsed VeriPB step Nodes. Concludes `false`.
       Assert(children.empty());
       return nodeManager()->mkConst(false);
-    case ProofRule::CUTTING_PLANES_AXIOM:
-      // children: (), args: (conclusion, literal)
-      Assert(children.empty());
-      Assert(args.size() == 2);
-      return args[0];
     case ProofRule::CUTTING_PLANES_ADDITION:
       // children: (C1, C2), args: (conclusion)
       Assert(children.size() == 2);
@@ -74,12 +68,13 @@ Node PbProofRuleChecker::checkInternal(ProofRule id,
       Assert(children.size() == 1);
       Assert(args.size() == 1);
       return args[0];
-    case ProofRule::MACRO_CUTTING_PLANES_RESOLUTION:
-      // children: (C1, ..., Cn), args: (conclusion, polarities-SEXPR,
-      // pivots-SEXPR) -- shape mirrors CHAIN_M_RESOLUTION.
+    case ProofRule::CUTTING_PLANES_RUP:
+      // children: (C1, ..., Cn, ~C), args: (C, hint-indices-SEXPR). Refutes
+      // the premises, so it concludes false; the derived constraint C is
+      // recovered by discharging ~C.
       Assert(!children.empty());
-      Assert(args.size() == 3);
-      return args[0];
+      Assert(args.size() == 2);
+      return nodeManager()->mkConst(false);
     case ProofRule::MACRO_PB_BLAST_STEP:
       // children: (F), args: (C). Trusted derivation of PB constraint C from
       // BV fact F via the PB blaster.

@@ -21,6 +21,10 @@
 #ifndef CVC5__THEORY__BV__PB__PB_PROOF_MANAGER_H
 #define CVC5__THEORY__BV__PB__PB_PROOF_MANAGER_H
 
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+
 #include "proof/proof_generator.h"
 #include "smt/env_obj.h"
 #include "theory/bv/pb/pb_blast_proof_generator.h"
@@ -56,7 +60,8 @@ class PbProofManager : public ProofGenerator, protected EnvObj
    * closes against the BV-level conflict assumptions.
    */
   void addPbProof(std::vector<std::string> pb_proof,
-                  const std::vector<std::pair<Node, Node>>& inputConstraints);
+                  const std::vector<std::pair<Node, Node>>& inputConstraints,
+                  std::unordered_map<std::string, Node> proofVariables);
 
   /** ProofGenerator: returns the CDProof's proof DAG for `fact`. */
   std::shared_ptr<ProofNode> getProofFor(Node fact) override;
@@ -67,6 +72,8 @@ class PbProofManager : public ProofGenerator, protected EnvObj
       d_pbbpg;  // TODO(alanctprado): used once proofs land
   CDProof* d_cdp;
   PbProofRules* d_pbpr;
+  /** Backend index per PB variable, parsed from the proof variable names. */
+  std::unordered_map<Node, uint64_t> d_varIndex;
   std::vector<Node> parseProofLines(std::vector<std::string> proofLines);
 };
 

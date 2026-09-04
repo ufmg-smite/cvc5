@@ -19,6 +19,7 @@
 #define CVC5__THEORY__BV__PB__PB_SOLVER_H
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "theory/bv/pb/pb_solver_types.h"
@@ -71,6 +72,14 @@ class PseudoBooleanSolver
   virtual void reset() = 0;
   /** Get proof lines. */
   virtual std::vector<std::string> getProof() = 0;
+  /**
+   * Maps the variable names appearing in getProof()'s output to the PB
+   * variables they stand for. Backends number their variables internally, so
+   * a name like "x7" in the proof generally denotes a different variable than
+   * the cvc5 PB variable that happens to be spelled "x7". Empty for backends
+   * that do not log proofs.
+   */
+  virtual std::unordered_map<std::string, T> getProofVariables() { return {}; }
 
  private:
   void init();

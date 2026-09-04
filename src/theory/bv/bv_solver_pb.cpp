@@ -75,14 +75,7 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
   d_pbSolver->reset();
   Trace("bv-postcheck") << "Post Check\n";
 
-  // When the backend supports unsat cores we guard each fact's constraints with
-  // a fresh selector variable, assume all selectors true, and read back the
-  // core to build a minimized conflict. Otherwise we add the constraints
-  // unconditionally and conflict over all blasted atoms.
-  const bool useCores = d_pbSolver->supportsCores();
-  std::vector<Node> selectors;
   std::vector<Node> allFacts;
-  std::unordered_map<Node, Node> selectorToFact;
   // Pair each input PB constraint with its BV fact, matching RoundingSat's
   // id stream: dedup by Node (RoundingSat does), and push EQUAL twice (split
   // into >= and <=).
@@ -97,29 +90,14 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
   {
     Trace("bv-postcheck") << fact << "\n";
     allFacts.push_back(fact);
-    if (useCores)
+    for (const Node& constraint : d_pbBlaster->getAtom(fact))
     {
-      Node selector = d_pbBlaster->newVariable(1)[0];
-      selectors.push_back(selector);
-      selectorToFact.emplace(selector, fact);
-      for (const Node& constraint : d_pbBlaster->getAtom(fact))
-      {
-        d_pbSolver->addConstraint(constraint, selector);
-        recordInput(constraint, fact);
-      }
-    }
-    else
-    {
-      for (const Node& constraint : d_pbBlaster->getAtom(fact))
-      {
-        d_pbSolver->addConstraint(constraint);
-        recordInput(constraint, fact);
-      }
+      d_pbSolver->addConstraint(constraint);
+      recordInput(constraint, fact);
     }
   }
 
-  PbSolveState s =
-      useCores ? d_pbSolver->solve(selectors) : d_pbSolver->solve();
+  PbSolveState s = d_pbSolver->solve();
 
   if (s == PbSolveState::PB_UNSAT)
   {
@@ -131,23 +109,7 @@ void BVSolverPseudoBoolean::postCheck(Theory::Effort level)
     }
     NodeManager* nm = nodeManager();
     std::vector<Node> conflictFacts;
-    if (useCores)
-    {
-      for (const Node& selector : d_pbSolver->getUnsatCore())
-      {
-        conflictFacts.push_back(selectorToFact.at(selector));
-      }
-      // A guarded encoding is always satisfiable with the selectors off, so an
-      // unsat result must implicate at least one selector; fall back to all
-      // facts only defensively.
-      Trace("bv-pb") << "UNSAT core: " << conflictFacts.size() << " of "
-                     << allFacts.size() << " facts\n";
-      if (conflictFacts.empty()) conflictFacts = allFacts;
-    }
-    else
-    {
-      conflictFacts = blasted_atoms;
-    }
+    conflictFacts = blasted_atoms;
     Node conflict = nm->mkAnd(conflictFacts);
     if (d_isProofProducing)
     {
@@ -286,8 +248,9 @@ void BVSolverPseudoBoolean::initPbSolver()
       d_pbSolver.reset(new ExactSolver(
           d_env, statisticsRegistry(), "theory::bv::BVSolverPseudoBoolean::"));
       Trace("bv-pb") << "Initialization successful.\n";
-#endif
+#else
       Unreachable() << "cvc5 was not Configured with Exact\n";
+#endif
       break;
     case options::BvPbSolver::ROUNDINGSAT:
       Trace("bv-pb") << "Initializing RoundingSat PB Solver...\n";
@@ -298,8 +261,9 @@ void BVSolverPseudoBoolean::initPbSolver()
                                 "theory::bv::BVSolverPseudoBoolean::",
                                 d_isProofProducing));
       Trace("bv-pb") << "Initialization successful.\n";
-#endif
+#else
       Unreachable() << "cvc5 was not Configured with RoundingSat\n";
+#endif
       break;
     default: Unimplemented();
   }
