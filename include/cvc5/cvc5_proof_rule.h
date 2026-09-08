@@ -2496,9 +2496,9 @@ enum ENUM(ProofRule)
   /**
    * Given as parameters a variable `x`, a polynomial `p`, a rational `s` and two endpoints
    * `l` and `r`, as premises `SGN_INV(p, l, r)` and `p(x) ~ 0` (where ~ is either <, <=, = or !=)
-   * and as side conditions `l < s < r` and `\not p(s) ~ 0`, concludes `\not (x > l \and x < r)
-   * \or \not (p(x) ~ 0)`. If `l` is `MINUS_INFINITY` then conditions that mention it are omited,
-   * and the same for `r` if it is `PLUS_INFINITY`.
+   * and as side conditions `l < s < r` and `\not p(s) ~ 0`, concludes `\not (x > l \and x < r)`.
+   * If `l` is `MINUS_INFINITY` then conditions that mention it are omited, and the same for `r`
+   * if it is `PLUS_INFINITY`.
    */
   EVALUE(SGN_INV_ELIM),
   /**

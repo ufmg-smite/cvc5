@@ -62,15 +62,19 @@ struct ProofInterval
 {
   poly::Interval d_interval;
   poly::Polynomial d_poly;
+  poly::SignCondition d_sc;  // sign condition of the original constraint
   Node d_origin; // the original constraint on d_poly
   Node d_fact; // The expression stating that d_poly is SGN_INV in d_interval
+  Node d_elim; // conclusion of SGN_INV_ELIM (open piece) / RAN_EVAL (point)
 
   ProofInterval(const poly::Interval& _d_interval,
                 const poly::Polynomial& _d_poly,
+                poly::SignCondition _d_sc,
                 const Node& _d_origin,
                 const Node& _d_fact) :
     d_interval(_d_interval),
     d_poly(_d_poly),
+    d_sc(_d_sc),
     d_origin(_d_origin),
     d_fact(_d_fact) {}
 };
@@ -139,12 +143,15 @@ class CoveringsProofGenerator : protected EnvObj
                     poly::Polynomial polys);
   void addPointPiece(const poly::Value& v,
                      const poly::Polynomial& p,
+                     poly::SignCondition sc,
                      const Node& origin);
 
   // Adds `intervals` to `d_intervals`, breaking closed intervals and intervals
   // whose corresponding polynomial contains a root in the middle of it.
-  void addIntervals(const std::vector<CACInterval>& intervals,
-                    const std::map<Node, poly::Polynomial>& constraintPolys);
+  void addIntervals(
+      const std::vector<CACInterval>& intervals,
+      const std::map<Node, std::pair<poly::Polynomial, poly::SignCondition>>&
+          constraintPolys);
   Node addCoverStep(const Node& var);
 
   Node addValidateIntervalsStep(

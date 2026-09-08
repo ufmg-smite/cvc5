@@ -252,6 +252,7 @@ void CoveringsProofGenerator::addUnivRoots(
 void CoveringsProofGenerator::addPointPiece(
     const poly::Value& v,
     const poly::Polynomial& p,
+    poly::SignCondition sc,
     const Node& origin)
 {
   for (const auto& pInterval: d_intervals)
@@ -262,30 +263,31 @@ void CoveringsProofGenerator::addPointPiece(
       return;
     }
   }
-  d_intervals.emplace_back(poly::Interval(v), p, origin, Node::null());
+  d_intervals.emplace_back(poly::Interval(v), p, sc, origin, Node::null());
 }
 
 void CoveringsProofGenerator::addIntervals(
     const std::vector<CACInterval>& intervals,
-    const std::map<Node, poly::Polynomial>& constraintPolys)
+    const std::map<Node, std::pair<poly::Polynomial, poly::SignCondition>>&
+        constraintPolys)
 {
   for (const auto& cac_interval: intervals)
   {
     const poly::Interval& interval = cac_interval.d_interval;
     Assert(cac_interval.d_origins.size() == 1);
     const Node& originalConstraint = cac_interval.d_origins[0];
-    const poly::Polynomial& polynomial = constraintPolys.at(originalConstraint);
+    const auto& [polynomial, sc] = constraintPolys.at(originalConstraint);
 
     if (poly::is_point(interval))
     {
-      addPointPiece(poly::get_lower(interval), polynomial, originalConstraint);
+      addPointPiece(poly::get_lower(interval), polynomial, sc, originalConstraint);
       continue;
     }
     poly::Value lower = poly::get_lower(interval);
     poly::Value upper = poly::get_upper(interval);
     if (!poly::get_lower_open(interval))
     {
-      addPointPiece(lower, polynomial, originalConstraint);
+      addPointPiece(lower, polynomial, sc, originalConstraint);
     }
 
     int lower_idx = poly::is_minus_infinity(lower) ? -1 : d_rootMap.rootIndex(lower);
@@ -300,18 +302,18 @@ void CoveringsProofGenerator::addIntervals(
       {
         poly::Value pRoot = d_rootMap.d_roots[root_idx];
         poly::Interval open_interval = poly::Interval(lower, pRoot);
-        d_intervals.emplace_back(open_interval, polynomial, originalConstraint, Node::null());
-        addPointPiece(pRoot, polynomial, originalConstraint);
+        d_intervals.emplace_back(open_interval, polynomial, sc, originalConstraint, Node::null());
+        addPointPiece(pRoot, polynomial, sc, originalConstraint);
         lower_idx = root_idx;
         lower = d_rootMap.d_roots[root_idx];
       }
     }
     auto open_interval = poly::Interval(lower, upper);
-    d_intervals.emplace_back(open_interval, polynomial, originalConstraint, Node::null());
+    d_intervals.emplace_back(open_interval, polynomial, sc, originalConstraint, Node::null());
 
     if (!poly::get_upper_open(interval))
     {
-      addPointPiece(upper, polynomial, originalConstraint);
+      addPointPiece(upper, polynomial, sc, originalConstraint);
     }
   }
 }
@@ -423,16 +425,82 @@ Node CoveringsProofGenerator::addValidateIntervalsStep(
   return conc;
 }
 
+/**
+ * The COVER disjunct of an open piece (l, r): the conjunction of x > l and
+ * x < r, omitting conjuncts that mention an infinite endpoint. Returns the
+ * null node for (-inf, +inf), whose disjunct would be trivially true.
+ */
+static Node mkOpenPiece(NodeManager* nm,
+                        const Node& var,
+                        const Node& lower,
+                        const Node& upper)
+{
+  std::vector<Node> conjs;
+  if (lower.getKind() != Kind::MINUS_INFINITY)
+  {
+    conjs.push_back(nm->mkNode(Kind::GT, var, lower));
+  }
+  if (upper.getKind() != Kind::PLUS_INFINITY)
+  {
+    conjs.push_back(nm->mkNode(Kind::LT, var, upper));
+  }
+  return conjs.empty() ? Node::null() : nm->mkAnd(conjs);
+}
+
+/** The canonical literal (p ~ 0) of a constraint with sign condition sc. */
+static Node mkCanonicalLiteral(NodeManager* nm,
+                               const Node& p,
+                               poly::SignCondition sc)
+{
+  Node zero = mkZero(p.getType());
+  switch (sc)
+  {
+    case poly::SignCondition::LT: return nm->mkNode(Kind::LT, p, zero);
+    case poly::SignCondition::LE: return nm->mkNode(Kind::LEQ, p, zero);
+    case poly::SignCondition::EQ: return nm->mkNode(Kind::EQUAL, p, zero);
+    case poly::SignCondition::NE:
+      return nm->mkNode(Kind::EQUAL, p, zero).notNode();
+    case poly::SignCondition::GT: return nm->mkNode(Kind::GT, p, zero);
+    case poly::SignCondition::GE: return nm->mkNode(Kind::GEQ, p, zero);
+  }
+  Unreachable();
+}
+
 void CoveringsProofGenerator::addSgnInvElims(
     const Node& var,
     VariableMapper& vm)
 {
-  for (const auto& pInterval: d_intervals)
+  NodeManager* nm = nodeManager();
+  for (auto& pInterval : d_intervals)
   {
     const poly::Interval& interval = pInterval.d_interval;
+    if (poly::is_point(interval))
+    {
+      continue;
+    }
+    Assert(!pInterval.d_fact.isNull())
+        << "addValidateIntervalsStep must run before addSgnInvElims";
     const poly::Value& l = poly::get_lower(interval);
     const poly::Value& r = poly::get_upper(interval);
+    // a rational strictly inside (l, r); handles infinite endpoints
     poly::Value s = poly::value_between(l, true, r, true);
+
+    Node lower = value_to_node(l, var);
+    Node upper = value_to_node(r, var);
+    Node sample = value_to_node(s, var);
+    Node cvc_p = nl::as_cvc_polynomial(nm, pInterval.d_poly, vm);
+    Node lit = mkCanonicalLiteral(nm, cvc_p, pInterval.d_sc);
+
+    // (not piece); for the full line the piece is trivially true, so the
+    // conclusion is false
+    Node piece = mkOpenPiece(nm, var, lower, upper);
+    Node conc = piece.isNull() ? d_false : piece.notNode();
+
+    // the canonical literal (p ~ 0) must be derived from d_origin elsewhere
+    std::vector<Node> args{var, cvc_p, sample, lower, upper};
+    d_cdp->addStep(
+        conc, ProofRule::SGN_INV_ELIM, {pInterval.d_fact, lit}, args);
+    pInterval.d_elim = conc;
   }
 }
 

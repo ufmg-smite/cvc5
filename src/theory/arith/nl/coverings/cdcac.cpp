@@ -142,14 +142,14 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   std::vector<CACInterval> res;
   LazardEvaluation le(statisticsRegistry(), nodeManager()->getPolyContext());
   prepareRootIsolation(le, cur_variable);
-  std::map<Node, poly::Polynomial> constraintPolys;
+  std::map<Node, std::pair<poly::Polynomial, poly::SignCondition>> constraintPolys;
 
   for (const auto& c : d_constraints.getConstraints())
   {
     const poly::Polynomial& p = std::get<0>(c);
     poly::SignCondition sc = std::get<1>(c);
     const Node& n = std::get<2>(c);
-    constraintPolys[n] = p;
+    constraintPolys[n] = {p, sc};
     if (main_variable(p) != d_variableOrdering[cur_variable])
     {
       // Constraint is in another variable, ignore it.
