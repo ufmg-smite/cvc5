@@ -98,6 +98,17 @@ cvc5::internal::Node as_cvc_polynomial(NodeManager* nm,
                                        VariableMapper& vm);
 
 /**
+ * Like as_cvc_polynomial, but a power x^d is expanded into d factors x
+ * (nested NONLINEAR_MULT) instead of a POW node. This is the shape expected
+ * by the polynomial normalization of ARITH_POLY_NORM (PolyNorm does not
+ * handle POW) and by its reconstruction in lean-smt. Used for the terms of
+ * the univariate coverings proofs.
+ */
+cvc5::internal::Node as_cvc_polynomial_no_pow(NodeManager* nm,
+                                              const poly::Polynomial& p,
+                                              VariableMapper& vm);
+
+/**
  * Constructs a constraints (a polynomial and a sign condition) from the given
  * node.
  */

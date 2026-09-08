@@ -113,6 +113,17 @@ Node CoveringsProofRuleChecker::checkCover(const std::vector<Node>& args)
   return nm->mkOr(disjs);
 }
 
+Node CoveringsProofRuleChecker::checkSgnInvElim(const std::vector<Node>& args)
+{
+  NodeManager* nm = nodeManager();
+  Node var = args[0];
+  Node lower = args[3];
+  Node upper = args[4];
+  Node piece = mkOpenPiece(nm, var, lower, upper);
+  Node conc = piece.isNull() ? nm->mkConst(false) : piece.notNode();
+  return conc;
+}
+
 Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
                                               const std::vector<Node>& children,
                                               const std::vector<Node>& args)
@@ -130,6 +141,10 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
   if (id == ProofRule::VALIDATE_INTERVALS)
   {
     return checkValidateIntervals(args);
+  }
+  if (id == ProofRule::SGN_INV_ELIM)
+  {
+    return checkSgnInvElim(args);
   }
   // SGN_INV_ELIM and RAN_EVAL do not conclude false, so returning it here
   // would be rejected as a conclusion mismatch as soon as such steps are

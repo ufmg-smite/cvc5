@@ -61,23 +61,30 @@ struct RootMap
 struct ProofInterval
 {
   poly::Interval d_interval;
-  poly::Polynomial d_poly;
-  poly::SignCondition d_sc;  // sign condition of the original constraint
+  poly::Polynomial d_poly;  // oriented like d_origin, see orientLikeConstraint
   Node d_origin; // the original constraint on d_poly
   Node d_fact; // The expression stating that d_poly is SGN_INV in d_interval
   Node d_elim; // conclusion of SGN_INV_ELIM (open piece) / RAN_EVAL (point)
 
   ProofInterval(const poly::Interval& _d_interval,
                 const poly::Polynomial& _d_poly,
-                poly::SignCondition _d_sc,
                 const Node& _d_origin,
                 const Node& _d_fact) :
     d_interval(_d_interval),
     d_poly(_d_poly),
-    d_sc(_d_sc),
     d_origin(_d_origin),
     d_fact(_d_fact) {}
 };
+
+/**
+ * The polynomial of constraint n, oriented like n itself. For n of the form
+ * (k a b) or (not (k a b)), as_poly_constraint returns +-c*(a - b) with c > 0,
+ * negating whenever the resulting sign condition would otherwise be > or >=.
+ * This undoes that negation, returning q = c*(a - b), so that the canonical
+ * literal (k q 0) has the same relation kind as n and can be derived from n
+ * by ARITH_POLY_NORM_REL (which does not flip relations).
+ */
+poly::Polynomial orientLikeConstraint(const Node& n, const poly::Polynomial& p);
 
 /* Builds the canonical root map from the raw pairs collected by
  * addUnivRoots(). */
@@ -143,15 +150,12 @@ class CoveringsProofGenerator : protected EnvObj
                     poly::Polynomial polys);
   void addPointPiece(const poly::Value& v,
                      const poly::Polynomial& p,
-                     poly::SignCondition sc,
                      const Node& origin);
 
   // Adds `intervals` to `d_intervals`, breaking closed intervals and intervals
   // whose corresponding polynomial contains a root in the middle of it.
-  void addIntervals(
-      const std::vector<CACInterval>& intervals,
-      const std::map<Node, std::pair<poly::Polynomial, poly::SignCondition>>&
-          constraintPolys);
+  void addIntervals(const std::vector<CACInterval>& intervals,
+                    const std::map<Node, poly::Polynomial>& constraintPolys);
   Node addCoverStep(const Node& var);
 
   Node addValidateIntervalsStep(
@@ -161,6 +165,21 @@ class CoveringsProofGenerator : protected EnvObj
   void addSgnInvElims(
       const Node& var,
       VariableMapper& vm);
+
+  /**
+   * Derives the canonical literal of the constraint origin, which has the
+   * form (k a b) or (not (k a b)), from origin itself. The literal is
+   * (k q 0), respectively (not (k q 0)), where q is the cvc5 term of the
+   * polynomial of origin (oriented like origin, see orientLikeConstraint).
+   * Adds the steps
+   *   ARITH_POLY_NORM      (= (* cx (- a b)) (* cy (- q 0)))
+   *   ARITH_POLY_NORM_REL  (= (k a b) (k q 0))
+   *   CONG                 (= (not (k a b)) (not (k q 0)))   [if negated]
+   *   EQ_RESOLVE           literal                            [from origin]
+   * and returns the literal. If origin already is the literal, no step is
+   * added.
+   */
+  Node addNormalizedLiteral(const Node& origin, const Node& q);
 
   void closeUnivProof(
       std::vector<Node> constraints,

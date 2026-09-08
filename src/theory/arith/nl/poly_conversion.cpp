@@ -226,7 +226,10 @@ namespace {
  */
 struct CollectMonomialData
 {
-  CollectMonomialData(NodeManager* nm, VariableMapper& v) : d_vm(v), d_nm(nm) {}
+  CollectMonomialData(NodeManager* nm, VariableMapper& v, bool noPow)
+      : d_vm(v), d_nm(nm), d_noPow(noPow)
+  {
+  }
 
   /** Mapper from poly variables to cvc5 variables */
   VariableMapper& d_vm;
@@ -234,6 +237,8 @@ struct CollectMonomialData
   std::vector<Node> d_terms;
   /** Caches the current node manager */
   NodeManager* d_nm;
+  /** Whether x^d is expanded into d factors x instead of using POW */
+  bool d_noPow;
 };
 /**
  * Callback for lp_polynomial_traverse. Assumes data is actually a
@@ -251,7 +256,14 @@ void collect_monomials(CVC5_UNUSED const lp_polynomial_context_t* ctx,
   {
     // variable exponent pair
     Node var = d->d_vm(poly::Variable(m->p[i].x));
-    if (m->p[i].d > 1)
+    if (d->d_noPow)
+    {
+      for (std::size_t j = 0; j < m->p[i].d; ++j)
+      {
+        term = d->d_nm->mkNode(Kind::NONLINEAR_MULT, term, var);
+      }
+    }
+    else if (m->p[i].d > 1)
     {
       Node exp = d->d_nm->mkConstReal(m->p[i].d);
       term = d->d_nm->mkNode(
@@ -266,11 +278,13 @@ void collect_monomials(CVC5_UNUSED const lp_polynomial_context_t* ctx,
 }
 }  // namespace
 
-cvc5::internal::Node as_cvc_polynomial(NodeManager* nm,
-                                       const poly::Polynomial& p,
-                                       VariableMapper& vm)
+namespace {
+cvc5::internal::Node as_cvc_polynomial_impl(NodeManager* nm,
+                                            const poly::Polynomial& p,
+                                            VariableMapper& vm,
+                                            bool noPow)
 {
-  CollectMonomialData cmd(nm, vm);
+  CollectMonomialData cmd(nm, vm, noPow);
   // Do the actual conversion
   lp_polynomial_traverse(p.get_internal(), collect_monomials, &cmd);
 
@@ -283,6 +297,21 @@ cvc5::internal::Node as_cvc_polynomial(NodeManager* nm,
     return cmd.d_terms.front();
   }
   return cmd.d_nm->mkNode(Kind::ADD, cmd.d_terms);
+}
+}  // namespace
+
+cvc5::internal::Node as_cvc_polynomial(NodeManager* nm,
+                                       const poly::Polynomial& p,
+                                       VariableMapper& vm)
+{
+  return as_cvc_polynomial_impl(nm, p, vm, false);
+}
+
+cvc5::internal::Node as_cvc_polynomial_no_pow(NodeManager* nm,
+                                              const poly::Polynomial& p,
+                                              VariableMapper& vm)
+{
+  return as_cvc_polynomial_impl(nm, p, vm, true);
 }
 
 poly::SignCondition normalize_kind(cvc5::internal::Kind kind,

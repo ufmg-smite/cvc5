@@ -305,6 +305,16 @@ inline Node mkSgnInv(NodeManager* nm, Node p, Node lo, Node hi)
   return nm->mkNode(Kind::SGN_INV, p, lo, hi);
 }
 
+/**
+ * The COVER disjunct of an open piece (l, r): the conjunction of x > l and
+ * x < r, omitting conjuncts that mention an infinite endpoint. Returns the
+ * null node for (-inf, +inf), whose disjunct would be trivially true.
+ */
+Node mkOpenPiece(NodeManager* nm,
+                        const Node& var,
+                        const Node& lower,
+                        const Node& upper);
+
 /** Join kinds, where k1 and k2 are arithmetic relations returns an
  * arithmetic relation ret such that
  * if (a <k1> b) and (a <k2> b), then (a <ret> b).

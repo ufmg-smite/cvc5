@@ -142,14 +142,16 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   std::vector<CACInterval> res;
   LazardEvaluation le(statisticsRegistry(), nodeManager()->getPolyContext());
   prepareRootIsolation(le, cur_variable);
-  std::map<Node, std::pair<poly::Polynomial, poly::SignCondition>> constraintPolys;
+  std::map<Node, poly::Polynomial> constraintPolys;
 
   for (const auto& c : d_constraints.getConstraints())
   {
     const poly::Polynomial& p = std::get<0>(c);
     poly::SignCondition sc = std::get<1>(c);
     const Node& n = std::get<2>(c);
-    constraintPolys[n] = {p, sc};
+    // the polynomial used in the proof, oriented like n
+    poly::Polynomial q = orientLikeConstraint(n, p);
+    constraintPolys[n] = q;
     if (main_variable(p) != d_variableOrdering[cur_variable])
     {
       // Constraint is in another variable, ignore it.
@@ -175,7 +177,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
       intervals = poly::infeasible_regions(p, d_assignment, sc, roots);
       if (isProofEnabled() && d_isUniv)
       {
-        d_proof->addUnivRoots(roots, p);
+        d_proof->addUnivRoots(roots, q);
       }
     }
     for (const auto& i : intervals)
