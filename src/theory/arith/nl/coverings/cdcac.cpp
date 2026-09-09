@@ -151,7 +151,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     const Node& n = std::get<2>(c);
     // the polynomial used in the proof, oriented like n
     poly::Polynomial q = orientLikeConstraint(n, p);
-    constraintPolys[n] = q;
+    constraintPolys.insert(std::pair(n, q));
     if (main_variable(p) != d_variableOrdering[cur_variable])
     {
       // Constraint is in another variable, ignore it.
