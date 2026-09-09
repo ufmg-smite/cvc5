@@ -61,7 +61,7 @@ RootMap buildRootMap(
   {
     auto rit = std::lower_bound(
         rootMap.d_roots.begin(), rootMap.d_roots.end(), pr.second);
-    Assert(rit != map.d_roots.end() && *rit == pr.second);
+    Assert(rit != rootMap.d_roots.end() && *rit == pr.second);
     std::size_t id = std::distance(rootMap.d_roots.begin(), rit);
 
     auto mit = std::find_if(
