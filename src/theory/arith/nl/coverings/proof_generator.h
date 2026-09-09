@@ -62,8 +62,10 @@ struct ProofInterval
 {
   poly::Interval d_interval;
   poly::Polynomial d_poly;  // oriented like d_origin, see orientLikeConstraint
-  Node d_origin; // the original constraint on d_poly
-  Node d_fact; // The expression stating that d_poly is SGN_INV in d_interval
+  Node d_origin; // the original constraint on `d_poly` that is violated in `d_interval`
+  // The expression stating that `d_poly` is `SGN_INV` in `d_interval` or `IS_ROOT(p, r)`,
+  // if `d_interval` is a point interval at `r`.
+  Node d_fact;
   Node d_elim; // conclusion of SGN_INV_ELIM (open piece) / RAN_EVAL (point)
 
   ProofInterval(const poly::Interval& _d_interval,
@@ -158,13 +160,15 @@ class CoveringsProofGenerator : protected EnvObj
                     const std::map<Node, poly::Polynomial>& constraintPolys);
   Node addCoverStep(const Node& var);
 
-  Node addValidateIntervalsStep(
+  void addValidateIntervalsStep(
       const Node& var,
       VariableMapper& vm);
 
-  void addSgnInvElims(
+  void addElimSteps(
       const Node& var,
       VariableMapper& vm);
+
+  void addResolutionStep(const Node& coverConc);
 
   /**
    * Derives the canonical literal of the constraint origin, which has the

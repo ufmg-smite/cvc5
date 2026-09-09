@@ -2477,13 +2477,16 @@ enum ENUM(ProofRule)
    */
   EVALUE(ARITH_TRANS_SINE_APPROX_BELOW_POS),
   /**
-   * Receives a list of pairs (interval, polynomial), the list of all roots of all polynomials
-   * in the problem and a list of pairs (p, root_indices), where the indices point to the
+   * Receives a list of pairs `(p, r)` (representing point intervals) or triples `(p, l, r)`
+   * (representing open intervals) , the list of all roots of all polynomials
+   * in the problem and a list of pairs `(p, root_indices)`, where the indices point to the
    * list of all roots, corresponding to the roots of that polynomial. Concludes
-   * SGN_INV(p, l, r) for each pair in the first argument. Requires as a side condition
+   * SGN_INV(p, l, r) for each pair in the first argument, for which the interval is open,
+   * and IS_ROOT(p, r) for each point interval. Requires as a side condition
    * that the list of roots is sorted in ascending order, the root list of each polynomial
-   * is exhaustive and each interval does not contain a root of the corresponding polynomial
-   * in its interior.
+   * is exhaustive, each interval does not contain a root of the corresponding polynomial
+   * in its interior (for open intervals) and, for point intervals, that the point is indeed
+   * a root of the polynomial.
    */
   EVALUE(VALIDATE_INTERVALS),
   /**
@@ -2494,21 +2497,19 @@ enum ENUM(ProofRule)
    */
   EVALUE(COVER),
   /**
-   * Given as parameters a variable `x`, a polynomial `p`, a rational `s` and two endpoints
-   * `l` and `r`, as premises `SGN_INV(p, l, r)` and `p(x) ~ 0` (where ~ is either <, <=, = or !=)
-   * (or (`\not p(x) ~ 0`)). and as side conditions `l < s < r` and `\not p(s) ~ 0` (or
+   * Parameters: a variable `x`, a polynomial `p`, a rational `s` and two endpoints
+   * `l` and `r`, as premises `SGN_INV(p, l, r)` and `p(x) ~ 0` (where ~ is either <, <=, =, >= or >)
+   * (or (`\not p(x) ~ 0`)), and as side conditions `l < s < r` and `\not p(s) ~ 0` (or
    * `p(s) ~ 0`, if the premise was `\not p(x) ~ 0`). Concludes `\not (x > l \and x < r)`.
-   * If `l` is `MINUS_INFINITY` then terms that mention it are omited, and the same for `r`
-   * if it is `PLUS_INFINITY`.
+   * If `l` is `MINUS_INFINITY` then terms that mention it are omitted, and the same for `r`
+   * if it is `PLUS_INFINITY`. If the interval is the whole line then the conclusion is `false`.
    */
   EVALUE(SGN_INV_ELIM),
   /**
-   * Point-cell evaluation of a univariate polynomial at a real algebraic
-   * number. Takes as arguments a polynomial `p`, a variable `x`, a real
-   * number `r` and the Sturm sequence of `p` (shipped to facilitate checking
-   * the sign of `p(r)` via Sturm-Tarski). Concludes
-   * `(not (x = r)) or (p(x) <> 0)`, where `<>` is `<`, `>` or `=` depending
-   * on the sign of `p(r)`.
+   * Parameters: a variable `x`, a real algebraic number `r` and a polynomial `p`.
+   * Premises: IS_ROOT(p, r) and one of:
+   *     `p(x) != 0`, `p(x) < 0`, `p(x) > 0`, `not (p(x) >= 0)` or `not (p(x) <= 0)`
+   * Concludes: x != r
    */
   EVALUE(RAN_EVAL),
   /**

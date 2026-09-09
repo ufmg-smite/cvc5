@@ -35,7 +35,7 @@ CoveringsProofRuleChecker::CoveringsProofRuleChecker(NodeManager* nm)
 
 void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
 {
-  pc->registerChecker(ProofRule::ARITH_COVERINGS_UNIV, this);
+  // pc->registerChecker(ProofRule::ARITH_COVERINGS_UNIV, this);
   pc->registerChecker(ProofRule::COVER, this);
   pc->registerChecker(ProofRule::SGN_INV_ELIM, this);
   pc->registerChecker(ProofRule::VALIDATE_INTERVALS, this);
@@ -55,11 +55,18 @@ Node CoveringsProofRuleChecker::checkValidateIntervals(const std::vector<Node>& 
   std::vector<Node> conj;
   for (const Node& e : args[0])
   {
-    if (e.getKind() != Kind::SEXPR || e.getNumChildren() != 3)
+    if (e.getKind() != Kind::SEXPR || (e.getNumChildren() != 2 && e.getNumChildren() != 3))
     {
       return Node::null();
     }
-    conj.push_back(mkSgnInv(nm, e[0], e[1], e[2]));
+    if (e.getNumChildren() == 3)
+    {
+      conj.push_back(mkSgnInv(nm, e[0], e[1], e[2]));
+    }
+    else
+    {
+      conj.push_back(mkIsRoot(nm, e[0], e[1]));
+    }
   }
   return nm->mkAnd(conj);
 }
@@ -124,16 +131,24 @@ Node CoveringsProofRuleChecker::checkSgnInvElim(const std::vector<Node>& args)
   return conc;
 }
 
+Node CoveringsProofRuleChecker::checkRanEval(const std::vector<Node>& args)
+{
+  NodeManager* nm = nodeManager();
+  Node var = args[0];
+  Node r = args[1];
+  return nm->mkNode(Kind::EQUAL, var, r).notNode();
+}
+
 Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
                                               const std::vector<Node>& children,
                                               const std::vector<Node>& args)
 {
-  NodeManager* nm = nodeManager();
   // TODO: Actually check the proof.
-  if (id == ProofRule::ARITH_COVERINGS_UNIV)
-  {
-    return nm->mkConst(false);
-  }
+  // NodeManager* nm = nodeManager();
+  // if (id == ProofRule::ARITH_COVERINGS_UNIV)
+  // {
+  //   return nm->mkConst(false);
+  // }
   if (id == ProofRule::COVER)
   {
     return checkCover(args);
@@ -146,9 +161,10 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
   {
     return checkSgnInvElim(args);
   }
-  // SGN_INV_ELIM and RAN_EVAL do not conclude false, so returning it here
-  // would be rejected as a conclusion mismatch as soon as such steps are
-  // emitted. TODO: compute their conclusions from the premises and arguments.
+  if (id == ProofRule::RAN_EVAL)
+  {
+    return checkRanEval(args);
+  }
   return Node::null();
 }
 

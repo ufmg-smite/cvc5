@@ -360,6 +360,41 @@ TypeNode SgnInvTypeRule::computeType(NodeManager* nm,
   return nm->booleanType();
 }
 
+TypeNode IsRootTypeRule::preComputeType(NodeManager* nm,
+                                        CVC5_UNUSED TNode n)
+{
+  return nm->booleanType();
+}
+
+TypeNode IsRootTypeRule::computeType(NodeManager* nm,
+                                     TNode n,
+                                     bool check,
+                                     std::ostream* errOut)
+{
+  if (check)
+  {
+    if (!n[0].getTypeOrNull().isRealOrInt())
+    {
+      if (errOut)
+      {
+        (*errOut) << "IsRoot expects a polynomial as the second argument.";
+      }
+      return TypeNode::null();
+    }
+    if (!n[1].getTypeOrNull().isRealOrInt() ||
+        n[1].getKind() == Kind::PLUS_INFINITY ||
+        n[1].getKind() == Kind::MINUS_INFINITY)
+    {
+      if (errOut)
+      {
+        (*errOut) << "IsRoot expects a finite real as first argument.\n";
+      }
+      return TypeNode::null();
+    }
+  }
+  return nm->booleanType();
+}
+
 }  // namespace arith
 }  // namespace theory
 }  // namespace cvc5::internal

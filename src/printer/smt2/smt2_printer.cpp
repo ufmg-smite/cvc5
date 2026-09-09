@@ -1223,6 +1223,7 @@ std::string Smt2Printer::smtKindString(Kind k)
 
     // univariate coverings
     case Kind::SGN_INV: return "@sgn_inv";
+    case Kind::IS_ROOT: return "@is_root";
     case Kind::MINUS_INFINITY: return "@cov_minus_inf";
     case Kind::PLUS_INFINITY: return "@cov_plus_inf";
 

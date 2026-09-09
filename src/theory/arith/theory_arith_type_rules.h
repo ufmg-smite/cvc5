@@ -164,6 +164,16 @@ class SgnInvTypeRule
                                 std::ostream* errOut);
 };
 
+class IsRootTypeRule
+{
+  public:
+    static TypeNode preComputeType(NodeManager* nm, TNode n);
+    static TypeNode computeType(NodeManager* nodeManager,
+                                TNode n,
+                                bool check,
+                                std::ostream* errOut);
+};
+
 }  // namespace arith
 }  // namespace theory
 }  // namespace cvc5::internal

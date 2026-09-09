@@ -294,15 +294,14 @@ inline Node mkPlusInfinity(NodeManager* nm)
   return nm->mkNullaryOperator(nm->realType(), Kind::PLUS_INFINITY);
 }
 
-/**
- * The sign-invariance predicate of univariate coverings proofs:
- * p has constant nonzero sign on the open interval (lo, hi). The bounds are
- * real terms or the infinity markers (mkMinusInfinity / mkPlusInfinity for
- * lo / hi respectively; the type rule rejects a marker on the wrong side).
- */
 inline Node mkSgnInv(NodeManager* nm, Node p, Node lo, Node hi)
 {
   return nm->mkNode(Kind::SGN_INV, p, lo, hi);
+}
+
+inline Node mkIsRoot(NodeManager* nm, Node p, Node r)
+{
+  return nm->mkNode(Kind::IS_ROOT, p, r);
 }
 
 /**

@@ -302,7 +302,9 @@ void CoveringsProofGenerator::addIntervals(
     }
 
     int lower_idx = poly::is_minus_infinity(lower) ? -1 : d_rootMap.rootIndex(lower);
-    int upper_idx = poly::is_plus_infinity(upper) ? d_rootMap.d_roots.size() : d_rootMap.rootIndex(upper);
+    int upper_idx = poly::is_plus_infinity(upper) ?
+      d_rootMap.d_roots.size() :
+      d_rootMap.rootIndex(upper);
     for (const auto& root_idx: d_rootMap.polyRootIndices(polynomial))
     {
       if (int(root_idx) >= upper_idx)
@@ -377,7 +379,7 @@ Node CoveringsProofGenerator::addCoverStep(const Node& var)
   return coverConc;
 }
 
-Node CoveringsProofGenerator::addValidateIntervalsStep(
+void CoveringsProofGenerator::addValidateIntervalsStep(
     const Node& var,
     VariableMapper& vm)
 {
@@ -388,11 +390,15 @@ Node CoveringsProofGenerator::addValidateIntervalsStep(
   {
     const poly::Interval& interval = pInterval.d_interval;
     const poly::Polynomial& p = pInterval.d_poly;
+    Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, p, vm);
     if (is_point(interval))
     {
+      Node r = value_to_node(get_upper(interval), var);
+      concConjs.push_back(mkIsRoot(nm, cvc_p, r));
+      intervalsData.push_back(nm->mkNode(Kind::SEXPR, {cvc_p, r}));
+      pInterval.d_fact = concConjs.back();
       continue;
     }
-    Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, p, vm);
     Node l = value_to_node(get_lower(interval), var);
     Node r = value_to_node(get_upper(interval), var);
 
@@ -433,23 +439,30 @@ Node CoveringsProofGenerator::addValidateIntervalsStep(
                        {nm->mkConstInt(Rational(i))});
     }
   }
-  return conc;
 }
 
-void CoveringsProofGenerator::addSgnInvElims(
+void CoveringsProofGenerator::addElimSteps(
     const Node& var,
     VariableMapper& vm)
 {
   NodeManager* nm = nodeManager();
   for (auto& pInterval : d_intervals)
   {
+    Assert(!pInterval.d_fact.isNull())
+        << "addValidateIntervalsStep must run before addElimSteps";
     const poly::Interval& interval = pInterval.d_interval;
     if (poly::is_point(interval))
     {
+      Node cvc_p = pInterval.d_fact[0];
+      Node cvc_r = pInterval.d_fact[1];
+      std::vector<Node> args {var, cvc_r, cvc_p};
+      Node lit = addNormalizedLiteral(pInterval.d_origin, cvc_p);
+      std::vector<Node> premises {pInterval.d_fact, lit};
+      auto conc = nm->mkNode(Kind::EQUAL, var, cvc_r).notNode();
+      d_cdp->addStep(conc, ProofRule::RAN_EVAL, premises, args);
+      pInterval.d_elim = conc;
       continue;
     }
-    Assert(!pInterval.d_fact.isNull())
-        << "addValidateIntervalsStep must run before addSgnInvElims";
     const poly::Value& l = poly::get_lower(interval);
     const poly::Value& r = poly::get_upper(interval);
     // a rational strictly inside (l, r); handles infinite endpoints
@@ -507,6 +520,27 @@ Node CoveringsProofGenerator::addNormalizedLiteral(const Node& origin,
   return lit;
 }
 
+void CoveringsProofGenerator::addResolutionStep(const Node& coverConc)
+{
+  NodeManager* nm = nodeManager();
+  if (!coverConc.isConst())
+  {
+    std::vector<Node> resChildren{coverConc};
+    std::vector<Node> pols;
+    std::vector<Node> pivots;
+    for (const auto& pInterval : d_intervals)
+    {
+      Assert(pInterval.d_elim.getKind() == Kind::NOT);
+      resChildren.push_back(pInterval.d_elim);
+      pols.push_back(nm->mkConst(true));
+      pivots.push_back(pInterval.d_elim[0]);
+    }
+    std::vector<Node> resArgs{nm->mkNode(Kind::SEXPR, pols),
+                              nm->mkNode(Kind::SEXPR, pivots)};
+    d_cdp->addStep(d_false, ProofRule::CHAIN_RESOLUTION, resChildren, resArgs);
+  }
+}
+
 void CoveringsProofGenerator::closeUnivProof(
     std::vector<Node> constraints,
     VariableMapper& vm)
@@ -514,33 +548,31 @@ void CoveringsProofGenerator::closeUnivProof(
   Assert(vm.mVarCVCpoly.size() == 1 && vm.mVarpolyCVC.size() == 1);
   Assert(!d_intervals.empty());
   Node var = vm.mVarCVCpoly.begin()->first;
-  std::vector<Node> args{var};
-  for (const auto& pr : d_polysRoots)
-  {
-    Node poly = as_cvc_polynomial_no_pow(nodeManager(), pr.first, vm);
-    Node val = value_to_node(pr.second, var);
-    args.push_back(nodeManager()->mkNode(Kind::SEXPR, poly, val));
-  }
   NodeManager* nm = nodeManager();
   Node mis = nm->mkAnd(constraints);
 
-  std::vector<Node> prem;
   Node coverConc = addCoverStep(var);
-  Node validateIntervalsConc = addValidateIntervalsStep(var, vm);
-  addSgnInvElims(var, vm);
-  for (auto& pInterval : d_intervals)
-  {
-    if (is_point(pInterval.d_interval))
-      continue;
-    prem.push_back(pInterval.d_elim);
-  }
-
-
-  prem.push_back(coverConc);
-  prem.push_back(validateIntervalsConc);
-  prem.insert(prem.end(), constraints.begin(), constraints.end());
-  d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, prem, args);
+  addValidateIntervalsStep(var, vm);
+  addElimSteps(var, vm);
+  addResolutionStep(coverConc);
   d_cdp->addStep(mis.notNode(), ProofRule::SCOPE, {d_false}, constraints);
+
+  // std::vector<Node> prem;
+  // std::vector<Node> args{var};
+  // for (const auto& pr : d_polysRoots)
+  // {
+  //   Node poly = as_cvc_polynomial_no_pow(nodeManager(), pr.first, vm);
+  //   Node val = value_to_node(pr.second, var);
+  //   args.push_back(nodeManager()->mkNode(Kind::SEXPR, poly, val));
+  // }
+  // for (auto& pInterval : d_intervals)
+  // {
+  //   prem.push_back(pInterval.d_elim);
+  // }
+  // prem.push_back(coverConc);
+  // prem.push_back(validateIntervalsConc);
+  // prem.insert(prem.end(), constraints.begin(), constraints.end());
+  // d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, prem, args);
 }
 void CoveringsProofGenerator::addDirect(Node var,
                                         VariableMapper& vm,
