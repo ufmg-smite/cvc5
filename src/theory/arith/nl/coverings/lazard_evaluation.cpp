@@ -893,6 +893,16 @@ std::vector<poly::Value> LazardEvaluation::isolateRealRoots(
   return poly::isolate_real_roots(q, d_state->d_assignment);
 }
 
+std::vector<poly::Interval> LazardEvaluation::infeasibleRegions(
+    const poly::Polynomial& q, poly::SignCondition sc) const
+{
+  WarningOnce()
+      << "nl-cov::LazardEvaluation is disabled because CoCoA is not available. "
+         "Falling back to regular calculation of infeasible regions."
+      << std::endl;
+  return poly::infeasible_regions(q, d_state->d_assignment, sc);
+}
+
 }  // namespace cvc5::internal::theory::arith::nl::coverings
 
 #endif
