@@ -2507,8 +2507,8 @@ enum ENUM(ProofRule)
   EVALUE(SGN_INV_ELIM),
   /**
    * Parameters: a variable `x`, a real algebraic number `r` and a polynomial `p`.
-   * Premises: IS_ROOT(p, r) and one of:
-   *     `p(x) != 0`, `p(x) < 0`, `p(x) > 0`, `not (p(x) >= 0)` or `not (p(x) <= 0)`
+   * Premises: IS_ROOT(p, r) and one of: `p(x) != 0`, `p(x) < 0`, `p(x) > 0`,
+   * `not (p(x) >= 0)` or `not (p(x) <= 0)`.
    * Concludes: x != r
    */
   EVALUE(RAN_EVAL),
