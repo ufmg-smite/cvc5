@@ -17,6 +17,7 @@
 
 #ifdef CVC5_POLY_IMP
 
+#include "options/arith_options.h"
 #include "proof/lazy_tree_proof_generator.h"
 #include "proof/proof_node_algorithm.h"
 #include "theory/arith/arith_poly_norm.h"
@@ -551,28 +552,28 @@ void CoveringsProofGenerator::closeUnivProof(
   NodeManager* nm = nodeManager();
   Node mis = nm->mkAnd(constraints);
 
-  Node coverConc = addCoverStep(var);
-  addValidateIntervalsStep(var, vm);
-  addElimSteps(var, vm);
-  addResolutionStep(coverConc);
+  if (options().arith.nlCovUnivCoarseProof)
+  {
+    // a single coarse step, subsuming COVER, VALIDATE_INTERVALS,
+    // SGN_INV_ELIM, RAN_EVAL and the final resolution
+    std::vector<Node> args{var};
+    for (const auto& pr : d_polysRoots)
+    {
+      Node poly = as_cvc_polynomial_no_pow(nm, pr.first, vm);
+      Node val = value_to_node(pr.second, var);
+      args.push_back(nm->mkNode(Kind::SEXPR, poly, val));
+    }
+    d_cdp->addStep(
+        d_false, ProofRule::ARITH_COVERINGS_UNIV, constraints, args);
+  }
+  else
+  {
+    Node coverConc = addCoverStep(var);
+    addValidateIntervalsStep(var, vm);
+    addElimSteps(var, vm);
+    addResolutionStep(coverConc);
+  }
   d_cdp->addStep(mis.notNode(), ProofRule::SCOPE, {d_false}, constraints);
-
-  // std::vector<Node> prem;
-  // std::vector<Node> args{var};
-  // for (const auto& pr : d_polysRoots)
-  // {
-  //   Node poly = as_cvc_polynomial_no_pow(nodeManager(), pr.first, vm);
-  //   Node val = value_to_node(pr.second, var);
-  //   args.push_back(nodeManager()->mkNode(Kind::SEXPR, poly, val));
-  // }
-  // for (auto& pInterval : d_intervals)
-  // {
-  //   prem.push_back(pInterval.d_elim);
-  // }
-  // prem.push_back(coverConc);
-  // prem.push_back(validateIntervalsConc);
-  // prem.insert(prem.end(), constraints.begin(), constraints.end());
-  // d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, prem, args);
 }
 void CoveringsProofGenerator::addDirect(Node var,
                                         VariableMapper& vm,

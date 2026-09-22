@@ -534,6 +534,14 @@ name   = "Arithmetic Theory"
   help       = "whether to eliminate variables using equalities before going into the cylindrical algebraic coverings solver. It can not be used when producing proofs right now."
 
 [[option]]
+  name       = "nlCovUnivCoarseProof"
+  category   = "expert"
+  long       = "nl-cov-univ-coarse-proof"
+  type       = "bool"
+  default    = "false"
+  help       = "whether to justify univariate coverings conflicts with a single coarse ARITH_COVERINGS_UNIV step instead of fine-grained COVER, VALIDATE_INTERVALS, SGN_INV_ELIM and RAN_EVAL steps"
+
+[[option]]
   name       = "nlCovPrune"
   category   = "expert"
   long       = "nl-cov-prune"

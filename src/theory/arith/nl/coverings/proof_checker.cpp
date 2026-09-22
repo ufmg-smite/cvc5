@@ -35,7 +35,7 @@ CoveringsProofRuleChecker::CoveringsProofRuleChecker(NodeManager* nm)
 
 void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
 {
-  // pc->registerChecker(ProofRule::ARITH_COVERINGS_UNIV, this);
+  pc->registerChecker(ProofRule::ARITH_COVERINGS_UNIV, this);
   pc->registerChecker(ProofRule::COVER, this);
   pc->registerChecker(ProofRule::SGN_INV_ELIM, this);
   pc->registerChecker(ProofRule::VALIDATE_INTERVALS, this);
@@ -144,11 +144,10 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
                                               const std::vector<Node>& args)
 {
   // TODO: Actually check the proof.
-  // NodeManager* nm = nodeManager();
-  // if (id == ProofRule::ARITH_COVERINGS_UNIV)
-  // {
-  //   return nm->mkConst(false);
-  // }
+  if (id == ProofRule::ARITH_COVERINGS_UNIV)
+  {
+    return nodeManager()->mkConst(false);
+  }
   if (id == ProofRule::COVER)
   {
     return checkCover(args);
