@@ -2477,18 +2477,19 @@ enum ENUM(ProofRule)
    */
   EVALUE(ARITH_TRANS_SINE_APPROX_BELOW_POS),
   /**
-   * Receives a list of pairs `(p, r)` (representing point intervals) or triples `(p, l, r)`
-   * (representing open intervals) , the list of all roots of all polynomials
-   * in the problem and a list of pairs `(p, root_indices)`, where the indices point to the
-   * list of all roots, corresponding to the roots of that polynomial. Concludes
-   * SGN_INV(p, l, r) for each pair in the first argument, for which the interval is open,
-   * and IS_ROOT(p, r) for each point interval. Requires as a side condition
-   * that the list of roots is sorted in ascending order, the root list of each polynomial
-   * is exhaustive, each interval does not contain a root of the corresponding polynomial
-   * in its interior (for open intervals) and, for point intervals, that the point is indeed
-   * a root of the polynomial.
+   * Introduces the sign invariance of a polynomial on an open interval.
+   * Arguments: a polynomial `p`, the endpoints `l` and `r` of the interval (each either a
+   * root of `p` or the marker `MINUS_INFINITY` / `PLUS_INFINITY`), and rational bounds
+   * `lo` and `hi` with `lo < l` and `r < hi` (or the same markers when the corresponding
+   * endpoint is infinite). Side condition: `p` has no root in `(lo, hi)` other than `l`
+   * and `r`, and `p(lo) != 0`, `p(hi) != 0`. Concludes `SGN_INV(p, l, r)`.
    */
-  EVALUE(VALIDATE_INTERVALS),
+  EVALUE(SGN_INV_INTRO),
+  /**
+   * Introduces `IS_ROOT(p, r)` for a polynomial `p` and a real (algebraic) number `r`.
+   * Side condition: `r` is a root of `p`.
+   */
+  EVALUE(IS_ROOT_INTRO),
   /**
    * Generates a clause of the form `(x > i1_l /\ x < i1_r) \/ (x > i2_l /\ x < i2_r) ..`
    * Given a variable `x` and a list of intervals [i1, i2, ..]. Assumes that the intervals

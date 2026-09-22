@@ -160,9 +160,19 @@ class CoveringsProofGenerator : protected EnvObj
                     const std::map<Node, poly::Polynomial>& constraintPolys);
   Node addCoverStep(const Node& var);
 
-  void addValidateIntervalsStep(
-      const Node& var,
-      VariableMapper& vm);
+  // For each piece in `d_intervals`, adds the step introducing its fact:
+  // IS_ROOT_INTRO(p, r) for a point piece, and SGN_INV_INTRO(p, l, r, lo, hi) for an
+  // open piece, where `(lo, hi)` is a rational window around `(l, r)` that contains no
+  // root of `p` other than `l` and `r` (see `windowBelow` / `windowAbove`).
+  void addIntroSteps(const Node& var, VariableMapper& vm);
+
+  // A rational strictly below (resp. above) the root `v` of `p` such that `p` has no
+  // root in between: the lower (resp. upper) bound of the isolating interval when `v`
+  // is algebraic; for a rational `v`, the midpoint between `v` and the previous (resp.
+  // next) root of `p`, or `v - 1` (resp. `v + 1`) when there is none. An infinite `v`
+  // is returned as is.
+  Node windowBelow(const poly::Value& v, const poly::Polynomial& p);
+  Node windowAbove(const poly::Value& v, const poly::Polynomial& p);
 
   void addElimSteps(
       const Node& var,

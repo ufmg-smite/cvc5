@@ -23,6 +23,7 @@
 #include "theory/arith/arith_poly_norm.h"
 #include "theory/arith/arith_utilities.h"
 #include "theory/arith/nl/poly_conversion.h"
+#include "util/poly_util.h"
 #include "util/indexed_root_predicate.h"
 
 using namespace cvc5::internal::kind;
@@ -380,65 +381,86 @@ Node CoveringsProofGenerator::addCoverStep(const Node& var)
   return coverConc;
 }
 
-void CoveringsProofGenerator::addValidateIntervalsStep(
-    const Node& var,
-    VariableMapper& vm)
+Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
+                                          const poly::Polynomial& p)
 {
   NodeManager* nm = nodeManager();
-  std::vector<Node> intervalsData;
-  std::vector<Node> concConjs;
-  for (auto& pInterval: d_intervals)
+  if (poly::is_minus_infinity(v))
+  {
+    return mkMinusInfinity(nm);
+  }
+  if (poly::is_algebraic_number(v))
+  {
+    return nm->mkConstReal(poly_utils::toRationalBelow(v));
+  }
+  // rational: exact
+  Rational a = poly_utils::toRationalBelow(v);
+  Rational lo = a - Rational(1);
+  size_t idx = d_rootMap.rootIndex(v);
+  // indices are sorted ascending: the last one below `idx` is the previous root of `p`
+  for (size_t id : d_rootMap.polyRootIndices(p))
+  {
+    if (id < idx)
+    {
+      lo = (poly_utils::toRationalAbove(d_rootMap.d_roots[id]) + a) / Rational(2);
+    }
+  }
+  return nm->mkConstReal(lo);
+}
+
+Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
+                                          const poly::Polynomial& p)
+{
+  NodeManager* nm = nodeManager();
+  if (poly::is_plus_infinity(v))
+  {
+    return mkPlusInfinity(nm);
+  }
+  if (poly::is_algebraic_number(v))
+  {
+    return nm->mkConstReal(poly_utils::toRationalAbove(v));
+  }
+  // rational: exact
+  Rational b = poly_utils::toRationalAbove(v);
+  Rational hi = b + Rational(1);
+  size_t idx = d_rootMap.rootIndex(v);
+  // indices are sorted ascending: the first one above `idx` is the next root of `p`
+  for (size_t id : d_rootMap.polyRootIndices(p))
+  {
+    if (id > idx)
+    {
+      hi = (b + poly_utils::toRationalBelow(d_rootMap.d_roots[id])) / Rational(2);
+      break;
+    }
+  }
+  return nm->mkConstReal(hi);
+}
+
+void CoveringsProofGenerator::addIntroSteps(const Node& var, VariableMapper& vm)
+{
+  NodeManager* nm = nodeManager();
+  for (auto& pInterval : d_intervals)
   {
     const poly::Interval& interval = pInterval.d_interval;
     const poly::Polynomial& p = pInterval.d_poly;
     Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, p, vm);
-    if (is_point(interval))
+    if (poly::is_point(interval))
     {
-      Node r = value_to_node(get_upper(interval), var);
-      concConjs.push_back(mkIsRoot(nm, cvc_p, r));
-      intervalsData.push_back(nm->mkNode(Kind::SEXPR, {cvc_p, r}));
-      pInterval.d_fact = concConjs.back();
+      Node r = value_to_node(poly::get_upper(interval), var);
+      Node fact = mkIsRoot(nm, cvc_p, r);
+      d_cdp->addStep(fact, ProofRule::IS_ROOT_INTRO, {}, {cvc_p, r});
+      pInterval.d_fact = fact;
       continue;
     }
-    Node l = value_to_node(get_lower(interval), var);
-    Node r = value_to_node(get_upper(interval), var);
-
-    intervalsData.push_back(nm->mkNode(Kind::SEXPR, {cvc_p, l, r}));
-    concConjs.push_back(mkSgnInv(nm, cvc_p, l, r));
-    pInterval.d_fact = concConjs.back();
-  }
-
-  std::vector<Node> rootsData;
-  for (const poly::Value& r : d_rootMap.d_roots)
-  {
-    rootsData.push_back(value_to_node(r, var));
-  }
-
-  std::vector<Node> membersData;
-  for (const auto& [p, ids] : d_rootMap.d_members)
-  {
-    Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, p, vm);
-    std::vector<Node> idsData;
-    for (size_t id : ids)
-    {
-      idsData.push_back(nm->mkConstInt(Rational(id)));
-    }
-    membersData.push_back(
-        nm->mkNode(Kind::SEXPR, cvc_p, nm->mkNode(Kind::SEXPR, idsData)));
-  }
-
-  std::vector<Node> args{nm->mkNode(Kind::SEXPR, intervalsData),
-                         nm->mkNode(Kind::SEXPR, rootsData),
-                         nm->mkNode(Kind::SEXPR, membersData)};
-  Node conc = nm->mkAnd(concConjs);
-  d_cdp->addStep(conc, ProofRule::VALIDATE_INTERVALS, {}, args);
-  if (concConjs.size() > 1)
-  {
-    for (size_t i = 0, n = concConjs.size(); i < n; ++i)
-    {
-        d_cdp->addStep(concConjs[i], ProofRule::AND_ELIM, {conc},
-                       {nm->mkConstInt(Rational(i))});
-    }
+    const poly::Value& lower = poly::get_lower(interval);
+    const poly::Value& upper = poly::get_upper(interval);
+    Node l = value_to_node(lower, var);
+    Node r = value_to_node(upper, var);
+    Node lo = windowBelow(lower, p);
+    Node hi = windowAbove(upper, p);
+    Node fact = mkSgnInv(nm, cvc_p, l, r);
+    d_cdp->addStep(fact, ProofRule::SGN_INV_INTRO, {}, {cvc_p, l, r, lo, hi});
+    pInterval.d_fact = fact;
   }
 }
 
@@ -450,7 +472,7 @@ void CoveringsProofGenerator::addElimSteps(
   for (auto& pInterval : d_intervals)
   {
     Assert(!pInterval.d_fact.isNull())
-        << "addValidateIntervalsStep must run before addElimSteps";
+        << "addIntroSteps must run before addElimSteps";
     const poly::Interval& interval = pInterval.d_interval;
     if (poly::is_point(interval))
     {
@@ -554,7 +576,7 @@ void CoveringsProofGenerator::closeUnivProof(
 
   if (options().arith.nlCovUnivCoarseProof)
   {
-    // a single coarse step, subsuming COVER, VALIDATE_INTERVALS,
+    // a single coarse step, subsuming COVER, SGN_INV_INTRO, IS_ROOT_INTRO,
     // SGN_INV_ELIM, RAN_EVAL and the final resolution
     std::vector<Node> args{var};
     for (const auto& pr : d_polysRoots)
@@ -569,7 +591,7 @@ void CoveringsProofGenerator::closeUnivProof(
   else
   {
     Node coverConc = addCoverStep(var);
-    addValidateIntervalsStep(var, vm);
+    addIntroSteps(var, vm);
     addElimSteps(var, vm);
     addResolutionStep(coverConc);
   }

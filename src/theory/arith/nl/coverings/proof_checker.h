@@ -50,7 +50,8 @@ class CoveringsProofRuleChecker : public ProofRuleChecker
                      const std::vector<Node>& args) override;
 
  private:
-   Node checkValidateIntervals(const std::vector<Node>& args);
+   Node checkSgnInvIntro(const std::vector<Node>& args);
+   Node checkIsRootIntro(const std::vector<Node>& args);
    Node checkSgnInvElim(const std::vector<Node>& args);
    Node checkRanEval(const std::vector<Node>& args);
    Node checkCover(const std::vector<Node>& args);

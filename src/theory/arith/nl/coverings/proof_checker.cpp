@@ -38,39 +38,32 @@ void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
   pc->registerChecker(ProofRule::ARITH_COVERINGS_UNIV, this);
   pc->registerChecker(ProofRule::COVER, this);
   pc->registerChecker(ProofRule::SGN_INV_ELIM, this);
-  pc->registerChecker(ProofRule::VALIDATE_INTERVALS, this);
+  pc->registerChecker(ProofRule::SGN_INV_INTRO, this);
+  pc->registerChecker(ProofRule::IS_ROOT_INTRO, this);
   pc->registerChecker(ProofRule::RAN_EVAL, this);
 }
 
-Node CoveringsProofRuleChecker::checkValidateIntervals(const std::vector<Node>& args)
+// TODO: check the side condition (no root of args[0] in (args[3], args[4])
+// other than args[1] and args[2], which are roots when finite)
+Node CoveringsProofRuleChecker::checkSgnInvIntro(const std::vector<Node>& args)
 {
   NodeManager* nm = nodeManager();
-  if (args.size() != 3 || args[0].getKind() != Kind::SEXPR
-      || args[1].getKind() != Kind::SEXPR || args[2].getKind() != Kind::SEXPR)
+  if (args.size() != 5)
   {
     return Node::null();
   }
-  // TODO: check the side condition (root map complete, each (l, r) a gap
-  // between consecutive roots of p or an infinite side)
-  std::vector<Node> conj;
-  for (const Node& e : args[0])
-  {
-    if (e.getKind() != Kind::SEXPR || (e.getNumChildren() != 2 && e.getNumChildren() != 3))
-    {
-      return Node::null();
-    }
-    if (e.getNumChildren() == 3)
-    {
-      conj.push_back(mkSgnInv(nm, e[0], e[1], e[2]));
-    }
-    else
-    {
-      conj.push_back(mkIsRoot(nm, e[0], e[1]));
-    }
-  }
-  return nm->mkAnd(conj);
+  return mkSgnInv(nm, args[0], args[1], args[2]);
 }
-
+// TODO: check the side condition (args[1] is a root of args[0])
+Node CoveringsProofRuleChecker::checkIsRootIntro(const std::vector<Node>& args)
+{
+  NodeManager* nm = nodeManager();
+  if (args.size() != 2)
+  {
+    return Node::null();
+  }
+  return mkIsRoot(nm, args[0], args[1]);
+}
 // TODO: Check side condition
 Node CoveringsProofRuleChecker::checkCover(const std::vector<Node>& args)
 {
@@ -152,9 +145,13 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
   {
     return checkCover(args);
   }
-  if (id == ProofRule::VALIDATE_INTERVALS)
+  if (id == ProofRule::SGN_INV_INTRO)
   {
-    return checkValidateIntervals(args);
+    return checkSgnInvIntro(args);
+  }
+  if (id == ProofRule::IS_ROOT_INTRO)
+  {
+    return checkIsRootIntro(args);
   }
   if (id == ProofRule::SGN_INV_ELIM)
   {

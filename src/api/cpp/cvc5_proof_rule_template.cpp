@@ -203,8 +203,10 @@ const char* toString(ProofRule rule)
       return "ARITH_TRANS_SINE_APPROX_BELOW_NEG";
     case ProofRule::ARITH_TRANS_SINE_APPROX_BELOW_POS:
       return "ARITH_TRANS_SINE_APPROX_BELOW_POS";
-    case ProofRule::VALIDATE_INTERVALS:
-      return "VALIDATE_INTERVALS";
+    case ProofRule::SGN_INV_INTRO:
+      return "SGN_INV_INTRO";
+    case ProofRule::IS_ROOT_INTRO:
+      return "IS_ROOT_INTRO";
     case ProofRule::COVER:
       return "COVER";
     case ProofRule::SGN_INV_ELIM:
