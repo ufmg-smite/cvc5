@@ -381,6 +381,16 @@ Node CoveringsProofGenerator::addCoverStep(const Node& var)
   return coverConc;
 }
 
+namespace {
+/** Sign of the (univariate) polynomial `p` at the point `v`. */
+int sgnAt(const poly::Polynomial& p, const poly::Value& v)
+{
+  poly::Assignment a;
+  a.set(poly::main_variable(p), v);
+  return poly::sgn(p, a);
+}
+}  // namespace
+
 Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
                                           const poly::Polynomial& p)
 {
@@ -391,7 +401,18 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
   }
   if (poly::is_algebraic_number(v))
   {
-    return nm->mkConstReal(poly_utils::toRationalBelow(v));
+    // The isolating interval contains no root of `p` other than `v`, but its
+    // endpoint may itself be a (rational) root of `p` belonging to another
+    // factor. Refine a copy until the lower bound is not a root; this does not
+    // touch the representation of `v` used in the proof.
+    poly::AlgebraicNumber an(poly::as_algebraic_number(v));
+    size_t steps = 0;
+    while (sgnAt(p, poly::Value(poly::get_lower_bound(an))) == 0)
+    {
+      poly::refine(an);
+      AlwaysAssert(++steps < 1000) << "windowBelow: refinement does not terminate";
+    }
+    return nm->mkConstReal(poly_utils::toRational(poly::get_lower_bound(an)));
   }
   // rational: exact
   Rational a = poly_utils::toRationalBelow(v);
@@ -405,6 +426,8 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
       lo = (poly_utils::toRationalAbove(d_rootMap.d_roots[id]) + a) / Rational(2);
     }
   }
+  // strictly between consecutive roots of `p` (or below all of them): not a root
+  Assert(sgnAt(p, poly::Value(poly_utils::toRational(lo))) != 0);
   return nm->mkConstReal(lo);
 }
 
@@ -418,7 +441,15 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
   }
   if (poly::is_algebraic_number(v))
   {
-    return nm->mkConstReal(poly_utils::toRationalAbove(v));
+    // see windowBelow
+    poly::AlgebraicNumber an(poly::as_algebraic_number(v));
+    size_t steps = 0;
+    while (sgnAt(p, poly::Value(poly::get_upper_bound(an))) == 0)
+    {
+      poly::refine(an);
+      AlwaysAssert(++steps < 1000) << "windowAbove: refinement does not terminate";
+    }
+    return nm->mkConstReal(poly_utils::toRational(poly::get_upper_bound(an)));
   }
   // rational: exact
   Rational b = poly_utils::toRationalAbove(v);
@@ -433,6 +464,8 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
       break;
     }
   }
+  // strictly between consecutive roots of `p` (or above all of them): not a root
+  Assert(sgnAt(p, poly::Value(poly_utils::toRational(hi))) != 0);
   return nm->mkConstReal(hi);
 }
 
