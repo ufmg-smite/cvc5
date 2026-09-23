@@ -383,9 +383,9 @@ Node CoveringsProofGenerator::addCoverStep(const Node& var)
 
 namespace {
 /** Sign of the (univariate) polynomial `p` at the point `v`. */
-int sgnAt(const poly::Polynomial& p, const poly::Value& v)
+int sgnAt(const poly::Context& ctx, const poly::Polynomial& p, const poly::Value& v)
 {
-  poly::Assignment a;
+  poly::Assignment a(ctx);
   a.set(poly::main_variable(p), v);
   return poly::sgn(p, a);
 }
@@ -407,7 +407,7 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
     // touch the representation of `v` used in the proof.
     poly::AlgebraicNumber an(poly::as_algebraic_number(v));
     size_t steps = 0;
-    while (sgnAt(p, poly::Value(poly::get_lower_bound(an))) == 0)
+    while (sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly::get_lower_bound(an))) == 0)
     {
       poly::refine(an);
       AlwaysAssert(++steps < 1000) << "windowBelow: refinement does not terminate";
@@ -427,7 +427,7 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
     }
   }
   // strictly between consecutive roots of `p` (or below all of them): not a root
-  Assert(sgnAt(p, poly::Value(poly_utils::toRational(lo))) != 0);
+  Assert(sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly_utils::toRational(lo))) != 0);
   return nm->mkConstReal(lo);
 }
 
@@ -444,7 +444,7 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
     // see windowBelow
     poly::AlgebraicNumber an(poly::as_algebraic_number(v));
     size_t steps = 0;
-    while (sgnAt(p, poly::Value(poly::get_upper_bound(an))) == 0)
+    while (sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly::get_upper_bound(an))) == 0)
     {
       poly::refine(an);
       AlwaysAssert(++steps < 1000) << "windowAbove: refinement does not terminate";
@@ -465,7 +465,7 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
     }
   }
   // strictly between consecutive roots of `p` (or above all of them): not a root
-  Assert(sgnAt(p, poly::Value(poly_utils::toRational(hi))) != 0);
+  Assert(sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly_utils::toRational(hi))) != 0);
   return nm->mkConstReal(hi);
 }
 
