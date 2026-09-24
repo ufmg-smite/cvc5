@@ -612,6 +612,11 @@ void CoveringsProofGenerator::closeUnivProof(
     // a single coarse step, subsuming COVER, SGN_INV_INTRO, IS_ROOT_INTRO,
     // SGN_INV_ELIM, RAN_EVAL and the final resolution
     std::vector<Node> args{var};
+    std::sort(d_polysRoots.begin(), d_polysRoots.end(),
+        [] (auto& a, auto& b) { return a.second < b.second; });
+    auto last = std::unique(d_polysRoots.begin(), d_polysRoots.end(),
+        [] (auto& a, auto& b) { return a.second == b.second; });
+    d_polysRoots.erase(last, d_polysRoots.end());
     for (const auto& pr : d_polysRoots)
     {
       Node poly = as_cvc_polynomial_no_pow(nm, pr.first, vm);
