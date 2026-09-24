@@ -342,8 +342,8 @@ Node CoveringsProofGenerator::addCoverStep(const Node& var)
   for (const auto& pInterval: d_intervals)
   {
     const poly::Interval& interval = pInterval.d_interval;
-    Node lower = value_to_node(get_lower(interval), var);
-    Node upper = value_to_node(get_upper(interval), var);
+    Node lower = value_to_node_no_integer(get_lower(interval), var);
+    Node upper = value_to_node_no_integer(get_upper(interval), var);
     intsData.push_back(nm->mkNode(Kind::SEXPR, {lower, upper}));
 
     if (lower == upper)
@@ -489,7 +489,7 @@ void CoveringsProofGenerator::addIntroSteps(const Node& var, VariableMapper& vm)
     Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, p, vm);
     if (poly::is_point(interval))
     {
-      Node r = value_to_node(poly::get_upper(interval), var);
+      Node r = value_to_node_no_integer(poly::get_upper(interval), var);
       Node fact = mkIsRoot(nm, cvc_p, r);
       d_cdp->addStep(fact, ProofRule::IS_ROOT_INTRO, {}, {cvc_p, r});
       pInterval.d_fact = fact;
@@ -497,8 +497,8 @@ void CoveringsProofGenerator::addIntroSteps(const Node& var, VariableMapper& vm)
     }
     const poly::Value& lower = poly::get_lower(interval);
     const poly::Value& upper = poly::get_upper(interval);
-    Node l = value_to_node(lower, var);
-    Node r = value_to_node(upper, var);
+    Node l = value_to_node_no_integer(lower, var);
+    Node r = value_to_node_no_integer(upper, var);
     Node lo = windowBelow(lower, p);
     Node hi = windowAbove(upper, p);
     Node fact = mkSgnInv(nm, cvc_p, l, r);
@@ -534,9 +534,9 @@ void CoveringsProofGenerator::addElimSteps(
     // a rational strictly inside (l, r); handles infinite endpoints
     poly::Value s = poly::value_between(l, true, r, true);
 
-    Node lower = value_to_node(l, var);
-    Node upper = value_to_node(r, var);
-    Node sample = value_to_node(s, var);
+    Node lower = value_to_node_no_integer(l, var);
+    Node upper = value_to_node_no_integer(r, var);
+    Node sample = value_to_node_no_integer(s, var);
     Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, pInterval.d_poly, vm);
     // (p ~ 0), derived from the original constraint
     Node lit = addNormalizedLiteral(pInterval.d_origin, cvc_p);
@@ -630,7 +630,7 @@ void CoveringsProofGenerator::closeUnivProof(
     for (const auto& pr : d_polysRoots)
     {
       Node poly = as_cvc_polynomial_no_pow(nm, pr.first, vm);
-      Node val = value_to_node(pr.second, var);
+      Node val = value_to_node_no_integer(pr.second, var);
       args.push_back(nm->mkNode(Kind::SEXPR, poly, val));
     }
     d_cdp->addStep(

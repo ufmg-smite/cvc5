@@ -463,6 +463,16 @@ Node value_to_node(const poly::Value& v, const Node& ran_variable)
   return nm->mkConstReal(Rational(0));
 }
 
+Node value_to_node_no_integer(const poly::Value& v, const Node& ran_variable)
+{
+  Node res = value_to_node(v, ran_variable);
+  if (res.getKind() == Kind::CONST_INTEGER)
+  {
+    res = ran_variable.getNodeManager()->mkConstReal(res.getConst<Rational>());
+  }
+  return res;
+}
+
 Node lower_bound_as_node(const Node& var,
                          const poly::Value& lower,
                          bool open,

@@ -109,6 +109,16 @@ cvc5::internal::Node as_cvc_polynomial_no_pow(NodeManager* nm,
                                               VariableMapper& vm);
 
 /**
+ * Like value_to_node, but never returns an integer constant: a real algebraic
+ * number that turns out to be rational (e.g. because its isolating interval
+ * collapsed to a point) is converted by mkRealAlgebraicNumber through
+ * mkConstRealOrInt, which yields an integer constant for integral values.
+ * The univariate coverings proofs quantify over a real variable, so their
+ * endpoints must be real constants. Used for the terms of these proofs.
+ */
+Node value_to_node_no_integer(const poly::Value& v, const Node& ran_variable);
+
+/**
  * Constructs a constraints (a polynomial and a sign condition) from the given
  * node.
  */
