@@ -399,7 +399,13 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
   {
     return mkMinusInfinity(nm);
   }
-  if (poly::is_algebraic_number(v))
+  // An algebraic value whose isolating interval has collapsed to a point is an
+  // exact rational (libpoly keeps the algebraic representation, but
+  // `value_to_node` prints it as a rational constant); it cannot be refined, so
+  // it is handled by the rational case below.
+  if (poly::is_algebraic_number(v)
+      && poly::get_lower_bound(poly::as_algebraic_number(v))
+             != poly::get_upper_bound(poly::as_algebraic_number(v)))
   {
     // The isolating interval contains no root of `p` other than `v`, but its
     // endpoint may itself be a (rational) root of `p` belonging to another
@@ -410,7 +416,8 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
     while (sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly::get_lower_bound(an))) == 0)
     {
       poly::refine(an);
-      AlwaysAssert(++steps < 1000) << "windowBelow: refinement does not terminate";
+      AlwaysAssert(++steps < 1000)
+          << "windowBelow: refinement does not terminate for " << v << " and " << p;
     }
     return nm->mkConstReal(poly_utils::toRational(poly::get_lower_bound(an)));
   }
@@ -439,7 +446,9 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
   {
     return mkPlusInfinity(nm);
   }
-  if (poly::is_algebraic_number(v))
+  if (poly::is_algebraic_number(v)
+      && poly::get_lower_bound(poly::as_algebraic_number(v))
+             != poly::get_upper_bound(poly::as_algebraic_number(v)))
   {
     // see windowBelow
     poly::AlgebraicNumber an(poly::as_algebraic_number(v));
@@ -447,7 +456,8 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
     while (sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly::get_upper_bound(an))) == 0)
     {
       poly::refine(an);
-      AlwaysAssert(++steps < 1000) << "windowAbove: refinement does not terminate";
+      AlwaysAssert(++steps < 1000)
+          << "windowAbove: refinement does not terminate for " << v << " and " << p;
     }
     return nm->mkConstReal(poly_utils::toRational(poly::get_upper_bound(an)));
   }
