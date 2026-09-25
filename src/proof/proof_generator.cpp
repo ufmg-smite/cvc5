@@ -14,6 +14,7 @@
 
 #include <sstream>
 
+#include "expr/node_manager.h"
 #include "options/smt_options.h"
 #include "proof/proof.h"
 #include "proof/proof_node.h"
@@ -70,5 +71,16 @@ bool ProofGenerator::addProofTo(Node f,
   }
   return false;
 }
+
+Node ProofGenerator::getPartialInterpolant(
+    Node conc,
+    const std::unordered_set<Node>& aSymbols,
+    const std::unordered_set<Node>& bSymbols,
+    NodeManager* nm)
+{
+  //default:
+  return nm->mkConst(true);
+}
+
 
 }  // namespace cvc5::internal

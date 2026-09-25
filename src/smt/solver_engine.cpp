@@ -1977,7 +1977,8 @@ std::vector<Node> SolverEngine::getInterpolants(
         "Cannot get-interpolants unless the SAT solver is proof producing.");
   }
 
-  std::shared_ptr<ProofNode> proof = getAvailableSatProof();
+  std::vector<std::shared_ptr<ProofNode>> proofs = getProof(modes::ProofComponent::FULL);
+  std::shared_ptr<ProofNode> proof = proofs[0];
 
   const std::vector<Node> assertions = getAssertionsInternal();
   NodeManager* nm = d_env->getNodeManager();
@@ -1999,9 +2000,9 @@ std::vector<Node> SolverEngine::getInterpolants(
     std::unordered_set<Node> aAssertions, bAssertions, aSymbols, bSymbols;
     partition(accA, assertions, aAssertions, bAssertions, aSymbols, bSymbols);
 
-    std::unordered_map<ProofNode*, Node> cache;  // cache NOVO por partição
+    std::unordered_map<ProofNode*, Node> cache;
     Node itp = getItp(proof, aAssertions, bAssertions,
-                      aSymbols, bSymbols, nm, cache);
+                      aSymbols, bSymbols, nm, cache, d_env->getLeafGen());
     result.push_back(d_env->getRewriter()->rewrite(itp));
   }
   return result;

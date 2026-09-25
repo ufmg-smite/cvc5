@@ -16,6 +16,8 @@
 #include <vector>
 
 #include "expr/node_algorithm.h"
+#include "base/output.h"
+#include "proof/proof_generator.h"
 
 
 namespace cvc5::internal {
@@ -35,18 +37,13 @@ static bool isLocalA(Node pivot,
 
   for (const Node& s : pivotSymbols)
   {
-    if (symbolsA.find(s) == symbolsA.end())
+    if (symbolsB.find(s) == symbolsB.end())
     {
-      return false;
-    }
-
-    if (symbolsB.find(s) != symbolsB.end())
-    {
-      return false;
+      return true;
     }
   }
 
-  return true;
+  return false;
 }
 
 static bool isSharedLiteral(Node literal, std::unordered_set<Node>& bSymbols)
@@ -122,6 +119,30 @@ void partition(const std::vector<Node>& aTerms,
   }
 }
 
+//Workaround - temporario
+static ProofNode* findRegisteredLeaf(ProofNode* p,
+                                     const Env::LeafGenMap& leafGen)
+{
+  if (p->getRule() == ProofRule::ASSUME)
+  {
+    return nullptr;
+  }
+
+  if (leafGen.find(p->getResult()) != leafGen.end())
+  {
+    return p;
+  }
+
+  for (const std::shared_ptr<ProofNode>& c : p->getChildren())
+  {
+    ProofNode* found = findRegisteredLeaf(c.get(), leafGen);
+    if (found != nullptr)
+    {
+      return found;
+    }
+  }
+  return nullptr;
+}
 
 Node getItp(std::shared_ptr<ProofNode> p,
             std::unordered_set<Node>& aAssertions,
@@ -129,7 +150,8 @@ Node getItp(std::shared_ptr<ProofNode> p,
             std::unordered_set<Node>& aSymbols,
             std::unordered_set<Node>& bSymbols,
             NodeManager* nm,
-            std::unordered_map<ProofNode*, Node>& cache)
+            std::unordered_map<ProofNode*, Node>& cache,
+            const Env::LeafGenMap& leafGen)
 {
   auto it = cache.find(p.get());
   if (it != cache.end())
@@ -141,6 +163,9 @@ Node getItp(std::shared_ptr<ProofNode> p,
 
   switch (p->getRule())
   {
+    case ProofRule::SCOPE:
+      result = getItp(p->getChildren()[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
+      break;
     case ProofRule::ASSUME:
     {
       Node f = p->getResult();
@@ -159,10 +184,10 @@ Node getItp(std::shared_ptr<ProofNode> p,
       const auto& children = p->getChildren();
 
       Node itp0 = getItp(
-          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache);
+          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
 
       Node itp1 = getItp(
-          children[1], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache);
+          children[1], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
 
       Node pivot = children[0]->getResult();
 
@@ -185,7 +210,7 @@ Node getItp(std::shared_ptr<ProofNode> p,
       const auto& args = p->getArguments();
 
       Node itp0 = getItp(
-          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache);
+          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
 
       for (size_t i = 1; i < children.size(); i++)
       {
@@ -195,7 +220,7 @@ Node getItp(std::shared_ptr<ProofNode> p,
                                 aSymbols,
                                 bSymbols,
                                 nm,
-                                cache);
+                                cache, leafGen);
         Node pivot;
 
         if (p->getRule() == ProofRule::CHAIN_RESOLUTION)
@@ -230,14 +255,34 @@ Node getItp(std::shared_ptr<ProofNode> p,
                       aSymbols,
                       bSymbols,
                       nm,
-                      cache);
+                      cache,
+                      leafGen);
       break;
     }
     default:
     {
-      result = nm->mkConst(true);
+      ProofNode* leaf = findRegisteredLeaf(p.get(), leafGen);
+      if (leaf != nullptr)
+      {
+        //Found a theory lemma:
+        Node conc = leaf->getResult();
+        ProofGenerator* gen = leafGen.find(conc)->second;
+        result = gen->getPartialInterpolant(conc, aSymbols, bSymbols, nm);
+        Trace("itp") << "getItp: rule: " << p->getRule()
+                          << " - lemma: " << conc << " -> " << result
+                          << std::endl;
+      }
+      else
+      {
+        //Not implemented yet :(
+        Trace("itp") << "regra sem registro: "
+                          << p->getRule() << " conclusao: " << p->getResult()
+                          << std::endl;
+        result = nm->mkConst(true);
+      }
       break;
     }
+
   }
 
   cache[p.get()] = result;

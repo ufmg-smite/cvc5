@@ -53,7 +53,8 @@ Env::Env(NodeManager* nm, const Options* opts)
       d_options(),
       d_resourceManager(),
       d_uninterpretedSortOwner(theory::THEORY_UF),
-      d_boolTermSkolems(d_userContext.get())
+      d_boolTermSkolems(d_userContext.get()),
+      d_leafGen(d_userContext.get())
 {
   if (opts != nullptr)
   {
@@ -106,6 +107,8 @@ void Env::shutdown()
 context::Context* Env::getContext() { return d_context.get(); }
 
 context::UserContext* Env::getUserContext() { return d_userContext.get(); }
+
+Env::LeafGenMap& Env::getLeafGen() { return d_leafGen; }
 
 smt::PfManager* Env::getProofManager() { return d_pfManager; }
 

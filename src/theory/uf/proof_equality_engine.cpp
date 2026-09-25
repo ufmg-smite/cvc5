@@ -36,7 +36,8 @@ ProofEqEngine::ProofEqEngine(Env& env, EqualityEngine& ee)
               nullptr,
               env.getContext(),
               "pfee::LazyCDProof::" + ee.identify()),
-      d_keep(env.getContext())
+      d_keep(env.getContext()),
+      d_leafPf(env.getUserContext())
 {
   NodeManager* nm = nodeManager();
   d_true = nm->mkConst(true);
@@ -433,6 +434,18 @@ TrustNode ProofEqEngine::ensureProofForFact(Node conc,
       Unhandled() << "Unhandled trust node kind " << tnk;
       break;
   }
+
+  if (!d_currLeafPfs.empty())
+  {
+    d_leafPf[formula] = d_currLeafPfs;
+    d_env.getLeafGen()[formula] = this;
+    Trace("itp") << "stored " << d_currLeafPfs.size()
+                      << " EqProofs to " << formula
+                      << " generator: " << identify() << std::endl;
+
+    d_currLeafPfs.clear();
+  }
+
   Trace("pfee-proof") << "pfee::ensureProofForFact: finish" << std::endl
                       << std::endl;
   // we can provide a proof for conflict, lemma or explained propagation
@@ -523,6 +536,9 @@ void ProofEqEngine::explainWithProof(Node lit,
     Assert(d_ee.hasTerm(atom));
     d_ee.explainPredicate(atom, polarity, tassumps, pf.get());
   }
+
+  d_currLeafPfs.push_back(pf);
+
   Trace("pfee-proof") << "...got " << tassumps << std::endl;
   // avoid duplicates
   for (TNode a : tassumps)
@@ -549,6 +565,24 @@ void ProofEqEngine::explainWithProof(Node lit,
   pf->addToProof(curr);
   Trace("pfee-proof") << "pfee::explainWithProof: finished" << std::endl;
 }
+
+
+Node ProofEqEngine::getPartialInterpolant(
+    Node conc,
+    const std::unordered_set<Node>& aSymbols,
+    const std::unordered_set<Node>& bSymbols,
+    NodeManager* nm)
+{
+  auto it = d_leafPf.find(conc);
+  if (it == d_leafPf.end())
+  {
+    return nm->mkConst(true);
+  }
+  // TODO : compute interpolant
+  Trace("itp") << "getPartialInterpolant: " << conc << std::endl;
+  return nm->mkConst(true);
+}
+
 
 }  // namespace eq
 }  // namespace theory

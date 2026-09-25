@@ -16,6 +16,7 @@
 #define CVC5__THEORY__UF__PROOF_EQUALITY_ENGINE_H
 
 #include <vector>
+#include <unordered_set>
 
 #include "context/cdhashmap.h"
 #include "context/cdhashset.h"
@@ -32,10 +33,13 @@ class Env;
 class ProofNode;
 class ProofNodeManager;
 
+
+
 namespace theory {
 namespace eq {
 
 class EqualityEngine;
+class EqProof;
 
 /**
  * A layer on top of an EqualityEngine. The goal of this class is manage the
@@ -82,6 +86,7 @@ class ProofEqEngine : public EagerProofGenerator
 {
   typedef context::CDHashSet<Node> NodeSet;
   typedef context::CDHashMap<Node, std::shared_ptr<ProofNode>> NodeProofMap;
+  typedef context::CDHashMap<Node, std::vector<std::shared_ptr<EqProof>>> NodeEqProofMap;
 
  public:
   /**
@@ -241,6 +246,11 @@ class ProofEqEngine : public EagerProofGenerator
    */
   TrustNode explain(Node conc);
 
+  Node getPartialInterpolant(Node conc,
+                             const std::unordered_set<Node>& aSymbols,
+                             const std::unordered_set<Node>& bSymbols,
+                             NodeManager* nm) override;
+
  private:
   /** Assert internal */
   bool assertFactInternal(TNode pred, bool polarity, TNode reason);
@@ -296,6 +306,17 @@ class ProofEqEngine : public EagerProofGenerator
    * SAT-context-dependent.
    */
   NodeSet d_keep;
+
+  /**
+   * EqProofs produced during a single call of ensureProofForFact
+   */
+  std::vector<std::shared_ptr<EqProof>> d_currLeafPfs;
+
+  /**
+   * Saved EqProofs
+   * User-context
+   */
+  NodeEqProofMap d_leafPf;
 };
 
 }  // namespace eq

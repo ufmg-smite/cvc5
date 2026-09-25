@@ -15,6 +15,7 @@
 #ifndef CVC5__PROOF__PROOF_GENERATOR_H
 #define CVC5__PROOF__PROOF_GENERATOR_H
 
+#include <unordered_set>
 #include "expr/node.h"
 
 namespace cvc5::internal {
@@ -103,7 +104,14 @@ class ProofGenerator
   virtual bool hasProofFor(CVC5_UNUSED Node f) { return true; }
   /** Identify this generator (for debugging, etc..) */
   virtual std::string identify() const = 0;
+
+  virtual Node getPartialInterpolant(Node conc,
+                                     const std::unordered_set<Node>& aSymbols,
+                                     const std::unordered_set<Node>& bSymbols,
+                                     NodeManager* nm);
 };
+
+
 
 }  // namespace cvc5::internal
 

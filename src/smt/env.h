@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "context/cdhashmap.h"
 #include "context/cdhashset.h"
 #include "options/options.h"
 #include "proof/method_id.h"
@@ -35,6 +36,7 @@ namespace cvc5::internal {
 class NodeManager;
 class StatisticsRegistry;
 class Plugin;
+class ProofGenerator;
 class ProofLogger;
 class ProofNodeManager;
 class Printer;
@@ -86,6 +88,16 @@ class Env
 
   /** Get a pointer to the UserContext owned by this Env. */
   context::UserContext* getUserContext();
+
+  /**
+   * Used for interpolation:
+   * HashMap: theory lemma -> generator that proved it.
+   */
+  typedef context::CDHashMap<Node, ProofGenerator*> LeafGenMap;
+
+  /** Get the leaf generator registry. */
+  LeafGenMap& getLeafGen();
+
   /**
    * Get the underlying proof manager. Note since proofs depend on option
    * initialization, this is only available after the SolverEngine that owns
@@ -424,6 +436,7 @@ class Env
    * Boolean type.
    */
   context::CDHashSet<Node> d_boolTermSkolems;
+  LeafGenMap d_leafGen;
 }; /* class Env */
 
 }  // namespace cvc5::internal

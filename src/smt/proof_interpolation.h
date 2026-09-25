@@ -25,6 +25,7 @@
 
 #include "expr/node.h"
 #include "proof/proof_node.h"
+#include "smt/env.h"
 
 namespace cvc5::internal {
 namespace smt {
@@ -42,7 +43,8 @@ Node getItp(std::shared_ptr<ProofNode> p,
             std::unordered_set<Node>& aSymbols,
             std::unordered_set<Node>& bSymbols,
             NodeManager* nm,
-            std::unordered_map<ProofNode*, Node>& cache);
+            std::unordered_map<ProofNode*, Node>& cache,
+            const Env::LeafGenMap& leafGen);
 
 }  // namespace smt
 }  // namespace cvc5::internal
