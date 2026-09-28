@@ -130,6 +130,14 @@ class CoveringsProofGenerator : protected EnvObj
   void initializeRootMap();
 
   /**
+   * Starts collecting the roots and intervals of var, discarding those
+   * collected for a previous variable. Only the data of the last variable is
+   * kept: when the coverings solver finds a conflict and every polynomial is
+   * univariate, this is the variable whose constraints alone are unsat.
+   */
+  void startUnivVariable(const Node& var);
+
+  /**
    * Calls LazyTreeProofGenerator::pruneChildren(f), but decorates the
    * predicate such that f only accepts the index.
    * @param f A Callable bool(std::size_t)
@@ -253,6 +261,8 @@ class CoveringsProofGenerator : protected EnvObj
   std::vector<std::pair<poly::Polynomial, poly::Value>> d_polysRoots;
   std::vector<ProofInterval> d_intervals;
   RootMap d_rootMap;
+  /** The variable the univariate proof is about */
+  Node d_univVar;
 };
 
 /**

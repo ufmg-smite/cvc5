@@ -107,8 +107,15 @@ void CDCAC::computeVariableOrdering()
   {
     lp_variable_order_push(vo, v.get_internal());
   }
-
-  d_isUniv = d_variableOrdering.size() == 1;
+  d_isUniv = true;
+  for (const auto& c: d_constraints.getConstraints())
+  {
+    if (!poly::is_univariate(std::get<0>(c)))
+    {
+      d_isUniv = false;
+      break;
+    }
+  }
 }
 
 void CDCAC::retrieveInitialAssignment(NlModel& model, const Node& ran_variable)
@@ -143,6 +150,11 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
   LazardEvaluation le(statisticsRegistry(), nodeManager()->getPolyContext());
   prepareRootIsolation(le, cur_variable);
   std::map<Node, poly::Polynomial> constraintPolys;
+  if (isProofEnabled() && d_isUniv && !d_univCovered)
+  {
+    d_proof->startUnivVariable(
+        d_constraints.varMapper()(d_variableOrdering[cur_variable]));
+  }
 
   for (const auto& c : d_constraints.getConstraints())
   {
@@ -175,7 +187,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     {
       std::vector<poly::Value> roots;
       intervals = poly::infeasible_regions(p, d_assignment, sc, roots);
-      if (isProofEnabled() && d_isUniv)
+      if (isProofEnabled() && d_isUniv && !d_univCovered)
       {
         d_proof->addUnivRoots(roots, q);
       }
@@ -203,7 +215,7 @@ std::vector<CACInterval> CDCAC::getUnsatIntervals(std::size_t cur_variable)
     }
   }
   pruneRedundantIntervals(res);
-  if (isProofEnabled() && d_isUniv)
+  if (isProofEnabled() && d_isUniv && !d_univCovered)
   {
     d_proof->initializeRootMap();
     d_proof->addIntervals(res, constraintPolys);
@@ -597,8 +609,10 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
   }
   poly::Value sample;
 
+  bool firstSample = true;
   while (sampleOutsideWithInitial(intervals, sample, curVariable))
   {
+    firstSample = false;
     if (!checkIntegrality(curVariable, sample))
     {
       // the variable is integral, but the sample is not.
@@ -677,6 +691,12 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
     pruneRedundantIntervals(intervals);
   }
 
+  if (firstSample && isProofEnabled() && d_isUniv)
+  {
+    // the intervals of this variable alone cover the line
+    d_univCovered = true;
+  }
+
   if (TraceIsOn("cdcac"))
   {
     Trace("cdcac") << "Returning intervals for "
@@ -708,6 +728,7 @@ void CDCAC::startNewProof()
 {
   if (isProofEnabled())
   {
+    d_univCovered = false;
     d_proof->startNewProof(d_isUniv);
   }
 }

@@ -17,6 +17,7 @@
 
 #ifdef CVC5_POLY_IMP
 
+#include "expr/node_algorithm.h"
 #include "options/arith_options.h"
 #include "proof/lazy_tree_proof_generator.h"
 #include "proof/proof_node_algorithm.h"
@@ -215,6 +216,7 @@ void CoveringsProofGenerator::startNewProof(bool isUniv)
   d_polysRoots.clear();
   d_intervals.clear();
   d_rootMap = RootMap();
+  d_univVar = Node::null();
   if (!isUniv)
   {
     d_current = d_proofs.allocateProof();
@@ -253,6 +255,14 @@ CDProof* CoveringsProofGenerator::getUnivProofGenerator() const
 void CoveringsProofGenerator::initializeRootMap()
 {
   d_rootMap = buildRootMap(d_polysRoots);
+}
+
+void CoveringsProofGenerator::startUnivVariable(const Node& var)
+{
+  d_polysRoots.clear();
+  d_intervals.clear();
+  d_rootMap = RootMap();
+  d_univVar = var;
 }
 
 void CoveringsProofGenerator::addUnivRoots(
@@ -611,9 +621,9 @@ void CoveringsProofGenerator::closeUnivProof(
     std::vector<Node> constraints,
     VariableMapper& vm)
 {
-  Assert(vm.mVarCVCpoly.size() == 1 && vm.mVarpolyCVC.size() == 1);
+  Assert(!d_univVar.isNull());
   Assert(!d_intervals.empty());
-  Node var = vm.mVarCVCpoly.begin()->first;
+  Node var = d_univVar;
   NodeManager* nm = nodeManager();
   Node mis = nm->mkAnd(constraints);
 
@@ -633,8 +643,16 @@ void CoveringsProofGenerator::closeUnivProof(
       Node val = value_to_node_no_integer(pr.second, var);
       args.push_back(nm->mkNode(Kind::SEXPR, poly, val));
     }
-    d_cdp->addStep(
-        d_false, ProofRule::ARITH_COVERINGS_UNIV, constraints, args);
+    // only the constraints on var are needed, the others are satisfiable
+    std::vector<Node> prem;
+    for (const Node& c : constraints)
+    {
+      if (expr::hasSubterm(c, var))
+      {
+        prem.push_back(c);
+      }
+    }
+    d_cdp->addStep(d_false, ProofRule::ARITH_COVERINGS_UNIV, prem, args);
   }
   else
   {
