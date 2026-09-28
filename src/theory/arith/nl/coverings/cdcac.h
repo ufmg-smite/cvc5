@@ -20,6 +20,7 @@
 
 #include <poly/polyxx.h>
 
+#include <set>
 #include <vector>
 
 #include "smt/env.h"
@@ -86,6 +87,17 @@ class CDCAC : protected EnvObj
    * d_assignment. Implements Algorithm 2.
    */
   std::vector<CACInterval> getUnsatIntervals(std::size_t cur_variable);
+
+  /**
+   * Benchmark generation (option --nl-cov-univ-bench-dir). Called when the
+   * direct infeasible intervals of level cur_variable already cover the real
+   * line, i.e. the input constraints of that level, with the lower variables
+   * replaced by their values in d_assignment, form an unsatisfiable univariate
+   * problem. Writes that problem as an SMT-LIB benchmark, unless some involved
+   * value is not rational, some constraint rewrites to a constant, or the same
+   * (rewritten) set of constraints was written before.
+   */
+  void emitUnivariateBenchmark(std::size_t cur_variable);
 
   /**
    * Sample outside of the set of intervals.
@@ -219,6 +231,13 @@ class CDCAC : protected EnvObj
    * model for the input constraints.
    */
   poly::Assignment d_assignment;
+
+  /** Univariate benchmarks written so far, as sets of rewritten constraints. */
+  std::set<std::set<Node>> d_univBenchmarks;
+  /** Number of univariate benchmark files written. */
+  std::size_t d_univBenchCount = 0;
+  /** The variable used in the univariate benchmarks. */
+  Node d_univBenchVar;
 
   /** The set of input constraints to be checked for consistency. */
   Constraints d_constraints;

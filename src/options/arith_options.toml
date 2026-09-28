@@ -552,6 +552,14 @@ name   = "Arithmetic Theory"
   help       = "Use linear model to seed nonlinear model whenever possible"
 
 [[option]]
+  name       = "nlCovUnivBenchDir"
+  category   = "expert"
+  long       = "nl-cov-univ-bench-dir=DIR"
+  type       = "std::string"
+  default    = '""'
+  help       = "if non-empty, write each univariate subproblem refuted directly by the coverings solver (the input constraints under the current rational partial assignment) as an SMT-LIB benchmark into directory DIR"
+
+[[option]]
   name       = "nlCovProjection"
   category   = "expert"
   long       = "nl-cov-proj=MODE"

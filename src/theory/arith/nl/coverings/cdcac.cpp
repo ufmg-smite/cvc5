@@ -15,7 +15,15 @@
 
 #ifdef CVC5_POLY_IMP
 
+#include <fstream>
+
+#include "base/output.h"
+#include "expr/node_algorithm.h"
+#include "expr/skolem_manager.h"
 #include "options/arith_options.h"
+#include "options/main_options.h"
+#include "printer/printer.h"
+#include "smt/print_benchmark.h"
 #include "theory/arith/nl/coverings/lazard_evaluation.h"
 #include "theory/arith/nl/coverings/projections.h"
 #include "theory/arith/nl/coverings/variable_ordering.h"
@@ -573,9 +581,14 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
     }
   }
   poly::Value sample;
+  // Whether some sample outside the direct intervals was found. If not, the
+  // direct intervals alone cover the line and this level is a univariate
+  // unsat problem (see emitUnivariateBenchmark).
+  bool sampled = false;
 
   while (sampleOutsideWithInitial(intervals, sample, curVariable))
   {
+    sampled = true;
     if (!checkIntegrality(curVariable, sample))
     {
       // the variable is integral, but the sample is not.
@@ -654,6 +667,11 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
     pruneRedundantIntervals(intervals);
   }
 
+  if (!sampled && !options().arith.nlCovUnivBenchDir.empty())
+  {
+    emitUnivariateBenchmark(curVariable);
+  }
+
   if (TraceIsOn("cdcac"))
   {
     Trace("cdcac") << "Returning intervals for "
@@ -665,6 +683,120 @@ std::vector<CACInterval> CDCAC::getUnsatCoverImpl(std::size_t curVariable,
     }
   }
   return intervals;
+}
+
+void CDCAC::emitUnivariateBenchmark(std::size_t curVariable)
+{
+  NodeManager* nm = nodeManager();
+  VariableMapper& vm = d_constraints.varMapper();
+  const poly::Variable& curVar = d_variableOrdering[curVariable];
+  Node curTerm = vm(curVar);
+  if (!curTerm.getType().isReal())
+  {
+    // integer variable: the relaxation is unsat too, but not the same problem
+    return;
+  }
+
+  // Substitution: the lower variables are replaced by their values, and the
+  // level variable by the fixed benchmark variable x, so that the same
+  // problem arising in different variables is recognized as a duplicate.
+  // Values that are not rational cannot be substituted; they are only allowed
+  // if no selected constraint mentions them.
+  if (d_univBenchVar.isNull())
+  {
+    d_univBenchVar = nm->getSkolemManager()->mkDummySkolem(
+        "x", nm->realType(), SkolemFlags::SKOLEM_EXACT_NAME);
+  }
+  std::vector<Node> vars{curTerm};
+  std::vector<Node> vals{d_univBenchVar};
+  std::vector<Node> nonRational;
+  for (std::size_t i = 0; i < curVariable; ++i)
+  {
+    const poly::Variable& v = d_variableOrdering[i];
+    Node t = vm(v);
+    if (!d_assignment.has(v) || !t.getType().isReal())
+    {
+      nonRational.push_back(t);
+      continue;
+    }
+    // value_to_node yields a constant for rational values (including
+    // algebraic numbers whose isolating interval collapsed to a point) and a
+    // witness term otherwise.
+    Node val = value_to_node(d_assignment.get(v), t);
+    if (!val.isConst())
+    {
+      nonRational.push_back(t);
+      continue;
+    }
+    vars.push_back(t);
+    vals.push_back(val);
+  }
+
+  // The constraints of this level, under the substitution, in normal form.
+  // This set is both the benchmark and its key in d_univBenchmarks.
+  std::set<Node> bench;
+  for (const auto& c : d_constraints.getConstraints())
+  {
+    if (main_variable(std::get<0>(c)) != curVar)
+    {
+      continue;
+    }
+    const Node& n = std::get<2>(c);
+    if (expr::hasSubterm(n, nonRational))
+    {
+      Trace("cdcac-bench") << "Skipping benchmark: non-rational value in " << n
+                           << std::endl;
+      return;
+    }
+    Node s = rewrite(
+        n.substitute(vars.begin(), vars.end(), vals.begin(), vals.end()));
+    if (s.isConst())
+    {
+      Trace("cdcac-bench") << "Skipping benchmark: " << n << " became " << s
+                           << std::endl;
+      return;
+    }
+    bench.insert(s);
+  }
+  if (bench.empty() || !d_univBenchmarks.insert(bench).second)
+  {
+    return;
+  }
+  std::vector<Node> assertions(bench.begin(), bench.end());
+
+  // File name: <input basename without extension>_<n>.smt2
+  std::string base = options().driver.filename;
+  std::size_t pos = base.find_last_of('/');
+  if (pos != std::string::npos)
+  {
+    base = base.substr(pos + 1);
+  }
+  pos = base.find_last_of('.');
+  if (pos != std::string::npos && pos > 0)
+  {
+    base = base.substr(0, pos);
+  }
+  if (base.empty() || base == "<stdin>")
+  {
+    base = "stdin";
+  }
+  std::stringstream fname;
+  fname << options().arith.nlCovUnivBenchDir << "/" << base << "_"
+        << d_univBenchCount << ".smt2";
+  std::ofstream fs(fname.str(), std::ofstream::out);
+  if (!fs)
+  {
+    Warning() << "Could not open " << fname.str()
+              << " for writing a univariate benchmark" << std::endl;
+    return;
+  }
+  d_univBenchCount++;
+  fs << ";; univariate subproblem of " << options().driver.filename
+     << " at level " << curVariable << " (" << curTerm << ") under "
+     << d_assignment << std::endl;
+  smt::PrintBenchmark pb(nm, Printer::getPrinter(fs));
+  pb.printBenchmark(fs, "QF_NRA", {}, assertions);
+  Trace("cdcac-bench") << "Wrote " << fname.str() << std::endl;
 }
 
 std::vector<CACInterval> CDCAC::getUnsatCover(bool returnFirstInterval)
