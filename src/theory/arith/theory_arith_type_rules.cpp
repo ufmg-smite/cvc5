@@ -395,6 +395,43 @@ TypeNode IsRootTypeRule::computeType(NodeManager* nm,
   return nm->booleanType();
 }
 
+TypeNode RealAlgebraicNumberWitnessTypeRule::preComputeType(
+    NodeManager* nm, CVC5_UNUSED TNode n)
+{
+  return nm->realType();
+}
+
+TypeNode RealAlgebraicNumberWitnessTypeRule::computeType(NodeManager* nm,
+                                                         TNode n,
+                                                         bool check,
+                                                         std::ostream* errOut)
+{
+  if (check)
+  {
+    if (n[0].getKind() != Kind::SEXPR)
+    {
+      if (errOut)
+      {
+        (*errOut) << n.getKind() << " expects the Sturm sequence as an SEXPR.";
+      }
+      return TypeNode::null();
+    }
+    for (const Node& p : n[0])
+    {
+      if (!p.getTypeOrNull().isRealOrInt())
+      {
+        if (errOut)
+        {
+          (*errOut) << n.getKind()
+                    << " expects polynomials as the Sturm sequence.";
+        }
+        return TypeNode::null();
+      }
+    }
+  }
+  return nm->realType();
+}
+
 }  // namespace arith
 }  // namespace theory
 }  // namespace cvc5::internal

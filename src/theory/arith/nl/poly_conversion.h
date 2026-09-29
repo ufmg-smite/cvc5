@@ -115,6 +115,9 @@ cvc5::internal::Node as_cvc_polynomial_no_pow(NodeManager* nm,
  * mkConstRealOrInt, which yields an integer constant for integral values.
  * The univariate coverings proofs quantify over a real variable, so their
  * endpoints must be real constants. Used for the terms of these proofs.
+ * Irrational real algebraic numbers are returned as
+ * REAL_ALGEBRAIC_NUMBER_WITNESS terms (see PolyConverter::ran_to_sturm_witness)
+ * whose Sturm sequence is over ran_variable.
  */
 Node value_to_node_no_integer(const poly::Value& v, const Node& ran_variable);
 
@@ -200,6 +203,14 @@ class PolyConverter
    */
   static Node ran_to_defining_polynomial(const RealAlgebraicNumber& ran,
                                          const Node& ran_variable);
+  /**
+   * Get a REAL_ALGEBRAIC_NUMBER_WITNESS node for the given ran: the ran
+   * together with the Sturm sequence of its defining polynomial (an SEXPR of
+   * polynomials over variable ran_variable). Returns null if the ran is represented by a
+   * rational (and hence has no defining polynomial).
+   */
+  static Node ran_to_sturm_witness(const RealAlgebraicNumber& ran,
+                                   const Node& ran_variable);
   /**
    * Get the lower bound for the given ran, which is a constant real.
    */

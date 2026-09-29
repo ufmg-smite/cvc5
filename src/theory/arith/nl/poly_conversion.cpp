@@ -470,6 +470,12 @@ Node value_to_node_no_integer(const poly::Value& v, const Node& ran_variable)
   {
     res = ran_variable.getNodeManager()->mkConstReal(res.getConst<Rational>());
   }
+  if (res.getKind() == Kind::REAL_ALGEBRAIC_NUMBER)
+  {
+    res = PolyConverter::ran_to_sturm_witness(
+        res.getOperator().getConst<RealAlgebraicNumber>(), ran_variable);
+    Assert(!res.isNull());
+  }
   return res;
 }
 
@@ -883,6 +889,26 @@ Node PolyConverter::ran_to_defining_polynomial(const RealAlgebraicNumber& ran,
     return witness[1][0][0];
   }
   return Node::null();
+}
+
+Node PolyConverter::ran_to_sturm_witness(const RealAlgebraicNumber& ran,
+                                         const Node& ran_variable)
+{
+  if (ran.d_isRational)
+  {
+    return Node::null();
+  }
+  NodeManager* nm = ran_variable.getNodeManager();
+  Node op = nm->mkConst(Kind::REAL_ALGEBRAIC_NUMBER_WITNESS_OP, ran);
+  std::vector<Node> polys;
+  for (const poly::UPolynomial& p :
+       poly::sturm_sequence(get_defining_polynomial(ran.getValue())))
+  {
+    polys.emplace_back(
+        theory::arith::nl::as_cvc_upolynomial(p, ran_variable));
+  }
+  return nm->mkNode(
+      Kind::REAL_ALGEBRAIC_NUMBER_WITNESS, op, nm->mkNode(Kind::SEXPR, polys));
 }
 
 Node PolyConverter::ran_to_lower(NodeManager* nm,

@@ -1130,6 +1130,21 @@ enum ENUM(Kind)
    */ 
   EVALUE(REAL_ALGEBRAIC_NUMBER_OP),
   /**
+   * Real algebraic number together with a Sturm sequence of its defining
+   * polynomial, witnessing that the number is well defined.
+   *
+   * - Arity: ``1``
+   *
+   *   - ``1:`` The Sturm sequence, as an s-expression of Terms of Sort Real
+   *
+   * - Indices: ``1``
+   *
+   *   - ``1:`` The real algebraic number
+   *
+   * TODO: Add better documentation
+   */
+  EVALUE(REAL_ALGEBRAIC_NUMBER_WITNESS),
+  /**
    * Less than, chainable.
    *
    * - Arity: ``n > 1``

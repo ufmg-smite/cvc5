@@ -913,6 +913,14 @@ bool Smt2Printer::toStreamBase(std::ostream& out,
       stillNeedToPrintParams = false;
       break;
     }
+    case Kind::REAL_ALGEBRAIC_NUMBER_WITNESS:
+    {
+      const RealAlgebraicNumber& ran =
+          n.getOperator().getConst<RealAlgebraicNumber>();
+      out << "(_ @real_algebraic_number_witness " << ran << ")";
+      stillNeedToPrintParams = false;
+      break;
+    }
     case Kind::INDEXED_ROOT_PREDICATE_OP:
     {
       const IndexedRootPredicate& irp = n.getConst<IndexedRootPredicate>();
@@ -1220,6 +1228,10 @@ std::string Smt2Printer::smtKindString(Kind k)
     case Kind::DIVISIBLE: return "divisible";
     case Kind::REAL_ALGEBRAIC_NUMBER: return "@REAL_ALGEBRAIC_NUMBER";
     case Kind::REAL_ALGEBRAIC_NUMBER_OP: return "@REAL_ALGEBRAIC_NUMBER_OP";
+    case Kind::REAL_ALGEBRAIC_NUMBER_WITNESS:
+      return "@REAL_ALGEBRAIC_NUMBER_WITNESS";
+    case Kind::REAL_ALGEBRAIC_NUMBER_WITNESS_OP:
+      return "@REAL_ALGEBRAIC_NUMBER_WITNESS_OP";
 
     // univariate coverings
     case Kind::SGN_INV: return "@sgn_inv";
