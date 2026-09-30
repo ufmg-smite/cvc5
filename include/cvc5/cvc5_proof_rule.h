@@ -2481,12 +2481,14 @@ enum ENUM(ProofRule)
    * Arguments: a polynomial `p`, the endpoints `l` and `r` of the interval (each either a
    * root of `p` or the marker `MINUS_INFINITY` / `PLUS_INFINITY`), and rational bounds
    * `lo` and `hi` with `lo < l` and `r < hi` (or the same markers when the corresponding
-   * endpoint is infinite). Side condition: `p` has no root in `(lo, hi)` other than `l`
+   * endpoint is infinite), and the Sturm sequence of `p` (an s-expression of polynomials). Side condition: `p` has no root in `(lo, hi)` other than `l`
    * and `r`, and `p(lo) != 0`, `p(hi) != 0`. Concludes `SGN_INV(p, l, r)`.
    */
   EVALUE(SGN_INV_INTRO),
   /**
    * Introduces `IS_ROOT(p, r)` for a polynomial `p` and a real (algebraic) number `r`.
+   * Arguments: `p`, `r`, and a Sturm-Tarski sequence (an s-expression of
+   * polynomials) justifying the side condition.
    * Side condition: `r` is a root of `p`.
    */
   EVALUE(IS_ROOT_INTRO),

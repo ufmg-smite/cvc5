@@ -15,6 +15,10 @@
 
 #include "theory/arith/nl/coverings/proof_generator.h"
 
+#include <poly/polyxx/algebraic_number.h>
+#include <poly/polyxx/polynomial.h>
+#include <poly/polyxx/upolynomial.h>
+
 #ifdef CVC5_POLY_IMP
 
 #include "expr/node_algorithm.h"
@@ -24,8 +28,8 @@
 #include "theory/arith/arith_poly_norm.h"
 #include "theory/arith/arith_utilities.h"
 #include "theory/arith/nl/poly_conversion.h"
-#include "util/poly_util.h"
 #include "util/indexed_root_predicate.h"
+#include "util/poly_util.h"
 
 using namespace cvc5::internal::kind;
 
@@ -34,7 +38,6 @@ namespace theory {
 namespace arith {
 namespace nl {
 namespace coverings {
-
 
 poly::Polynomial orientLikeConstraint(const Node& n, const poly::Polynomial& p)
 {
@@ -57,8 +60,9 @@ RootMap buildRootMap(
     rootMap.d_roots.push_back(pr.second);
   }
   std::sort(rootMap.d_roots.begin(), rootMap.d_roots.end());
-  rootMap.d_roots.erase(std::unique(rootMap.d_roots.begin(), rootMap.d_roots.end()),
-                      rootMap.d_roots.end());
+  rootMap.d_roots.erase(
+      std::unique(rootMap.d_roots.begin(), rootMap.d_roots.end()),
+      rootMap.d_roots.end());
 
   for (const auto& pr : polyRoots)
   {
@@ -67,10 +71,10 @@ RootMap buildRootMap(
     Assert(rit != rootMap.d_roots.end() && *rit == pr.second);
     std::size_t id = std::distance(rootMap.d_roots.begin(), rit);
 
-    auto mit = std::find_if(
-        rootMap.d_members.begin(), rootMap.d_members.end(), [&pr](const auto& m) {
-          return m.first == pr.first;
-        });
+    auto mit =
+        std::find_if(rootMap.d_members.begin(),
+                     rootMap.d_members.end(),
+                     [&pr](const auto& m) { return m.first == pr.first; });
     if (mit == rootMap.d_members.end())
     {
       rootMap.d_members.emplace_back(pr.first, std::vector<std::size_t>{id});
@@ -91,7 +95,7 @@ RootMap buildRootMap(
 
 std::vector<size_t> RootMap::polyRootIndices(const poly::Polynomial& p)
 {
-  for (const auto& [q, ids]: d_members)
+  for (const auto& [q, ids] : d_members)
   {
     if (q == p)
     {
@@ -268,18 +272,17 @@ void CoveringsProofGenerator::startUnivVariable(const Node& var)
 void CoveringsProofGenerator::addUnivRoots(
     const std::vector<poly::Value>& roots, poly::Polynomial poly)
 {
-  for (const auto& root: roots)
+  for (const auto& root : roots)
   {
     d_polysRoots.emplace_back(poly, root);
   }
 }
 
-void CoveringsProofGenerator::addPointPiece(
-    const poly::Value& v,
-    const poly::Polynomial& p,
-    const Node& origin)
+void CoveringsProofGenerator::addPointPiece(const poly::Value& v,
+                                            const poly::Polynomial& p,
+                                            const Node& origin)
 {
-  for (const auto& pInterval: d_intervals)
+  for (const auto& pInterval : d_intervals)
   {
     const poly::Interval& interval = pInterval.d_interval;
     if (poly::is_point(interval) && poly::get_lower(interval) == v)
@@ -294,7 +297,7 @@ void CoveringsProofGenerator::addIntervals(
     const std::vector<CACInterval>& intervals,
     const std::map<Node, poly::Polynomial>& constraintPolys)
 {
-  for (const auto& cac_interval: intervals)
+  for (const auto& cac_interval : intervals)
   {
     const poly::Interval& interval = cac_interval.d_interval;
     Assert(cac_interval.d_origins.size() == 1);
@@ -313,11 +316,11 @@ void CoveringsProofGenerator::addIntervals(
       addPointPiece(lower, polynomial, originalConstraint);
     }
 
-    int lower_idx = poly::is_minus_infinity(lower) ? -1 : d_rootMap.rootIndex(lower);
-    int upper_idx = poly::is_plus_infinity(upper) ?
-      d_rootMap.d_roots.size() :
-      d_rootMap.rootIndex(upper);
-    for (const auto& root_idx: d_rootMap.polyRootIndices(polynomial))
+    int lower_idx =
+        poly::is_minus_infinity(lower) ? -1 : d_rootMap.rootIndex(lower);
+    int upper_idx = poly::is_plus_infinity(upper) ? d_rootMap.d_roots.size()
+                                                  : d_rootMap.rootIndex(upper);
+    for (const auto& root_idx : d_rootMap.polyRootIndices(polynomial))
     {
       if (int(root_idx) >= upper_idx)
       {
@@ -327,14 +330,16 @@ void CoveringsProofGenerator::addIntervals(
       {
         poly::Value pRoot = d_rootMap.d_roots[root_idx];
         poly::Interval open_interval = poly::Interval(lower, pRoot);
-        d_intervals.emplace_back(open_interval, polynomial, originalConstraint, Node::null());
+        d_intervals.emplace_back(
+            open_interval, polynomial, originalConstraint, Node::null());
         addPointPiece(pRoot, polynomial, originalConstraint);
         lower_idx = root_idx;
         lower = d_rootMap.d_roots[root_idx];
       }
     }
     auto open_interval = poly::Interval(lower, upper);
-    d_intervals.emplace_back(open_interval, polynomial, originalConstraint, Node::null());
+    d_intervals.emplace_back(
+        open_interval, polynomial, originalConstraint, Node::null());
 
     if (!poly::get_upper_open(interval))
     {
@@ -349,7 +354,7 @@ Node CoveringsProofGenerator::addCoverStep(const Node& var)
   std::vector<Node> intsData;
   std::vector<Node> disjs;
   bool hasFullInterval = false;
-  for (const auto& pInterval: d_intervals)
+  for (const auto& pInterval : d_intervals)
   {
     const poly::Interval& interval = pInterval.d_interval;
     Node lower = value_to_node_no_integer(get_lower(interval), var);
@@ -393,7 +398,9 @@ Node CoveringsProofGenerator::addCoverStep(const Node& var)
 
 namespace {
 /** Sign of the (univariate) polynomial `p` at the point `v`. */
-int sgnAt(const poly::Context& ctx, const poly::Polynomial& p, const poly::Value& v)
+int sgnAt(const poly::Context& ctx,
+          const poly::Polynomial& p,
+          const poly::Value& v)
 {
   poly::Assignment a(ctx);
   a.set(poly::main_variable(p), v);
@@ -423,11 +430,15 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
     // touch the representation of `v` used in the proof.
     poly::AlgebraicNumber an(poly::as_algebraic_number(v));
     size_t steps = 0;
-    while (sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly::get_lower_bound(an))) == 0)
+    while (sgnAt(nodeManager()->getPolyContext(),
+                 p,
+                 poly::Value(poly::get_lower_bound(an)))
+           == 0)
     {
       poly::refine(an);
       AlwaysAssert(++steps < 1000)
-          << "windowBelow: refinement does not terminate for " << v << " and " << p;
+          << "windowBelow: refinement does not terminate for " << v << " and "
+          << p;
     }
     return nm->mkConstReal(poly_utils::toRational(poly::get_lower_bound(an)));
   }
@@ -435,16 +446,22 @@ Node CoveringsProofGenerator::windowBelow(const poly::Value& v,
   Rational a = poly_utils::toRationalBelow(v);
   Rational lo = a - Rational(1);
   size_t idx = d_rootMap.rootIndex(v);
-  // indices are sorted ascending: the last one below `idx` is the previous root of `p`
+  // indices are sorted ascending: the last one below `idx` is the previous root
+  // of `p`
   for (size_t id : d_rootMap.polyRootIndices(p))
   {
     if (id < idx)
     {
-      lo = (poly_utils::toRationalAbove(d_rootMap.d_roots[id]) + a) / Rational(2);
+      lo = (poly_utils::toRationalAbove(d_rootMap.d_roots[id]) + a)
+           / Rational(2);
     }
   }
-  // strictly between consecutive roots of `p` (or below all of them): not a root
-  Assert(sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly_utils::toRational(lo))) != 0);
+  // strictly between consecutive roots of `p` (or below all of them): not a
+  // root
+  Assert(sgnAt(nodeManager()->getPolyContext(),
+               p,
+               poly::Value(poly_utils::toRational(lo)))
+         != 0);
   return nm->mkConstReal(lo);
 }
 
@@ -463,11 +480,15 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
     // see windowBelow
     poly::AlgebraicNumber an(poly::as_algebraic_number(v));
     size_t steps = 0;
-    while (sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly::get_upper_bound(an))) == 0)
+    while (sgnAt(nodeManager()->getPolyContext(),
+                 p,
+                 poly::Value(poly::get_upper_bound(an)))
+           == 0)
     {
       poly::refine(an);
       AlwaysAssert(++steps < 1000)
-          << "windowAbove: refinement does not terminate for " << v << " and " << p;
+          << "windowAbove: refinement does not terminate for " << v << " and "
+          << p;
     }
     return nm->mkConstReal(poly_utils::toRational(poly::get_upper_bound(an)));
   }
@@ -475,17 +496,23 @@ Node CoveringsProofGenerator::windowAbove(const poly::Value& v,
   Rational b = poly_utils::toRationalAbove(v);
   Rational hi = b + Rational(1);
   size_t idx = d_rootMap.rootIndex(v);
-  // indices are sorted ascending: the first one above `idx` is the next root of `p`
+  // indices are sorted ascending: the first one above `idx` is the next root of
+  // `p`
   for (size_t id : d_rootMap.polyRootIndices(p))
   {
     if (id > idx)
     {
-      hi = (b + poly_utils::toRationalBelow(d_rootMap.d_roots[id])) / Rational(2);
+      hi = (b + poly_utils::toRationalBelow(d_rootMap.d_roots[id]))
+           / Rational(2);
       break;
     }
   }
-  // strictly between consecutive roots of `p` (or above all of them): not a root
-  Assert(sgnAt(nodeManager()->getPolyContext(), p, poly::Value(poly_utils::toRational(hi))) != 0);
+  // strictly between consecutive roots of `p` (or above all of them): not a
+  // root
+  Assert(sgnAt(nodeManager()->getPolyContext(),
+               p,
+               poly::Value(poly_utils::toRational(hi)))
+         != 0);
   return nm->mkConstReal(hi);
 }
 
@@ -499,12 +526,37 @@ void CoveringsProofGenerator::addIntroSteps(const Node& var, VariableMapper& vm)
     Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, p, vm);
     if (poly::is_point(interval))
     {
-      Node r = value_to_node_no_integer(poly::get_upper(interval), var);
+      const poly::Value& root = poly::get_upper(interval);
+      Node r = value_to_node_no_integer(root, var);
       Node fact = mkIsRoot(nm, cvc_p, r);
-      d_cdp->addStep(fact, ProofRule::IS_ROOT_INTRO, {}, {cvc_p, r});
+      // The Sturm-Tarski sequence of (q, p), with q the defining polynomial of
+      // r: its Tarski query on the isolating interval of r is sign(p(r)), as r
+      // is the only root of q there. Empty if r is rational.
+      std::vector<Node> stPolys;
+      if (r.getKind() == Kind::REAL_ALGEBRAIC_NUMBER_WITNESS)
+      {
+        poly::UPolynomial q =
+            poly::get_defining_polynomial(poly::as_algebraic_number(root));
+        const auto sturmTarski = poly::signed_remainder_sequence(
+            q, poly::derivative(q) * poly::to_univariate(p));
+        for (const auto& sp : sturmTarski)
+        {
+          stPolys.push_back(theory::arith::nl::as_cvc_upolynomial(sp, var));
+        }
+      }
+      Node sturmTarskiCvc = nm->mkNode(Kind::SEXPR, stPolys);
+      d_cdp->addStep(
+          fact, ProofRule::IS_ROOT_INTRO, {}, {cvc_p, r, sturmTarskiCvc});
       pInterval.d_fact = fact;
       continue;
     }
+    const auto sturmSeq = poly::sturm_sequence(poly::to_univariate(p));
+    std::vector<Node> polys;
+    for (const auto& ps : sturmSeq)
+    {
+      polys.push_back(theory::arith::nl::as_cvc_upolynomial(ps, var));
+    }
+    Node sturmSeqCvc = nm->mkNode(Kind::SEXPR, polys);
     const poly::Value& lower = poly::get_lower(interval);
     const poly::Value& upper = poly::get_upper(interval);
     Node l = value_to_node_no_integer(lower, var);
@@ -512,14 +564,13 @@ void CoveringsProofGenerator::addIntroSteps(const Node& var, VariableMapper& vm)
     Node lo = windowBelow(lower, p);
     Node hi = windowAbove(upper, p);
     Node fact = mkSgnInv(nm, cvc_p, l, r);
-    d_cdp->addStep(fact, ProofRule::SGN_INV_INTRO, {}, {cvc_p, l, r, lo, hi});
+    d_cdp->addStep(
+        fact, ProofRule::SGN_INV_INTRO, {}, {cvc_p, l, r, lo, hi, sturmSeqCvc});
     pInterval.d_fact = fact;
   }
 }
 
-void CoveringsProofGenerator::addElimSteps(
-    const Node& var,
-    VariableMapper& vm)
+void CoveringsProofGenerator::addElimSteps(const Node& var, VariableMapper& vm)
 {
   NodeManager* nm = nodeManager();
   for (auto& pInterval : d_intervals)
@@ -531,9 +582,9 @@ void CoveringsProofGenerator::addElimSteps(
     {
       Node cvc_p = pInterval.d_fact[0];
       Node cvc_r = pInterval.d_fact[1];
-      std::vector<Node> args {var, cvc_r, cvc_p};
+      std::vector<Node> args{var, cvc_r, cvc_p};
       Node lit = addNormalizedLiteral(pInterval.d_origin, cvc_p);
-      std::vector<Node> premises {pInterval.d_fact, lit};
+      std::vector<Node> premises{pInterval.d_fact, lit};
       auto conc = nm->mkNode(Kind::EQUAL, var, cvc_r).notNode();
       d_cdp->addStep(conc, ProofRule::RAN_EVAL, premises, args);
       pInterval.d_elim = conc;
@@ -617,9 +668,8 @@ void CoveringsProofGenerator::addResolutionStep(const Node& coverConc)
   }
 }
 
-void CoveringsProofGenerator::closeUnivProof(
-    std::vector<Node> constraints,
-    VariableMapper& vm)
+void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
+                                             VariableMapper& vm)
 {
   Assert(!d_univVar.isNull());
   Assert(!d_intervals.empty());
@@ -632,10 +682,13 @@ void CoveringsProofGenerator::closeUnivProof(
     // a single coarse step, subsuming COVER, SGN_INV_INTRO, IS_ROOT_INTRO,
     // SGN_INV_ELIM, RAN_EVAL and the final resolution
     std::vector<Node> args{var};
-    std::sort(d_polysRoots.begin(), d_polysRoots.end(),
-        [] (auto& a, auto& b) { return a.second < b.second; });
-    auto last = std::unique(d_polysRoots.begin(), d_polysRoots.end(),
-        [] (auto& a, auto& b) { return a.second == b.second; });
+    std::sort(d_polysRoots.begin(), d_polysRoots.end(), [](auto& a, auto& b) {
+      return a.second < b.second;
+    });
+    auto last = std::unique(
+        d_polysRoots.begin(), d_polysRoots.end(), [](auto& a, auto& b) {
+          return a.second == b.second;
+        });
     d_polysRoots.erase(last, d_polysRoots.end());
     for (const auto& pr : d_polysRoots)
     {

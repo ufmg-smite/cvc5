@@ -169,7 +169,8 @@ class CoveringsProofGenerator : protected EnvObj
   Node addCoverStep(const Node& var);
 
   // For each piece in `d_intervals`, adds the step introducing its fact:
-  // IS_ROOT_INTRO(p, r) for a point piece, and SGN_INV_INTRO(p, l, r, lo, hi) for an
+  // IS_ROOT_INTRO(p, r, sturmTarski) for a point piece, and
+  // SGN_INV_INTRO(p, l, r, lo, hi, sturm(p)) for an
   // open piece, where `(lo, hi)` is a rational window around `(l, r)` that contains no
   // root of `p` other than `l` and `r` (see `windowBelow` / `windowAbove`).
   void addIntroSteps(const Node& var, VariableMapper& vm);
