@@ -3761,11 +3761,58 @@ std::string Term::getRealAlgebraicNumberValue() const
   //////// all checks before this line
 #ifdef CVC5_POLY_IMP
   const internal::RealAlgebraicNumber& ran =
-      d_node->getOperator().getConst<internal::RealAlgebraicNumber>(); 
+      d_node->getOperator().getConst<internal::RealAlgebraicNumber>();
   return ran.toString();
 #else
   return "";
 #endif
+  ////////
+  CVC5_API_TRY_CATCH_END;
+}
+
+bool Term::isRealAlgebraicNumberWitness() const
+{
+  CVC5_API_TRY_CATCH_BEGIN;
+  CVC5_API_CHECK_NOT_NULL;
+  //////// all checks before this line
+  return d_node->getKind() == internal::Kind::REAL_ALGEBRAIC_NUMBER_WITNESS;
+  ////////
+  CVC5_API_TRY_CATCH_END;
+}
+
+Term Term::getRealAlgebraicNumberWitnessNumber() const
+{
+  CVC5_API_TRY_CATCH_BEGIN;
+  CVC5_API_CHECK_NOT_NULL;
+  CVC5_API_ARG_CHECK_EXPECTED(
+      d_node->getKind() == internal::Kind::REAL_ALGEBRAIC_NUMBER_WITNESS,
+      *d_node)
+      << "Term to be a real algebraic number witness when calling "
+         "getRealAlgebraicNumberWitnessNumber()";
+  //////// all checks before this line
+  const internal::RealAlgebraicNumber& ran =
+      d_node->getOperator().getConst<internal::RealAlgebraicNumber>();
+  return Term(d_tm, d_tm->d_nm->mkRealAlgebraicNumber(ran));
+  ////////
+  CVC5_API_TRY_CATCH_END;
+}
+
+std::vector<Term> Term::getRealAlgebraicNumberWitnessSturmSequence() const
+{
+  CVC5_API_TRY_CATCH_BEGIN;
+  CVC5_API_CHECK_NOT_NULL;
+  CVC5_API_ARG_CHECK_EXPECTED(
+      d_node->getKind() == internal::Kind::REAL_ALGEBRAIC_NUMBER_WITNESS,
+      *d_node)
+      << "Term to be a real algebraic number witness when calling "
+         "getRealAlgebraicNumberWitnessSturmSequence()";
+  //////// all checks before this line
+  std::vector<Term> res;
+  for (const internal::Node& p : (*d_node)[0])
+  {
+    res.push_back(Term(d_tm, p));
+  }
+  return res;
   ////////
   CVC5_API_TRY_CATCH_END;
 }

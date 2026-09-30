@@ -1920,8 +1920,29 @@ class CVC5_EXPORT Term
    * Get a real algebraic number string representation.
    * @note Asserts isRealAlgebraicNumber().
    * @return The string representation.
-   */ 
+   */
   std::string getRealAlgebraicNumberValue() const;
+  /**
+   * Determine if this term is a real algebraic number witness, i.e., a real
+   * algebraic number together with the Sturm sequence of its defining
+   * polynomial.
+   * @return True if the term is a real algebraic number witness.
+   */
+  bool isRealAlgebraicNumberWitness() const;
+  /**
+   * Get the real algebraic number of a real algebraic number witness.
+   * @note Asserts isRealAlgebraicNumberWitness().
+   * @return The real algebraic number, a term for which
+   *         isRealAlgebraicNumber() holds.
+   */
+  Term getRealAlgebraicNumberWitnessNumber() const;
+  /**
+   * Get the Sturm sequence of a real algebraic number witness, i.e., the
+   * Sturm sequence of the defining polynomial of its real algebraic number.
+   * @note Asserts isRealAlgebraicNumberWitness().
+   * @return The polynomials of the Sturm sequence.
+   */
+  std::vector<Term> getRealAlgebraicNumberWitnessSturmSequence() const;
   /**
    * Is this term a skolem?
    * @warning This function is experimental and may change in future versions.
