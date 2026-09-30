@@ -15,11 +15,11 @@
 
 #include "theory/arith/nl/coverings/proof_generator.h"
 
+#ifdef CVC5_POLY_IMP
+
 #include <poly/polyxx/algebraic_number.h>
 #include <poly/polyxx/polynomial.h>
 #include <poly/polyxx/upolynomial.h>
-
-#ifdef CVC5_POLY_IMP
 
 #include "expr/node_algorithm.h"
 #include "options/arith_options.h"
