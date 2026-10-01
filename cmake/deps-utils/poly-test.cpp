@@ -36,7 +36,13 @@ std::vector<UPolynomial> signed_remainder_sequence(const UPolynomial& p,
 
 int main()
 {
-  void* c = reinterpret_cast<void*>(&lp_upolynomial_signed_remainder_sequence);
-  void* cxx = reinterpret_cast<void*>(&poly::signed_remainder_sequence);
-  return c != nullptr && cxx != nullptr ? 0 : 1;
+  // Stored into volatiles so that the references to the functions are not
+  // optimized away (a function address is never null, so any check on it is
+  // folded), which would make the link succeed even if they are missing.
+  void* volatile c =
+      reinterpret_cast<void*>(&lp_upolynomial_signed_remainder_sequence);
+  void* volatile cxx = reinterpret_cast<void*>(&poly::signed_remainder_sequence);
+  (void)c;
+  (void)cxx;
+  return 0;
 }

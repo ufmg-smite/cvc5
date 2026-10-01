@@ -463,6 +463,36 @@ Node value_to_node(const poly::Value& v, const Node& ran_variable)
   return nm->mkConstReal(Rational(0));
 }
 
+std::vector<std::pair<poly::UPolynomial, poly::UPolynomial>> enhancedRemSeq(
+    const std::vector<poly::UPolynomial>& seq)
+{
+  std::vector<std::pair<poly::UPolynomial, poly::UPolynomial>> res;
+  for (std::size_t i = 0; i < seq.size(); ++i)
+  {
+    poly::UPolynomial q;
+    if (i >= 2 && poly::degree(seq[i - 2]) >= poly::degree(seq[i - 1]))
+    {
+      q = poly::div_rem_pseudo(seq[i - 2], seq[i - 1]).first;
+    }
+    res.emplace_back(q, seq[i]);
+  }
+  return res;
+}
+
+Node as_cvc_remainder_sequence(const std::vector<poly::UPolynomial>& seq,
+                               const Node& var)
+{
+  NodeManager* nm = var.getNodeManager();
+  std::vector<Node> pairs;
+  for (const auto& [quot, rem] : enhancedRemSeq(seq))
+  {
+    pairs.push_back(nm->mkNode(
+        Kind::SEXPR,
+        {as_cvc_upolynomial(quot, var), as_cvc_upolynomial(rem, var)}));
+  }
+  return nm->mkNode(Kind::SEXPR, pairs);
+}
+
 Node value_to_node_no_integer(const poly::Value& v, const Node& ran_variable)
 {
   Node res = value_to_node(v, ran_variable);
@@ -900,15 +930,10 @@ Node PolyConverter::ran_to_sturm_witness(const RealAlgebraicNumber& ran,
   }
   NodeManager* nm = ran_variable.getNodeManager();
   Node op = nm->mkConst(Kind::REAL_ALGEBRAIC_NUMBER_WITNESS_OP, ran);
-  std::vector<Node> polys;
-  for (const poly::UPolynomial& p :
-       poly::sturm_sequence(get_defining_polynomial(ran.getValue())))
-  {
-    polys.emplace_back(
-        theory::arith::nl::as_cvc_upolynomial(p, ran_variable));
-  }
-  return nm->mkNode(
-      Kind::REAL_ALGEBRAIC_NUMBER_WITNESS, op, nm->mkNode(Kind::SEXPR, polys));
+  Node sturm = theory::arith::nl::as_cvc_remainder_sequence(
+      poly::sturm_sequence(get_defining_polynomial(ran.getValue())),
+      ran_variable);
+  return nm->mkNode(Kind::REAL_ALGEBRAIC_NUMBER_WITNESS, op, sturm);
 }
 
 Node PolyConverter::ran_to_lower(NodeManager* nm,

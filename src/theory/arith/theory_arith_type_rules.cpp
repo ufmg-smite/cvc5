@@ -418,12 +418,14 @@ TypeNode RealAlgebraicNumberWitnessTypeRule::computeType(NodeManager* nm,
     }
     for (const Node& p : n[0])
     {
-      if (!p.getTypeOrNull().isRealOrInt())
+      if (p.getKind() != Kind::SEXPR || p.getNumChildren() != 2
+          || !p[0].getTypeOrNull().isRealOrInt()
+          || !p[1].getTypeOrNull().isRealOrInt())
       {
         if (errOut)
         {
           (*errOut) << n.getKind()
-                    << " expects polynomials as the Sturm sequence.";
+                    << " expects pairs of polynomials as the Sturm sequence.";
         }
         return TypeNode::null();
       }

@@ -1290,7 +1290,13 @@ TEST_F(TestApiBlackTerm, getRealAlgebraicNumberWitness)
     ASSERT_GE(sturm.size(), 2);
     for (const Term& s : sturm)
     {
-      ASSERT_TRUE(s.getSort().isReal() || s.getSort().isInteger());
+      // pairs (quotient, polynomial)
+      ASSERT_EQ(s.getKind(), Kind::SEXPR);
+      ASSERT_EQ(s.getNumChildren(), 2);
+      for (const Term& c : s)
+      {
+        ASSERT_TRUE(c.getSort().isReal() || c.getSort().isInteger());
+      }
     }
   }
 }

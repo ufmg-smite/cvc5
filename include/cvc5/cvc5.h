@@ -1940,7 +1940,10 @@ class CVC5_EXPORT Term
    * Get the Sturm sequence of a real algebraic number witness, i.e., the
    * Sturm sequence of the defining polynomial of its real algebraic number.
    * @note Asserts isRealAlgebraicNumberWitness().
-   * @return The polynomials of the Sturm sequence.
+   * @return The elements of the Sturm sequence, each an s-expression `(a b)`
+   *         where `b` is the polynomial of the sequence and `a` is the
+   *         pseudo-quotient of the two preceding elements, of which `b` is
+   *         the remainder up to a constant factor (zero for the first two).
    */
   std::vector<Term> getRealAlgebraicNumberWitnessSturmSequence() const;
   /**

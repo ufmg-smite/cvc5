@@ -45,11 +45,13 @@ void CoveringsProofRuleChecker::registerTo(ProofChecker* pc)
 
 // TODO: check the side condition (no root of args[0] in (args[3], args[4])
 // other than args[1] and args[2], which are roots when finite) using the
-// Sturm sequence args[5]
+// Sturm sequence args[5] and the Sturm-Tarski sequences args[6] and args[7]
+// of the defining polynomials of args[1] and args[2] with args[0]
 Node CoveringsProofRuleChecker::checkSgnInvIntro(const std::vector<Node>& args)
 {
   NodeManager* nm = nodeManager();
-  if (args.size() != 6 || args[5].getKind() != Kind::SEXPR)
+  if (args.size() != 8 || args[5].getKind() != Kind::SEXPR
+      || args[6].getKind() != Kind::SEXPR || args[7].getKind() != Kind::SEXPR)
   {
     return Node::null();
   }

@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <map>
 #include <utility>
+#include <vector>
 
 #include "expr/node.h"
 #include "util/real_algebraic_number.h"
@@ -57,6 +58,24 @@ struct VariableMapper
 /** Convert a poly univariate polynomial to a cvc5::internal::Node. */
 cvc5::internal::Node as_cvc_upolynomial(const poly::UPolynomial& p,
                               const cvc5::internal::Node& var);
+
+/**
+ * Takes a list of polynomials (representing a remainder sequence) and returns
+ * another list, which is a pair of elements (a, b) where a is the quocient and
+ * b is the remainder. The i-th pair has the element seq[i] of the sequence and
+ * the pseudo-quotient of seq[i - 2] by seq[i - 1], of which seq[i] is the
+ * remainder up to a constant factor (zero for the first two elements).
+ */
+std::vector<std::pair<poly::UPolynomial, poly::UPolynomial>> enhancedRemSeq(
+    const std::vector<poly::UPolynomial>& seq);
+
+/**
+ * Convert a remainder sequence to a cvc5::internal::Node: an SEXPR with the
+ * pairs of enhancedRemSeq(seq), each an SEXPR (a b) of polynomials over var.
+ */
+cvc5::internal::Node as_cvc_remainder_sequence(
+    const std::vector<poly::UPolynomial>& seq,
+    const cvc5::internal::Node& var);
 
 /**
  * Convert a cvc5::internal::Node to a poly univariate polynomial. Is robust to

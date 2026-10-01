@@ -50,6 +50,26 @@ poly::Polynomial orientLikeConstraint(const Node& n, const poly::Polynomial& p)
   return flipped ? -p : p;
 }
 
+// The Sturm-Tarski sequence of (q, p), with q the defining polynomial of the
+// value v, whose node is vn: its Tarski query on the isolating interval of v
+// is sign(p(v)), as v is the only root of q there. Empty if v is not an
+// irrational algebraic number (i.e. it is rational or infinite).
+Node sturmTarskiNode(NodeManager* nm,
+                     const poly::Value& v,
+                     const Node& vn,
+                     const poly::UPolynomial& p,
+                     const Node& var)
+{
+  if (vn.getKind() != Kind::REAL_ALGEBRAIC_NUMBER_WITNESS)
+  {
+    return nm->mkNode(Kind::SEXPR, std::vector<Node>{});
+  }
+  poly::UPolynomial q =
+      poly::get_defining_polynomial(poly::as_algebraic_number(v));
+  return nl::as_cvc_remainder_sequence(
+      poly::signed_remainder_sequence(q, poly::derivative(q) * p), var);
+}
+
 RootMap buildRootMap(
     const std::vector<std::pair<poly::Polynomial, poly::Value>>& polyRoots)
 {
@@ -524,48 +544,32 @@ void CoveringsProofGenerator::addIntroSteps(const Node& var, VariableMapper& vm)
     const poly::Interval& interval = pInterval.d_interval;
     const poly::Polynomial& p = pInterval.d_poly;
     Node cvc_p = nl::as_cvc_polynomial_no_pow(nm, p, vm);
+    poly::UPolynomial up = poly::to_univariate(p);
     if (poly::is_point(interval))
     {
       const poly::Value& root = poly::get_upper(interval);
       Node r = value_to_node_no_integer(root, var);
       Node fact = mkIsRoot(nm, cvc_p, r);
-      // The Sturm-Tarski sequence of (q, p), with q the defining polynomial of
-      // r: its Tarski query on the isolating interval of r is sign(p(r)), as r
-      // is the only root of q there. Empty if r is rational.
-      std::vector<Node> stPolys;
-      if (r.getKind() == Kind::REAL_ALGEBRAIC_NUMBER_WITNESS)
-      {
-        poly::UPolynomial q =
-            poly::get_defining_polynomial(poly::as_algebraic_number(root));
-        const auto sturmTarski = poly::signed_remainder_sequence(
-            q, poly::derivative(q) * poly::to_univariate(p));
-        for (const auto& sp : sturmTarski)
-        {
-          stPolys.push_back(theory::arith::nl::as_cvc_upolynomial(sp, var));
-        }
-      }
-      Node sturmTarskiCvc = nm->mkNode(Kind::SEXPR, stPolys);
+      Node sturmTarski = sturmTarskiNode(nm, root, r, up, var);
       d_cdp->addStep(
-          fact, ProofRule::IS_ROOT_INTRO, {}, {cvc_p, r, sturmTarskiCvc});
+          fact, ProofRule::IS_ROOT_INTRO, {}, {cvc_p, r, sturmTarski});
       pInterval.d_fact = fact;
       continue;
     }
-    const auto sturmSeq = poly::sturm_sequence(poly::to_univariate(p));
-    std::vector<Node> polys;
-    for (const auto& ps : sturmSeq)
-    {
-      polys.push_back(theory::arith::nl::as_cvc_upolynomial(ps, var));
-    }
-    Node sturmSeqCvc = nm->mkNode(Kind::SEXPR, polys);
+    Node sturmSeq = nl::as_cvc_remainder_sequence(poly::sturm_sequence(up), var);
     const poly::Value& lower = poly::get_lower(interval);
     const poly::Value& upper = poly::get_upper(interval);
     Node l = value_to_node_no_integer(lower, var);
     Node r = value_to_node_no_integer(upper, var);
     Node lo = windowBelow(lower, p);
     Node hi = windowAbove(upper, p);
+    Node sturmTarskiL = sturmTarskiNode(nm, lower, l, up, var);
+    Node sturmTarskiR = sturmTarskiNode(nm, upper, r, up, var);
     Node fact = mkSgnInv(nm, cvc_p, l, r);
-    d_cdp->addStep(
-        fact, ProofRule::SGN_INV_INTRO, {}, {cvc_p, l, r, lo, hi, sturmSeqCvc});
+    d_cdp->addStep(fact,
+                   ProofRule::SGN_INV_INTRO,
+                   {},
+                   {cvc_p, l, r, lo, hi, sturmSeq, sturmTarskiL, sturmTarskiR});
     pInterval.d_fact = fact;
   }
 }
