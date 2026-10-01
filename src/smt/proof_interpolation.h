@@ -30,6 +30,18 @@
 namespace cvc5::internal {
 namespace smt {
 
+enum class ItpColor
+{
+  A_LOCAL,
+  B_LOCAL,
+  SHARED,
+  MIXED
+};
+
+ItpColor getColor(Node atom,
+                     const std::unordered_set<Node>& aSymbols,
+                     const std::unordered_set<Node>& bSymbols);
+
 void partition(const std::vector<Node>& aTerms,
                const std::vector<Node>& assertions,
                std::unordered_set<Node>& aAssertions,

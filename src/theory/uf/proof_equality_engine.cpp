@@ -12,10 +12,12 @@
 
 #include "theory/uf/proof_equality_engine.h"
 
+#include "expr/node_algorithm.h"
 #include "proof/lazy_proof_chain.h"
 #include "proof/proof_node.h"
 #include "proof/proof_node_manager.h"
 #include "smt/env.h"
+#include "smt/proof_interpolation.h"
 #include "theory/rewriter.h"
 #include "theory/uf/eq_proof.h"
 #include "theory/uf/equality_engine.h"
@@ -566,6 +568,98 @@ void ProofEqEngine::explainWithProof(Node lit,
   Trace("pfee-proof") << "pfee::explainWithProof: finished" << std::endl;
 }
 
+namespace {
+
+// An edge x = y, colored A or B.
+struct ItpEdge
+{
+  Node d_x;
+  Node d_y;
+  bool d_isA;
+};
+
+bool collectEdges(const EqProof& pf,
+                  const std::unordered_set<Node>& aSymbols,
+                  const std::unordered_set<Node>& bSymbols,
+                  std::vector<ItpEdge>& edges)
+{
+  switch (pf.d_id)
+  {
+    case MERGED_THROUGH_REFLEXIVITY: 
+    return true;
+
+    case MERGED_THROUGH_EQUALITY:
+    {
+      Node eq = pf.d_node;
+      if (eq.getKind() != Kind::EQUAL)
+      {
+        return false;
+      }
+      smt::ItpColor color = smt::getColor(eq, aSymbols, bSymbols);
+      if (color == smt::ItpColor::MIXED)
+      {
+        return false;
+      }
+      edges.push_back({eq[0], eq[1], color == smt::ItpColor::A_LOCAL});
+      return true;
+    }
+    case MERGED_THROUGH_TRANS:
+    {
+      for (const std::shared_ptr<EqProof>& c : pf.d_children)
+      {
+        if (!collectEdges(*c, aSymbols, bSymbols, edges))
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+    default: return false;
+  }
+}
+
+bool orderPath(Node s,
+               Node t,
+               std::vector<ItpEdge> edges,
+               std::vector<Node>& nodes,
+               std::vector<bool>& colors)
+{
+  nodes.push_back(s);
+  Node cur = s;
+  while (!edges.empty())
+  {
+    bool found = false;
+    for (size_t i = 0; i < edges.size(); i++)
+    {
+      Node next;
+      if (edges[i].d_x == cur)
+      {
+        next = edges[i].d_y;
+      }
+      else if (edges[i].d_y == cur)
+      {
+        next = edges[i].d_x;
+      }
+      else
+      {
+        continue;
+      }
+      nodes.push_back(next);
+      colors.push_back(edges[i].d_isA);
+      edges.erase(edges.begin() + i);
+      cur = next;
+      found = true;
+      break;
+    }
+    if (!found)
+    {
+      return false;
+    }
+  }
+  return cur == t;
+}
+
+}  // namespace
 
 Node ProofEqEngine::getPartialInterpolant(
     Node conc,
@@ -573,16 +667,82 @@ Node ProofEqEngine::getPartialInterpolant(
     const std::unordered_set<Node>& bSymbols,
     NodeManager* nm)
 {
-  auto it = d_leafPf.find(conc);
-  if (it == d_leafPf.end())
-  {
-    return nm->mkConst(true);
-  }
-  // TODO : compute interpolant
-  Trace("itp") << "getPartialInterpolant: " << conc << std::endl;
-  return nm->mkConst(true);
-}
+  Node fallback = nm->mkConst(true);
 
+  auto i = d_leafPf.find(conc);
+  if (i == d_leafPf.end())
+  {
+    return fallback;
+  }
+
+  Trace("itp") << "getPartialInterpolant: " << conc << std::endl;
+  const std::vector<std::shared_ptr<EqProof>>& pfs = (*i).second;
+  if (pfs.size() != 1)
+  {
+    Trace("itp") << " unsupported1 " << std::endl;
+    return fallback;
+  }
+
+  const EqProof& pf = *pfs[0];
+
+  //pf proves s = t
+  //the conflict is the path plus s != t
+  Node goal = pf.d_node;
+
+  if (goal.getKind() != Kind::EQUAL || goal[0].getType().isBoolean())
+  {
+    Trace("itp") << " unsupported2 " << goal << std::endl;
+    return fallback;
+  }
+
+  //color edges
+  std::vector<ItpEdge> edges;
+  if (!collectEdges(pf, aSymbols, bSymbols, edges))
+  {
+    Trace("itp") << " unsupported3 " << std::endl;
+    return fallback;
+  }
+
+  Trace("itp") << "edges:" << std::endl;
+  
+  for (const ItpEdge& e : edges)
+  {
+    Trace("itp") << " " << e.d_x << " = " << e.d_y << " ["
+                       << (e.d_isA ? "A" : "B") << "]" << std::endl;
+  }
+
+
+  //order the edges into a path
+  std::vector<Node> nodes;
+  std::vector<bool> colors;
+  if (!orderPath(goal[0], goal[1], edges, nodes, colors))
+  {
+    Trace("itp") << " can't form a path" << std::endl;
+    return fallback;
+  }
+
+  Trace("itp") << "chain: " << std::endl;
+  Trace("itp") << nodes[0];
+  for (size_t k = 0; k < colors.size(); k++)
+  {
+    Trace("itp") << " --" << (colors[k] ? "A" : "B") << "-- " << nodes[k + 1];
+  }
+  Trace("itp") << std::endl;
+
+  smt::ItpColor goalColor = smt::getColor(goal, aSymbols, bSymbols);
+  if (goalColor == smt::ItpColor::MIXED)
+  {
+    Trace("itp") << "  unsupported4" << std::endl;
+    return fallback;
+  }
+
+  Trace("itp") << "diseq: " << goal[0] << " != " << goal[1]
+                     << "  [" << (goalColor == smt::ItpColor::A_LOCAL ? "A" : "B") << "]" << std::endl;
+
+
+  
+  return fallback;
+}
 
 }  // namespace eq
 }  // namespace theory

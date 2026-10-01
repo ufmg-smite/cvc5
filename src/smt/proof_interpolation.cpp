@@ -15,70 +15,93 @@
 #include <iostream>
 #include <vector>
 
-#include "expr/node_algorithm.h"
 #include "base/output.h"
+#include "expr/node_algorithm.h"
 #include "proof/proof_generator.h"
-
 
 namespace cvc5::internal {
 namespace smt {
 
-static bool isLocalA(Node pivot,
-                     const std::unordered_set<Node>& symbolsA,
-                     const std::unordered_set<Node>& symbolsB)
+ItpColor getColor(Node atom,
+                     const std::unordered_set<Node>& aSymbols,
+                     const std::unordered_set<Node>& bSymbols)
 {
-  std::unordered_set<Node> pivotSymbols;
-  expr::getSymbols(pivot, pivotSymbols);
+  std::unordered_set<Node> atomSymbols;
+  expr::getSymbols(atom, atomSymbols);
 
-  if (pivotSymbols.empty())
-  {
-    return false;
-  }
+  bool ALocal = false;
+  bool BLocal = false;
 
-  for (const Node& s : pivotSymbols)
+  for (const Node& s : atomSymbols)
   {
-    if (symbolsB.find(s) == symbolsB.end())
+    if (bSymbols.find(s) == bSymbols.end())
     {
-      return true;
+      ALocal = true;
+    }
+    else if (aSymbols.find(s) == aSymbols.end())
+    {
+      BLocal = true;
     }
   }
 
-  return false;
-}
-
-static bool isSharedLiteral(Node literal, std::unordered_set<Node>& bSymbols)
-{
-  std::unordered_set<Node> litSymbols;
-  expr::getSymbols(literal, litSymbols);
-
-  if (litSymbols.empty()) return false;
-
-  for (const Node& n : litSymbols)
+  if (ALocal && BLocal)
   {
-    if (bSymbols.find(n) == bSymbols.end()) return false;
+    return ItpColor::MIXED;
   }
-  return true;
+  if (ALocal)
+  {
+    return ItpColor::A_LOCAL;
+  }
+  if (BLocal)
+  {
+    return ItpColor::B_LOCAL;
+  }
+  return ItpColor::SHARED;
 }
 
-static Node shared(Node clause,
-                   std::unordered_set<Node>& bSymbols,
-                   NodeManager* nm)
+static Node resolutionItp(Node pivot,
+                          Node itp1,
+                          Node itp2,
+                          const std::unordered_set<Node>& aSymbols,
+                          const std::unordered_set<Node>& bSymbols,
+                          NodeManager* nm)
 {
-  std::vector<Node> sharedVar;
+  ItpColor color = getColor(pivot, aSymbols, bSymbols);
+  if (color == ItpColor::MIXED)
+  {
+    // TODO:
+    Trace("itp") << "mixed" << pivot << std::endl;
+  }
+  if (color == ItpColor::A_LOCAL || color == ItpColor::MIXED)
+  {
+    return nm->mkNode(Kind::OR, itp1, itp2);
+  }
+  return nm->mkNode(Kind::AND, itp1, itp2);
+}
+
+static Node aClauseItp(Node clause,
+                       const std::unordered_set<Node>& aSymbols,
+                       const std::unordered_set<Node>& bSymbols,
+                       NodeManager* nm)
+{
+  std::vector<Node> sharedLits;
 
   if (clause.getKind() == Kind::OR)
   {
     for (const Node& literal : clause)
     {
-      if (isSharedLiteral(literal, bSymbols)) sharedVar.push_back(literal);
+      if (getColor(literal, aSymbols, bSymbols) == ItpColor::SHARED)
+      {
+        sharedLits.push_back(literal);
+      }
     }
   }
-  else
+  else if (getColor(clause, aSymbols, bSymbols) == ItpColor::SHARED)
   {
-    if (isSharedLiteral(clause, bSymbols)) sharedVar.push_back(clause);
+    sharedLits.push_back(clause);
   }
 
-  return nm->mkOr(sharedVar);
+  return nm->mkOr(sharedLits);
 }
 
 void partition(const std::vector<Node>& aTerms,
@@ -88,14 +111,13 @@ void partition(const std::vector<Node>& aTerms,
                std::unordered_set<Node>& aSymbols,
                std::unordered_set<Node>& bSymbols)
 {
-
   std::unordered_set<Node> aSet(aTerms.begin(), aTerms.end());
 
-  //divide assertions between A and B
+  // divide assertions between A and B
   for (const Node& n : assertions)
   {
     bool inA = aSet.find(n) != aSet.end();
-  
+
     std::unordered_set<Node>& target = inA ? aAssertions : bAssertions;
 
     target.insert(n);
@@ -119,7 +141,7 @@ void partition(const std::vector<Node>& aTerms,
   }
 }
 
-//Workaround - temporario
+// Workaround - temporario
 static ProofNode* findRegisteredLeaf(ProofNode* p,
                                      const Env::LeafGenMap& leafGen)
 {
@@ -164,14 +186,21 @@ Node getItp(std::shared_ptr<ProofNode> p,
   switch (p->getRule())
   {
     case ProofRule::SCOPE:
-      result = getItp(p->getChildren()[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
+      result = getItp(p->getChildren()[0],
+                      aAssertions,
+                      bAssertions,
+                      aSymbols,
+                      bSymbols,
+                      nm,
+                      cache,
+                      leafGen);
       break;
     case ProofRule::ASSUME:
     {
       Node f = p->getResult();
       if (aAssertions.find(f) != aAssertions.end())
       {
-        result = shared(f, bSymbols, nm);
+        result = aClauseItp(f, aSymbols, bSymbols, nm);
       }
       else if (bAssertions.find(f) != bAssertions.end())
       {
@@ -183,24 +212,28 @@ Node getItp(std::shared_ptr<ProofNode> p,
     {
       const auto& children = p->getChildren();
 
-      Node itp0 = getItp(
-          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
+      Node itp0 = getItp(children[0],
+                         aAssertions,
+                         bAssertions,
+                         aSymbols,
+                         bSymbols,
+                         nm,
+                         cache,
+                         leafGen);
 
-      Node itp1 = getItp(
-          children[1], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
+      Node itp1 = getItp(children[1],
+                         aAssertions,
+                         bAssertions,
+                         aSymbols,
+                         bSymbols,
+                         nm,
+                         cache,
+                         leafGen);
 
       Node pivot = children[0]->getResult();
 
-      bool pivotLocalA = isLocalA(pivot, aSymbols, bSymbols);
+      result = resolutionItp(pivot, itp0, itp1, aSymbols, bSymbols, nm);
 
-      if (pivotLocalA)
-      {
-        result = nm->mkNode(Kind::OR, itp0, itp1);
-      }
-      else
-      {
-        result = nm->mkNode(Kind::AND, itp0, itp1);
-      }
       break;
     }
     case ProofRule::CHAIN_RESOLUTION:
@@ -209,8 +242,14 @@ Node getItp(std::shared_ptr<ProofNode> p,
       const auto& children = p->getChildren();
       const auto& args = p->getArguments();
 
-      Node itp0 = getItp(
-          children[0], aAssertions, bAssertions, aSymbols, bSymbols, nm, cache, leafGen);
+      Node itp0 = getItp(children[0],
+                         aAssertions,
+                         bAssertions,
+                         aSymbols,
+                         bSymbols,
+                         nm,
+                         cache,
+                         leafGen);
 
       for (size_t i = 1; i < children.size(); i++)
       {
@@ -220,7 +259,8 @@ Node getItp(std::shared_ptr<ProofNode> p,
                                 aSymbols,
                                 bSymbols,
                                 nm,
-                                cache, leafGen);
+                                cache,
+                                leafGen);
         Node pivot;
 
         if (p->getRule() == ProofRule::CHAIN_RESOLUTION)
@@ -232,22 +272,14 @@ Node getItp(std::shared_ptr<ProofNode> p,
           pivot = args[2][i - 1];
         }
 
-        bool pivotLocalA = isLocalA(pivot, aSymbols, bSymbols);
-
-        if (pivotLocalA)
-        {
-          itp0 = nm->mkNode(Kind::OR, itp0, child_itp);
-        }
-        else
-        {
-          itp0 = nm->mkNode(Kind::AND, itp0, child_itp);
-        }
+        itp0 = resolutionItp(pivot, itp0, child_itp, aSymbols, bSymbols, nm);
       }
       result = itp0;
       break;
     }
     case ProofRule::REORDERING:
     case ProofRule::FACTORING:
+    case ProofRule::SYMM:
     {
       result = getItp(p->getChildren()[0],
                       aAssertions,
@@ -264,25 +296,22 @@ Node getItp(std::shared_ptr<ProofNode> p,
       ProofNode* leaf = findRegisteredLeaf(p.get(), leafGen);
       if (leaf != nullptr)
       {
-        //Found a theory lemma:
+        // Found a theory lemma:
         Node conc = leaf->getResult();
         ProofGenerator* gen = leafGen.find(conc)->second;
         result = gen->getPartialInterpolant(conc, aSymbols, bSymbols, nm);
-        Trace("itp") << "getItp: rule: " << p->getRule()
-                          << " - lemma: " << conc << " -> " << result
-                          << std::endl;
+        Trace("itp") << "getItp: rule: " << p->getRule() << " - lemma: " << conc
+                     << " -> " << result << std::endl;
       }
       else
       {
-        //Not implemented yet :(
-        Trace("itp") << "regra sem registro: "
-                          << p->getRule() << " conclusao: " << p->getResult()
-                          << std::endl;
+        // Not implemented yet :(
+        Trace("itp") << "regra sem registro: " << p->getRule()
+                     << " conclusao: " << p->getResult() << std::endl;
         result = nm->mkConst(true);
       }
       break;
     }
-
   }
 
   cache[p.get()] = result;
