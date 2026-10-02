@@ -1,10 +1,7 @@
 ###############################################################################
-# Top contributors (to current version):
-#   Aina Niemetz, Andrew Reynolds
-#
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -13,6 +10,7 @@
 # The build system configuration.
 ##
 
+cvc5_add_api_test(issue10104 "issues")
 cvc5_add_api_test(issue11069 "issues")
 cvc5_add_api_test(issue5074 "issues")
 cvc5_add_api_test(issue5893 "issues")
@@ -43,6 +41,7 @@ cvc5_add_api_test(proj-issue484 "issues")
 cvc5_add_api_test(proj-issue538 "issues")
 cvc5_add_api_test(proj-issue570 "issues")
 cvc5_add_api_test(proj-issue575 "issues")
+cvc5_add_api_test(proj-issue617 "issues")
 cvc5_add_api_test(proj-issue654 "issues")
 cvc5_add_api_test(proj-issue655 "issues")
 cvc5_add_api_test(proj-issue666 "issues")
@@ -61,7 +60,12 @@ if (NOT ENABLE_SAFE_MODE AND NOT ENABLE_STABLE_MODE)
   cvc5_add_api_test(proj-issue426 "issues")
   cvc5_add_api_test(proj-issue436 "issues")
   cvc5_add_api_test(proj-issue440 "issues")
+  cvc5_add_api_test(proj-issue442 "issues")
   cvc5_add_api_test(proj-issue445 "issues")
+  cvc5_add_api_test(proj-issue487 "issues")
+  cvc5_add_api_test(proj-issue526 "issues")
+  cvc5_add_api_test(proj-issue537 "issues")
+  cvc5_add_api_test(proj-issue565 "issues")
   cvc5_add_api_test(proj-issue567 "issues")
   cvc5_add_api_test(proj-issue573 "issues")
   cvc5_add_api_test(proj-issue574 "issues")
@@ -69,14 +73,23 @@ if (NOT ENABLE_SAFE_MODE AND NOT ENABLE_STABLE_MODE)
   cvc5_add_api_test(proj-issue580 "issues")
   cvc5_add_api_test(proj-issue581 "issues")
   cvc5_add_api_test(proj-issue587 "issues")
+  cvc5_add_api_test(proj-issue588 "issues")
+  cvc5_add_api_test(proj-issue592 "issues")
   cvc5_add_api_test(proj-issue600 "issues")
   cvc5_add_api_test(proj-issue611 "issues")
   cvc5_add_api_test(proj-issue612 "issues")
+  cvc5_add_api_test(proj-issue613 "issues")
   cvc5_add_api_test(proj-issue618 "issues")
   cvc5_add_api_test(proj-issue621 "issues")
+  cvc5_add_api_test(proj-issue624 "issues")
   cvc5_add_api_test(proj-issue644 "issues")
   cvc5_add_api_test(proj-issue646 "issues")
   cvc5_add_api_test(proj-issue652 "issues")
   cvc5_add_api_test(proj-issue656 "issues")
   cvc5_add_api_test(proj-issue657 "issues")
+  cvc5_add_api_test(proj-issue663 "issues")
+  cvc5_add_api_test(proj-issue671 "issues")
+  cvc5_add_api_test(proj-issue675 "issues")
+  cvc5_add_api_test(proj-issue676 "issues")
+  cvc5_add_api_test(proj-issue695 "issues")
 endif()

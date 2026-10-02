@@ -1,10 +1,7 @@
 /******************************************************************************
- * Top contributors (to current version):
- *   Gereon Kremer, Andrew Reynolds, Aina Niemetz
- *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2026 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -55,8 +52,11 @@ class CDCAC : protected EnvObj
   /** Reset this instance. */
   void reset();
 
-  /** Collect variables from the constraints and compute a variable ordering. */
-  void computeVariableOrdering();
+  /**
+   * Collect variables from the constraints and compute a variable ordering,
+   * possibly reversed.
+   */
+  void computeVariableOrdering(bool reverse = false);
 
   /**
    * Extract an initial assignment from the given model.
@@ -150,6 +150,12 @@ class CDCAC : protected EnvObj
    * unsat cover, but merely a list of infeasible intervals.
    */
   std::vector<CACInterval> getUnsatCover(bool returnFirstInterval = false);
+
+  /**
+   * Whether getUnsatCover() was aborted because a polynomial was nullified
+   * over the current assignment, in which case its result is meaningless.
+   */
+  bool foundNullifiedPolynomial() const { return d_nullified; }
 
   void startNewProof();
   /**
@@ -248,6 +254,8 @@ class CDCAC : protected EnvObj
    * later call may replace it.
    */
   bool d_univCovered = false;
+  /** See foundNullifiedPolynomial() */
+  bool d_nullified = false;
 };
 
 }  // namespace coverings
