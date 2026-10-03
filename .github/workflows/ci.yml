@@ -86,8 +86,8 @@ jobs:
             os: ubuntu-24.04
             use-clang: true
             use-libcxx: true
-            config: production --auto-download -DBUILD_GMP=1 --cocoa --gpl
-            cache-key: production-libcxx
+            config: unrestricted --auto-download -DBUILD_GMP=1 --cocoa --gpl
+            cache-key: unrestricted-libcxx
             strip-bin: strip
             check-examples: true
             package-name: cvc5-Linux-x86_64-libcxx
@@ -96,8 +96,8 @@ jobs:
 
           - name: ubuntu:unrestricted-arm64
             os: ubuntu-22.04-arm
-            config: production --auto-download --all-bindings --editline -DBUILD_GMP=1 --cocoa --gpl
-            cache-key: production-arm64
+            config: unrestricted --auto-download --all-bindings --editline -DBUILD_GMP=1 --cocoa --gpl
+            cache-key: unrestricted-arm64
             strip-bin: strip
             python-bindings: true
             java-bindings: true
@@ -110,8 +110,8 @@ jobs:
             os: ubuntu-24.04-arm
             use-clang: true
             use-libcxx: true
-            config: production --auto-download -DBUILD_GMP=1 --cocoa --gpl
-            cache-key: production-arm64-libcxx
+            config: unrestricted --auto-download -DBUILD_GMP=1 --cocoa --gpl
+            cache-key: unrestricted-arm64-libcxx
             strip-bin: strip
             check-examples: true
             package-name: cvc5-Linux-arm64-libcxx
@@ -120,8 +120,8 @@ jobs:
 
           - name: macos:unrestricted
             os: macos-15-intel
-            config: production --auto-download --all-bindings --editline -DBUILD_GMP=1 --cocoa --gpl
-            cache-key: production
+            config: unrestricted --auto-download --all-bindings --editline -DBUILD_GMP=1 --cocoa --gpl
+            cache-key: unrestricted
             strip-bin: strip
             python-bindings: true
             java-bindings: true
@@ -133,8 +133,8 @@ jobs:
 
           - name: macos:unrestricted-arm64
             os: macos-15
-            config: production --auto-download --all-bindings --editline -DBUILD_GMP=1 --cocoa --gpl
-            cache-key: production-arm64
+            config: unrestricted --auto-download --all-bindings --editline -DBUILD_GMP=1 --cocoa --gpl
+            cache-key: unrestricted-arm64
             strip-bin: strip
             python-bindings: true
             java-bindings: true
@@ -147,8 +147,8 @@ jobs:
 
           - name: win64:unrestricted
             os: windows-latest
-            config: production --auto-download --all-bindings 
-            cache-key: production-win64-native
+            config: unrestricted --auto-download --all-bindings 
+            cache-key: unrestricted-win64-native
             strip-bin: strip
             python-bindings: true
             java-bindings: true
@@ -161,8 +161,8 @@ jobs:
 
           - name: win64:unrestricted-arm64
             os: windows-11-arm
-            config: production --auto-download --all-bindings 
-            cache-key: production-win64-native-arm64
+            config: unrestricted --auto-download --all-bindings 
+            cache-key: unrestricted-win64-native-arm64
             strip-bin: strip
             python-bindings: true
             java-bindings: true
