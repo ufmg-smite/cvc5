@@ -137,6 +137,7 @@ Node CoveringsProofRuleChecker::checkInternal(ProofRule id,
                                               const std::vector<Node>& children,
                                               const std::vector<Node>& args)
 {
+  (void) children; // hack for avoiding unused variable error on CI
   // TODO: Actually check the proof.
   if (id == ProofRule::ARITH_COVERINGS_UNIV)
   {
