@@ -67,19 +67,39 @@ Node sturmTarskiNode(NodeManager* nm,
       poly::signed_remainder_sequence(q, poly::derivative(q) * p), var);
 }
 
+namespace {
+/** Whether v is an algebraic number whose isolating interval is not a point. */
+bool isProperAlgebraic(const poly::Value& v)
+{
+  return poly::is_algebraic_number(v)
+         && poly::get_lower_bound(poly::as_algebraic_number(v))
+                != poly::get_upper_bound(poly::as_algebraic_number(v));
+}
+}  // namespace
+
 RootMap buildRootMap(
     const std::vector<std::pair<poly::Polynomial, poly::Value>>& polyRoots)
 {
   RootMap rootMap;
 
+  std::vector<poly::Value> sorted;
   for (const auto& pr : polyRoots)
   {
-    rootMap.d_roots.push_back(pr.second);
+    sorted.push_back(pr.second);
   }
-  std::sort(rootMap.d_roots.begin(), rootMap.d_roots.end());
-  rootMap.d_roots.erase(
-      std::unique(rootMap.d_roots.begin(), rootMap.d_roots.end()),
-      rootMap.d_roots.end());
+  std::sort(sorted.begin(), sorted.end());
+  for (const auto& v : sorted)
+  {
+    if (!rootMap.d_roots.empty() && rootMap.d_roots.back() == v)
+    {
+      if (isProperAlgebraic(rootMap.d_roots.back()) && !isProperAlgebraic(v))
+      {
+        rootMap.d_roots.back() = v;
+      }
+      continue;
+    }
+    rootMap.d_roots.push_back(v);
+  }
 
   for (const auto& pr : polyRoots)
   {
@@ -360,6 +380,57 @@ void CoveringsProofGenerator::addIntervals(
     if (!poly::get_upper_open(interval))
     {
       addPointPiece(upper, polynomial, originalConstraint);
+    }
+  }
+}
+
+void CoveringsProofGenerator::normalizeEndpoints()
+{
+  // `d_roots` is sorted and has one value per distinct number, so separating
+  // each pair of neighbours separates all of them. Refining only shrinks an
+  // isolating interval, so pairs already separated stay separated, and it
+  // terminates since the numbers are distinct.
+  std::vector<poly::Value>& roots = d_rootMap.d_roots;
+  for (size_t i = 0; i + 1 < roots.size(); ++i)
+  {
+    size_t steps = 0;
+    while (!(poly_utils::toRationalAbove(roots[i])
+             < poly_utils::toRationalBelow(roots[i + 1])))
+    {
+      for (size_t j : {i, i + 1})
+      {
+        if (isProperAlgebraic(roots[j]))
+        {
+          poly::AlgebraicNumber an(poly::as_algebraic_number(roots[j]));
+          poly::refine(an);
+          roots[j] = poly::Value(an);
+        }
+      }
+      AlwaysAssert(++steps < 1000) << "normalizeEndpoints: cannot separate "
+                                   << roots[i] << " and " << roots[i + 1];
+    }
+  }
+  // every copy of a number in `d_intervals` gets the same representation
+  auto canon = [this](const poly::Value& v) {
+    if (poly::is_minus_infinity(v) || poly::is_plus_infinity(v))
+    {
+      return v;
+    }
+    return d_rootMap.d_roots[d_rootMap.rootIndex(v)];
+  };
+  for (auto& pInterval : d_intervals)
+  {
+    const poly::Interval& interval = pInterval.d_interval;
+    if (poly::is_point(interval))
+    {
+      pInterval.d_interval = poly::Interval(canon(poly::get_lower(interval)));
+    }
+    else
+    {
+      pInterval.d_interval = poly::Interval(canon(poly::get_lower(interval)),
+                                            poly::get_lower_open(interval),
+                                            canon(poly::get_upper(interval)),
+                                            poly::get_upper_open(interval));
     }
   }
 }
@@ -710,6 +781,7 @@ void CoveringsProofGenerator::closeUnivProof(std::vector<Node> constraints,
   }
   else
   {
+    normalizeEndpoints();
     Node coverConc = addCoverStep(var);
     addIntroSteps(var, vm);
     addElimSteps(var, vm);

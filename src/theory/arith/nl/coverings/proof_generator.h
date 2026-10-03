@@ -166,6 +166,13 @@ class CoveringsProofGenerator : protected EnvObj
   // whose corresponding polynomial contains a root in the middle of it.
   void addIntervals(const std::vector<CACInterval>& intervals,
                     const std::map<Node, poly::Polynomial>& constraintPolys);
+
+  // Refines the algebraic numbers of `d_rootMap` until all isolating intervals
+  // are strictly separated from each other and from the rational roots, and
+  // gives every endpoint in `d_intervals` the representation of its number
+  // there, so that all steps of the proof agree on it. The checker compares
+  // endpoints through their isolating intervals.
+  void normalizeEndpoints();
   Node addCoverStep(const Node& var);
 
   // For each piece in `d_intervals`, adds the step introducing its fact:
