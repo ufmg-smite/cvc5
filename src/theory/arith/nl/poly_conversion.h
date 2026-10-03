@@ -71,8 +71,7 @@ std::vector<std::pair<poly::UPolynomial, poly::UPolynomial>> enhancedRemSeq(
  * pairs of enhancedRemSeq(seq), each an SEXPR (a b) of polynomials over var.
  */
 cvc5::internal::Node as_cvc_remainder_sequence(
-    const std::vector<poly::UPolynomial>& seq,
-    const cvc5::internal::Node& var);
+    const std::vector<poly::UPolynomial>& seq, const cvc5::internal::Node& var);
 
 /**
  * Convert a cvc5::internal::Node to a poly univariate polynomial. Is robust to
@@ -224,8 +223,8 @@ class PolyConverter
   /**
    * Get a REAL_ALGEBRAIC_NUMBER_WITNESS node for the given ran: the ran
    * together with the Sturm sequence of its defining polynomial (an SEXPR of
-   * polynomials over variable ran_variable). Returns null if the ran is represented by a
-   * rational (and hence has no defining polynomial).
+   * polynomials over variable ran_variable). Returns null if the ran is
+   * represented by a rational (and hence has no defining polynomial).
    */
   static Node ran_to_sturm_witness(const RealAlgebraicNumber& ran,
                                    const Node& ran_variable);

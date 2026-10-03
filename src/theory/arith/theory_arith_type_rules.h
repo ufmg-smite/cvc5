@@ -153,22 +153,22 @@ class IndexedRootPredicateTypeRule
  */
 class SgnInvTypeRule
 {
-  public:
-    static TypeNode preComputeType(NodeManager* nm, TNode n);
-    static TypeNode computeType(NodeManager* nodeManager,
-                                TNode n,
-                                bool check,
-                                std::ostream* errOut);
+ public:
+  static TypeNode preComputeType(NodeManager* nm, TNode n);
+  static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
 };
 
 class IsRootTypeRule
 {
-  public:
-    static TypeNode preComputeType(NodeManager* nm, TNode n);
-    static TypeNode computeType(NodeManager* nodeManager,
-                                TNode n,
-                                bool check,
-                                std::ostream* errOut);
+ public:
+  static TypeNode preComputeType(NodeManager* nm, TNode n);
+  static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
 };
 
 /**

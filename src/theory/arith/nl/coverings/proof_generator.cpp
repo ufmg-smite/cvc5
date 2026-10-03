@@ -552,7 +552,8 @@ void CoveringsProofGenerator::addIntroSteps(const Node& var, VariableMapper& vm)
       pInterval.d_fact = fact;
       continue;
     }
-    Node sturmSeq = nl::as_cvc_remainder_sequence(poly::sturm_sequence(up), var);
+    Node sturmSeq =
+        nl::as_cvc_remainder_sequence(poly::sturm_sequence(up), var);
     const poly::Value& lower = poly::get_lower(interval);
     const poly::Value& upper = poly::get_upper(interval);
     Node l = value_to_node_no_integer(lower, var);

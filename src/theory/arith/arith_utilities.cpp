@@ -113,9 +113,9 @@ Node mkOne(const TypeNode& tn, bool isNeg)
 }
 
 Node mkOpenPiece(NodeManager* nm,
-                        const Node& var,
-                        const Node& lower,
-                        const Node& upper)
+                 const Node& var,
+                 const Node& lower,
+                 const Node& upper)
 {
   std::vector<Node> conjs;
   if (lower.getKind() != Kind::MINUS_INFINITY)

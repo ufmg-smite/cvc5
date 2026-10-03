@@ -321,9 +321,9 @@ inline Node mkIsRoot(NodeManager* nm, Node p, Node r)
  * null node for (-inf, +inf), whose disjunct would be trivially true.
  */
 Node mkOpenPiece(NodeManager* nm,
-                        const Node& var,
-                        const Node& lower,
-                        const Node& upper);
+                 const Node& var,
+                 const Node& lower,
+                 const Node& upper);
 
 /** Join kinds, where k1 and k2 are arithmetic relations returns an
  * arithmetic relation ret such that

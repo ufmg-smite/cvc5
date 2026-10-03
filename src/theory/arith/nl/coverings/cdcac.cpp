@@ -13,8 +13,9 @@
 
 #include "theory/arith/nl/coverings/cdcac.h"
 
-#include "theory/arith/nl/transcendental/transcendental_solver.h"
 #include <algorithm>
+
+#include "theory/arith/nl/transcendental/transcendental_solver.h"
 
 #ifdef CVC5_POLY_IMP
 
@@ -110,7 +111,7 @@ void CDCAC::computeVariableOrdering(bool reverse)
     lp_variable_order_push(vo, v.get_internal());
   }
   d_isUniv = true;
-  for (const auto& c: d_constraints.getConstraints())
+  for (const auto& c : d_constraints.getConstraints())
   {
     if (!poly::is_univariate(std::get<0>(c)))
     {

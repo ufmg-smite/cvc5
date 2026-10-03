@@ -15,8 +15,8 @@
 #ifdef CVC5_POLY_IMP
 
 #include "expr/node.h"
-#include "theory/arith/bound_inference.h"
 #include "theory/arith/arith_utilities.h"
+#include "theory/arith/bound_inference.h"
 #include "util/poly_util.h"
 
 using namespace cvc5::internal::kind;

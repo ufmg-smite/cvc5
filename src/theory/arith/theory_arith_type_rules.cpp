@@ -306,8 +306,7 @@ TypeNode IndexedRootPredicateTypeRule::computeType(NodeManager* nodeManager,
   return nodeManager->booleanType();
 }
 
-TypeNode SgnInvTypeRule::preComputeType(NodeManager* nm,
-                                        CVC5_UNUSED TNode n)
+TypeNode SgnInvTypeRule::preComputeType(NodeManager* nm, CVC5_UNUSED TNode n)
 {
   return nm->booleanType();
 }
@@ -357,8 +356,7 @@ TypeNode SgnInvTypeRule::computeType(NodeManager* nm,
   return nm->booleanType();
 }
 
-TypeNode IsRootTypeRule::preComputeType(NodeManager* nm,
-                                        CVC5_UNUSED TNode n)
+TypeNode IsRootTypeRule::preComputeType(NodeManager* nm, CVC5_UNUSED TNode n)
 {
   return nm->booleanType();
 }
@@ -378,9 +376,9 @@ TypeNode IsRootTypeRule::computeType(NodeManager* nm,
       }
       return TypeNode::null();
     }
-    if (!n[1].getTypeOrNull().isRealOrInt() ||
-        n[1].getKind() == Kind::PLUS_INFINITY ||
-        n[1].getKind() == Kind::MINUS_INFINITY)
+    if (!n[1].getTypeOrNull().isRealOrInt()
+        || n[1].getKind() == Kind::PLUS_INFINITY
+        || n[1].getKind() == Kind::MINUS_INFINITY)
     {
       if (errOut)
       {
@@ -392,8 +390,8 @@ TypeNode IsRootTypeRule::computeType(NodeManager* nm,
   return nm->booleanType();
 }
 
-TypeNode RealAlgebraicNumberWitnessTypeRule::preComputeType(
-    NodeManager* nm, CVC5_UNUSED TNode n)
+TypeNode RealAlgebraicNumberWitnessTypeRule::preComputeType(NodeManager* nm,
+                                                            CVC5_UNUSED TNode n)
 {
   return nm->realType();
 }

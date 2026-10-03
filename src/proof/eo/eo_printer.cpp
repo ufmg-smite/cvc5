@@ -151,8 +151,7 @@ bool EoPrinter::isHandled(const Options& opts, const ProofNode* pfn)
     case ProofRule::IS_ROOT_INTRO:
     case ProofRule::COVER:
     case ProofRule::SGN_INV_ELIM:
-    case ProofRule::RAN_EVAL:
-      return true;
+    case ProofRule::RAN_EVAL: return true;
     case ProofRule::ARITH_COVERINGS_UNIV:
     {
       // Kind k = pfn->getArguments()[2][1].getKind();

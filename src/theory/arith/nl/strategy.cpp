@@ -170,7 +170,8 @@ void Strategy::initializeStrategy(const Options& options)
     one << InferStep::COVERINGS_FULL << InferStep::BREAK;
   }
   if (options.arith.nlExt == options::NlExtMode::FULL
-      && (!options.arith.nlCov || options.arith.nlCovForce) && !options.arith.nlCovAlways)
+      && (!options.arith.nlCov || options.arith.nlCovForce)
+      && !options.arith.nlCovAlways)
   {
     // if nl-cov is not enabled or we forced it to be enabled, then we use
     // heuristic non-terminating techniques as a last resort
